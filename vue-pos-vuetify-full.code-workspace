@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../POS for Ibrahim"
+		},
+		{
+			"path": "../../Intalio-MS/admin-portal-ms"
+		},
+		{
+			"path": "../../Intalio-MS/icts-screens"
+		},
+		{
+			"path": "../../Intalio-MS/config-server-ms"
+		}
+	],
+	"settings": {}
+}
