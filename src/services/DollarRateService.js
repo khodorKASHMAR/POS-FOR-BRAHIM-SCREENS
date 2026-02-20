@@ -1,19 +1,11 @@
-import axios from 'axios'
-
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  }
-})
+import PosAxios from './index.js'
 
 export default {
   getDollarRate() {
-    return api.get('/dollar-rate')
+    return PosAxios.get('/dollar-rate')
   },
 
   updateDollarRate(payload) {
-    return api.post('/dollar-rate', payload)
+    return PosAxios.post('/dollar-rate', payload)
   }
 }

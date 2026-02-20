@@ -1,12 +1,15 @@
-
 import { createRouter, createWebHistory } from 'vue-router'
-import Home from '../pages/Home.vue'
+import Pos from '../pages/Pos.vue'
 import AddItems from '../pages/AddItems.vue'
+import Users from '../pages/Users.vue'
+import LoginPage from '../pages/LoginPage.vue'
 import { useUserStore } from '../store/user'
 
 const routes = [
-  { path: '/', component: Home },
-  { path: '/add-items', component: AddItems, meta:{admin:true} }
+  { path: '/login', name: 'Login', component: LoginPage, meta: { requiresAuth: false } },
+  { path: '/', name: 'Pos', component: Pos, meta: { requiresAuth: true, admin: false } },
+  { path: '/add-items', name: 'AddItems', component: AddItems, meta: { requiresAuth: true, admin: true } },
+  { path: '/users', name: 'Users', component: Users, meta: { requiresAuth: true, admin: true } }
 ]
 
 const router = createRouter({
@@ -14,9 +17,19 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to)=>{
+router.beforeEach((to, from, next) => {
+  const isAuthenticated = !!localStorage.getItem('token')
   const u = useUserStore()
-  if(to.meta.admin && u.user.role!=='admin') return '/'
+
+  if (to.meta.requiresAuth && !isAuthenticated) {
+    next('/login')
+  } else if (to.path === '/login' && isAuthenticated) {
+    next('/')
+  } else if (to.meta.admin && u.user.role !== 'admin') {
+    next('/')
+  } else {
+    next()
+  }
 })
 
 export default router

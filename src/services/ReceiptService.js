@@ -1,12 +1,4 @@
-import axios from 'axios'
-
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api',
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  }
-})
+import PosAxios from './index.js'
 
 /**
  * Save a receipt (ReceiptRequestDTO).
@@ -28,7 +20,7 @@ export function saveReceipt(receipt) {
       subTotal: Number(ri.subTotal) ?? 0
     }))
   }
-  return api.post('/receipt', payload)
+  return PosAxios.post('/receipt', payload)
 }
 
 export default {

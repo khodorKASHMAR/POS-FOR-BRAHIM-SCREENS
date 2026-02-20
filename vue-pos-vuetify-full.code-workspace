@@ -4,16 +4,16 @@
 			"path": "."
 		},
 		{
-			"path": "../POS for Ibrahim"
+			"path": "../POS-FOR-BRAHIM"
 		},
 		{
-			"path": "../../Intalio-MS/admin-portal-ms"
+			"path": "../../../test deploy"
 		},
 		{
-			"path": "../../Intalio-MS/icts-screens"
+			"path": "../../Psychology/analyzer-screens"
 		},
 		{
-			"path": "../../Intalio-MS/config-server-ms"
+			"path": "../../../Intalio-MS/icts-screens"
 		}
 	],
 	"settings": {}

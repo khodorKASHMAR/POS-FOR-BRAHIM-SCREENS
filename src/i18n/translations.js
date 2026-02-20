@@ -1,6 +1,7 @@
 export const translations = {
   en: {
-    // Navbar
+    // Navbar / Brand
+    brandName: 'Ibrahim Institution',
     posSystem: 'POS System',
     logout: 'Logout',
     confirmLogout: 'Confirm Logout',
@@ -10,9 +11,11 @@ export const translations = {
     lebanesePound: 'Lebanese Pound',
     
     // Sidebar
+    pos: 'POS',
+    pointOfSale: 'Point of Sale',
     home: 'Home',
     addItems: 'Add Items',
-    admin: 'Admin',
+    users: 'Users',
     
     // Home Page
     items: 'ITEMS',
@@ -93,6 +96,26 @@ export const translations = {
     receiptSavedLbp: 'Receipt saved (LBP)',
     receiptSaveFailed: 'Failed to save receipt',
 
+    // Users page
+    addUser: 'Add User',
+    editUser: 'Edit User',
+    deleteUser: 'Delete User',
+    deleteUserConfirm: 'Are you sure you want to delete this user?',
+    userName: 'User Name',
+    password: 'Password',
+    firstName: 'First Name',
+    lastName: 'Last Name',
+    email: 'Email',
+    phoneNumber: 'Phone Number',
+    leaveBlankToKeep: 'Leave blank to keep current',
+    userCreated: 'User created successfully',
+    userUpdated: 'User updated successfully',
+    userDeleted: 'User deleted successfully',
+    errorLoadingUsers: 'Failed to load users',
+    errorSavingUser: 'Failed to save user',
+    errorDeletingUser: 'Failed to delete user',
+    pleaseFillRequired: 'Please fill required fields',
+
     // Dialog placeholders
     placeholderNameAr: 'Enter a name in Arabic',
     placeholderNameEn: 'Enter a name in English',
@@ -117,7 +140,8 @@ export const translations = {
     cola: 'Cola'
   },
   ar: {
-    // Navbar
+    // Navbar / Brand
+    brandName: 'مؤسسة ابراهيم الحسيني',
     posSystem: 'نظام نقاط البيع',
     logout: 'تسجيل الخروج',
     confirmLogout: 'تأكيد تسجيل الخروج',
@@ -127,9 +151,11 @@ export const translations = {
     lebanesePound: 'ليرة لبنانية',
     
     // Sidebar
+    pos: 'نقطة البيع',
+    pointOfSale: 'نقطة البيع',
     home: 'الرئيسية',
     addItems: 'إضافة عناصر',
-    admin: 'المسؤول',
+    users: 'المستخدمون',
     
     // Home Page
     items: 'العناصر',
@@ -209,6 +235,26 @@ export const translations = {
     receiptSavedUsd: 'تم حفظ الفاتورة (دولار)',
     receiptSavedLbp: 'تم حفظ الفاتورة (ل.ل)',
     receiptSaveFailed: 'فشل حفظ الفاتورة',
+
+    // Users page
+    addUser: 'إضافة مستخدم',
+    editUser: 'تعديل المستخدم',
+    deleteUser: 'حذف المستخدم',
+    deleteUserConfirm: 'هل أنت متأكد من حذف هذا المستخدم؟',
+    userName: 'اسم المستخدم',
+    password: 'كلمة المرور',
+    firstName: 'الاسم الأول',
+    lastName: 'اسم العائلة',
+    email: 'البريد الإلكتروني',
+    phoneNumber: 'رقم الهاتف',
+    leaveBlankToKeep: 'اتركه فارغاً للإبقاء على الحالي',
+    userCreated: 'تم إنشاء المستخدم بنجاح',
+    userUpdated: 'تم تحديث المستخدم بنجاح',
+    userDeleted: 'تم حذف المستخدم بنجاح',
+    errorLoadingUsers: 'فشل تحميل المستخدمين',
+    errorSavingUser: 'فشل حفظ المستخدم',
+    errorDeletingUser: 'فشل حذف المستخدم',
+    pleaseFillRequired: 'يرجى تعبئة الحقول المطلوبة',
 
     // Dialog placeholders
     placeholderNameAr: 'أدخل الاسم بالعربية',

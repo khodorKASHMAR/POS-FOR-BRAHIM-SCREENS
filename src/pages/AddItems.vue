@@ -302,49 +302,57 @@
           <!-- Row 4: Prices (Buying + $/LBP, Selling + $/LBP) -->
           <v-row class="item-dialog-row price-row" align="center" :class="lang.dir === 'rtl' ? 'flex-row-reverse' : ''">
             <v-col cols="12" sm="5" class="price-field-col">
-              <div class="dialog-field-group">
+              <div class="dialog-field-group price-field-group">
                 <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
                   <span>{{ $t('buyingPrice') }}</span>
                   <span class="dialog-label-required">*</span>
                 </div>
-                <v-text-field
-                  :model-value="buyingPriceDisplay"
-                  type="number"
-                  persistent-placeholder
-                  :placeholder="$t('placeholderBuyingPrice')"
-                  variant="outlined"
-                  density="compact"
-                  :rules="[requiredRule, pricePositiveRule]"
-                  class="dialog-field price-field-no-arrows"
-                  @update:model-value="onBuyingPriceInput"
-                />
+                <div class="price-input-wrapper">
+                  <input
+                    :value="getBuyingPriceDisplayValue()"
+                    type="number"
+                    :step="itemForm.buyingPriceUnit === 'USD' ? 0.01 : 1"
+                    :placeholder="$t('placeholderBuyingPrice')"
+                    :class="['price-input-field', { 'price-input-error': buyingPriceError }]"
+                    @input="onBuyingPriceInput($event.target.value)"
+                    @blur="validateBuyingPrice"
+                    min="0"
+                  />
+                  <div v-if="buyingPriceError" class="price-input-error-message">
+                    {{ $t('priceMustBeGreaterThanZero') }}
+                  </div>
+                </div>
               </div>
             </v-col>
-            <v-col cols="12" sm="1" class="price-btn-col d-flex align-center">
+            <v-col cols="12" sm="1" class="price-btn-col d-flex align-end">
               <button type="button" class="price-unit-btn" @click="toggleBuyingPriceUnit">
                 {{ itemForm.buyingPriceUnit === 'USD' ? '$' : 'LBP' }}
               </button>
             </v-col>
             <v-col cols="12" sm="5" class="price-field-col">
-              <div class="dialog-field-group">
+              <div class="dialog-field-group price-field-group">
                 <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
                   <span>{{ $t('sellingPrice') }}</span>
                   <span class="dialog-label-required">*</span>
                 </div>
-                <v-text-field
-                  :model-value="sellingPriceDisplay"
-                  type="number"
-                  persistent-placeholder
-                  :placeholder="$t('placeholderSellingPrice')"
-                  variant="outlined"
-                  density="compact"
-                  :rules="[requiredRule, pricePositiveRule]"
-                  class="dialog-field price-field-no-arrows"
-                  @update:model-value="onSellingPriceInput"
-                />
+                <div class="price-input-wrapper">
+                  <input
+                    :value="getSellingPriceDisplayValue()"
+                    type="number"
+                    :step="itemForm.sellingPriceUnit === 'USD' ? 0.01 : 1"
+                    :placeholder="$t('placeholderSellingPrice')"
+                    :class="['price-input-field', { 'price-input-error': sellingPriceError }]"
+                    @input="onSellingPriceInput($event.target.value)"
+                    @blur="validateSellingPrice"
+                    min="0"
+                  />
+                  <div v-if="sellingPriceError" class="price-input-error-message">
+                    {{ $t('priceMustBeGreaterThanZero') }}
+                  </div>
+                </div>
               </div>
             </v-col>
-            <v-col cols="12" sm="1" class="price-btn-col d-flex align-center">
+            <v-col cols="12" sm="1" class="price-btn-col d-flex align-end">
               <button type="button" class="price-unit-btn" @click="toggleSellingPriceUnit">
                 {{ itemForm.sellingPriceUnit === 'USD' ? '$' : 'LBP' }}
               </button>
@@ -455,7 +463,6 @@ import CategoryService from '../services/CategoryService'
 import ItemService from '../services/ItemService'
 import HomeItemCard from '../components/HomeItemCard.vue'
 import TopBar from '../components/TopBar.vue'
-import { nullColor } from 'vuetify/components/VColorPicker/util'
 
 export default {
   name: 'AddItems',
@@ -543,6 +550,8 @@ export default {
     const itemImageInputRef = ref(null)
     const imageError = ref(false)
     const imagePreviewDialog = ref(false)
+    const buyingPriceError = ref(false)
+    const sellingPriceError = ref(false)
 
     // Computed
     const categoriesForSelect = computed(() => {
@@ -595,42 +604,111 @@ export default {
       return true
     }
 
-    const buyingPriceDisplay = computed({
-      get: () => {
-        const rate = itemForm.value.buyingDollarRate || 1
-        return itemForm.value.buyingPriceUnit === 'USD'
-          ? itemForm.value.buyingPriceDollar
-          : itemForm.value.buyingPriceDollar * rate
-      },
-      set: () => {}
-    })
+    /** Round to 2 decimal places for USD amounts */
+    const roundToTwo = (val) => {
+      return Math.round(Number(val) * 100) / 100
+    }
 
-    const sellingPriceDisplay = computed({
-      get: () => {
-        const rate = itemForm.value.buyingDollarRate || 1
-        return itemForm.value.sellingPriceUnit === 'USD'
-          ? itemForm.value.sellingPriceDollar
-          : itemForm.value.sellingPriceDollar * rate
-      },
-      set: () => {}
-    })
+    /** Round price for display/storage: USD = 2 decimals, LBP = integer (no decimals) */
+    const roundPriceForCurrency = (val, isDollar) => {
+      return isDollar ? roundToTwo(val) : Math.round(Number(val))
+    }
+
+    function getBuyingPriceDisplayValue() {
+      const rate = itemForm.value.buyingDollarRate || 1
+      const value = itemForm.value.buyingPriceUnit === 'USD'
+        ? itemForm.value.buyingPriceDollar
+        : itemForm.value.buyingPriceDollar * rate
+      // Format: USD = 2 decimals (always rounded), LBP = no decimals (integer)
+      if (value == null || value === '') return value
+      return roundPriceForCurrency(value, itemForm.value.buyingPriceUnit === 'USD')
+    }
+
+    function getSellingPriceDisplayValue() {
+      const rate = itemForm.value.buyingDollarRate || 1
+      const value = itemForm.value.sellingPriceUnit === 'USD'
+        ? itemForm.value.sellingPriceDollar
+        : itemForm.value.sellingPriceDollar * rate
+      // Format: USD = 2 decimals (always rounded), LBP = no decimals (integer)
+      if (value == null || value === '') return value
+      return roundPriceForCurrency(value, itemForm.value.sellingPriceUnit === 'USD')
+    }
 
     const onBuyingPriceInput = (val) => {
-      const num = Number(val)
-      if (isNaN(num)) return
+      // Clear error when user starts typing
+      buyingPriceError.value = false
+      
+      const value = parseFloat(val)
+      if (isNaN(value)) {
+        itemForm.value.buyingPriceDollar = 0
+        return
+      }
       const rate = itemForm.value.buyingDollarRate || 1
-      itemForm.value.buyingPriceDollar = itemForm.value.buyingPriceUnit === 'USD' ? num : num / rate
+      itemForm.value.buyingPriceDollar = itemForm.value.buyingPriceUnit === 'USD' ? value : value / rate
+    }
+
+    const validateBuyingPrice = () => {
+      const displayValue = getBuyingPriceDisplayValue()
+      const validationResult = pricePositiveRule(displayValue)
+      
+      if (validationResult !== true) {
+        buyingPriceError.value = true
+        return false
+      }
+      
+      buyingPriceError.value = false
+      
+      if (itemForm.value.buyingPriceDollar == null || isNaN(itemForm.value.buyingPriceDollar)) {
+        itemForm.value.buyingPriceDollar = 0
+        return true
+      }
+      const rate = itemForm.value.buyingDollarRate || 1
+      const currentDisplayValue = itemForm.value.buyingPriceUnit === 'USD'
+        ? itemForm.value.buyingPriceDollar
+        : itemForm.value.buyingPriceDollar * rate
+      const roundedDisplay = roundPriceForCurrency(currentDisplayValue, itemForm.value.buyingPriceUnit === 'USD')
+      itemForm.value.buyingPriceDollar = itemForm.value.buyingPriceUnit === 'USD' ? roundedDisplay : roundedDisplay / rate
+      return true
     }
 
     const onSellingPriceInput = (val) => {
-      const num = Number(val)
-      if (isNaN(num)) return
+      // Clear error when user starts typing
+      sellingPriceError.value = false
+      
+      const value = parseFloat(val)
+      if (isNaN(value)) {
+        itemForm.value.sellingPriceDollar = 0
+        return
+      }
       const rate = itemForm.value.buyingDollarRate || 1
-      itemForm.value.sellingPriceDollar = itemForm.value.sellingPriceUnit === 'USD' ? num : num / rate
+      itemForm.value.sellingPriceDollar = itemForm.value.sellingPriceUnit === 'USD' ? value : value / rate
+    }
+
+    const validateSellingPrice = () => {
+      const displayValue = getSellingPriceDisplayValue()
+      const validationResult = pricePositiveRule(displayValue)
+      
+      if (validationResult !== true) {
+        sellingPriceError.value = true
+        return false
+      }
+      
+      sellingPriceError.value = false
+      
+      if (itemForm.value.sellingPriceDollar == null || isNaN(itemForm.value.sellingPriceDollar)) {
+        itemForm.value.sellingPriceDollar = 0
+        return true
+      }
+      const rate = itemForm.value.buyingDollarRate || 1
+      const currentDisplayValue = itemForm.value.sellingPriceUnit === 'USD'
+        ? itemForm.value.sellingPriceDollar
+        : itemForm.value.sellingPriceDollar * rate
+      const roundedDisplay = roundPriceForCurrency(currentDisplayValue, itemForm.value.sellingPriceUnit === 'USD')
+      itemForm.value.sellingPriceDollar = itemForm.value.sellingPriceUnit === 'USD' ? roundedDisplay : roundedDisplay / rate
+      return true
     }
 
     const toggleBuyingPriceUnit = () => {
-      const rate = itemForm.value.buyingDollarRate || 1
       itemForm.value.buyingPriceUnit = itemForm.value.buyingPriceUnit === 'USD' ? 'LBP' : 'USD'
     }
 
@@ -855,8 +933,12 @@ export default {
         itemImagePreview.value = null
         itemImageFile.value = null
         imageError.value = false
+        buyingPriceError.value = false
+        sellingPriceError.value = false
         if (itemImageInputRef.value) itemImageInputRef.value.value = ''
       }
+      buyingPriceError.value = false
+      sellingPriceError.value = false
       itemDialog.value = true
     }
 
@@ -879,14 +961,21 @@ export default {
       itemImagePreview.value = null
       itemImageFile.value = null
       imageError.value = false
+      buyingPriceError.value = false
+      sellingPriceError.value = false
       if (itemImageInputRef.value) itemImageInputRef.value.value = ''
     }
 
     const saveItem = async () => {
       const hasImage = !!itemImageFile.value || !!itemImagePreview.value
       imageError.value = !editingItem.value && !hasImage
+      
+      // Validate price fields
+      const buyingPriceValid = validateBuyingPrice()
+      const sellingPriceValid = validateSellingPrice()
+      
       const { valid } = await itemFormRef.value?.validate() ?? { valid: false }
-      if (!valid || imageError.value) return
+      if (!valid || imageError.value || !buyingPriceValid || !sellingPriceValid) return
 
       try {
         const payload = {
@@ -996,10 +1085,14 @@ export default {
       itemFormRef,
       requiredRule,
       pricePositiveRule,
-      buyingPriceDisplay,
-      sellingPriceDisplay,
+      getBuyingPriceDisplayValue,
+      getSellingPriceDisplayValue,
       onBuyingPriceInput,
+      validateBuyingPrice,
       onSellingPriceInput,
+      validateSellingPrice,
+      buyingPriceError,
+      sellingPriceError,
       toggleBuyingPriceUnit,
       toggleSellingPriceUnit,
       handleEditItem,
@@ -1695,6 +1788,85 @@ export default {
   appearance: textfield;
 }
 
+/* Native price input field styling */
+.price-input-field {
+  width: 100%;
+  min-height: 30px;
+  max-height: 30px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: linear-gradient(#ffffff, #ffffff) padding-box,
+    linear-gradient(135deg, #2293a1, #32d8ee) border-box;
+  outline: none;
+  transition: all 0.2s ease;
+  appearance: textfield;
+  -moz-appearance: textfield;
+  text-align: center;
+}
+
+.price-input-field::-webkit-outer-spin-button,
+.price-input-field::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.price-input-field::placeholder {
+  text-align: center;
+  color: #999;
+}
+
+.price-input-field:hover {
+  font-size: 0.9rem;
+  box-shadow: 0 0 0 3px rgba(34, 147, 161, 0.25);
+}
+
+.price-input-field:focus {
+  font-size: 0.9rem;
+  box-shadow: 0 0 0 3px rgba(34, 147, 161, 0.25);
+  border-color: #2293a1;
+}
+
+.price-input-field:not(:placeholder-shown) {
+  text-align: left;
+}
+
+[dir="rtl"] .price-input-field:not(:placeholder-shown) {
+  text-align: right;
+}
+
+.price-input-error {
+  border-color: #ef4444 !important;
+  background: linear-gradient(#ffffff, #ffffff) padding-box,
+    linear-gradient(135deg, #ef4444, #f87171) border-box !important;
+  animation: error-shadow-fade 1.2s ease-out forwards;
+}
+
+.price-input-error:hover,
+.price-input-error:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25) !important;
+  border-color: #ef4444 !important;
+}
+
+.price-input-error-message {
+  color: #ef4444;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  margin-left: 0.5rem;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1;
+}
+
+[dir="rtl"] .price-input-error-message {
+  margin-left: 0;
+  margin-right: 0.5rem;
+  left: auto;
+  right: 0;
+}
+
 .price-field-readonly :deep(.v-field) {
   background-color: #f5f5f5 !important;
 }
@@ -1708,8 +1880,22 @@ export default {
 }
 
 .price-row .price-btn-col {
-  padding-bottom: 0.5rem;
-  justify-content: flex-start;
+  justify-content: center;
+  align-items: flex-end;
+  padding-bottom: 0.2rem;
+}
+
+.price-field-group {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.price-input-wrapper {
+  position: relative;
+  height: 30px;
+  display: flex;
+  align-items: center;
 }
 
 [dir="rtl"] .price-row .price-btn-col {
@@ -1720,7 +1906,7 @@ export default {
   min-width: 2.75rem;
   width: 100%;
   max-width: 3.5rem;
-  height: 2.25rem;
+  height: 30px;
   padding: 0 0.5rem;
   border: 1px solid #e5e7eb;
   border-radius: 0.375rem;
@@ -1730,6 +1916,7 @@ export default {
   font-size: 0.875rem;
   cursor: pointer;
   transition: all 0.2s;
+  margin-top: calc(0.75rem + 0.2rem);
 }
 
 .price-unit-btn:hover {
@@ -1740,6 +1927,7 @@ export default {
 /* Barcode row icons - same styling as item card action buttons */
 .barcode-icons-container {
   gap: 0.3rem;
+  margin-bottom: 0.2rem;
 }
 
 .barcode-icons-ltr {
@@ -1757,8 +1945,8 @@ export default {
   justify-content: center;
   width: 2rem;
   height: 2rem;
-  min-width: 2rem;
-  min-height: 2rem;
+  min-width: 1.5rem;
+  min-height: 1.5rem;
   border: 1px solid #e5e7eb;
   border-radius: 0.375rem;
   background: #fff;

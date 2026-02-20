@@ -1,23 +1,15 @@
-import axios from 'axios'
-
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  }
-})
+import PosAxios from './index.js'
 
 export default {
   getUserItems() {
-    return api.get('/item/user-items')
+    return PosAxios.get('/item/user-items')
   },
 
   /**
    * Get full item by ID (AddItemResponseDTO with buyingPrice, sellingPrice, categoryId, image, etc.).
    */
   getItemById(itemId) {
-    return api.get(`/item/${itemId}`)
+    return PosAxios.get(`/item/${itemId}`)
   },
 
   /**
@@ -29,7 +21,7 @@ export default {
     const formData = new FormData()
     formData.append('item', new Blob([JSON.stringify(payload)], { type: 'application/json' }))
     if (imageFile) formData.append('image', imageFile)
-    return api.post('/item', formData, {
+    return PosAxios.post('/item', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
   },
@@ -44,13 +36,13 @@ export default {
     const formData = new FormData()
     formData.append('item', new Blob([JSON.stringify(payload)], { type: 'application/json' }))
     if (imageFile) formData.append('image', imageFile)
-    return api.put(`/item/${itemId}`, formData, {
+    return PosAxios.put(`/item/${itemId}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
   },
 
   deleteItem(itemId) {
-    return api.delete(`/item/${itemId}`)
+    return PosAxios.delete(`/item/${itemId}`)
   },
 
   /**
@@ -58,6 +50,6 @@ export default {
    * @returns {Promise<{ data: { data: { barcode: string } } }>}
    */
   generateBarcode() {
-    return api.post('/item/barcode/generate')
+    return PosAxios.post('/item/barcode/generate')
   }
 }
