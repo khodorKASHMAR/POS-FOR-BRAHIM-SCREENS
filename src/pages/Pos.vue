@@ -468,6 +468,10 @@ onUnmounted(() => {
   text-align: right;
 }
 
+[dir="rtl"] .search-field :deep(input::placeholder) {
+  text-align: right;
+}
+
 [dir="ltr"] :deep(.v-field__input),
 [dir="ltr"] :deep(input),
 [dir="ltr"] :deep(textarea) {

@@ -1,7 +1,8 @@
 <template>
   <div class="top-bar">
-    <!-- Sidebar Toggle Button -->
+    <!-- Sidebar Toggle Button (only when sidebar is closed) -->
     <v-btn
+      v-if="!state.sidebar"
       icon
       variant="text"
       size="small"
@@ -16,7 +17,7 @@
 
     <!-- Date Display -->
     <div class="top-bar-btn date-display">
-      <v-icon size="small" color="primary">mdi-calendar</v-icon>
+      <v-icon size="small" class="gradient-icon">mdi-calendar</v-icon>
       <span class="date-text">{{ formattedDate }}</span>
     </div>
 
@@ -25,7 +26,7 @@
 
     <!-- Time Display -->
     <div class="top-bar-btn time-display">
-      <v-icon size="small" color="primary">mdi-clock-outline</v-icon>
+      <v-icon size="small" class="gradient-icon">mdi-clock-outline</v-icon>
       <span class="time-text">{{ formattedTime }}</span>
     </div>
 
@@ -34,13 +35,13 @@
 
     <!-- Language Toggle Button -->
     <div class="top-bar-btn language-toggle-btn" @click="toggleLanguage">
-      <v-icon size="small" color="success">mdi-earth</v-icon>
-      <span class="language-text">{{ state.lang === 'ar' ? 'ع' : 'EN' }}</span>
+      <v-icon size="small" class="gradient-icon">mdi-earth</v-icon>
+      <span class="language-text">{{ state.lang === 'ar' ? 'EN' : 'ع' }}</span>
     </div>
 
     <!-- Currency Toggle Button -->
     <div class="top-bar-btn currency-toggle-btn" @click="toggleCurrency">
-      <v-icon size="small" color="success">{{ state.currency === 'USD' ? 'mdi-currency-usd' : 'mdi-cash-multiple' }}</v-icon>
+      <v-icon size="small" class="gradient-icon">{{ state.currency === 'USD' ? 'mdi-currency-usd' : 'mdi-cash-multiple' }}</v-icon>
       <span class="currency-text">{{ currencyDisplayText }}</span>
     </div>
 
@@ -51,9 +52,8 @@
       size="small"
       class="top-bar-btn power-btn"
       @click="handleLogout"
-      color="error"
     >
-      <v-icon>mdi-power</v-icon>
+      <v-icon class="power-icon">mdi-power</v-icon>
     </v-btn>
   </div>
 </template>
@@ -235,6 +235,20 @@ onUnmounted(() => {
 [dir="rtl"] .date-display,
 [dir="rtl"] .time-display {
   flex-direction: row-reverse;
+}
+
+.gradient-icon {
+  background: linear-gradient(135deg, #4fc3f7 0%, #29b6f6 50%, #03a9f4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.power-icon {
+  background: linear-gradient(135deg, #dc2626, #f87171);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 </style>
 

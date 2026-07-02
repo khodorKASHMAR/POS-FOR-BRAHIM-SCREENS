@@ -20,7 +20,7 @@
     </div>
 
     <!-- Item Info -->
-    <v-card-text class="item-info pt-1 px-2">
+    <v-card-text class="item-info">
       <!-- Item Name -->
       <div class="item-name" :class="lang.dir === 'rtl' ? 'text-right' : 'text-left'">
         {{ itemName }}
@@ -150,8 +150,7 @@ export default {
 <style scoped>
 .item-card {
   width: 100%;
-  height: 20rem;
-  min-height: 20rem;
+  height: auto;
   border-radius: 0.75rem;
   overflow: hidden;
   transition: all 0.3s ease;
@@ -167,11 +166,13 @@ export default {
 
 .item-image-container {
   width: calc(100% - 0.5rem);
-  height: 100%;
+  aspect-ratio: 3 / 2;
+  flex-shrink: 0;
   border-radius: 0.75rem;
   margin-left: 0.25rem;
   margin-right: 0.25rem;
   margin-top: 0.25rem;
+  margin-bottom: 0.125rem;
   background: #f5f5f5;
   display: flex;
   align-items: center;
@@ -181,11 +182,9 @@ export default {
 }
 
 .item-image-placeholder {
-  width: calc(100% - 2rem);
-  height: calc(100% - 2rem);
+  width: 100%;
+  height: 100%;
   border-radius: 0.75rem;
-  margin: 1rem;
-  margin-right: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -195,28 +194,37 @@ export default {
 
 .item-image {
   width: 100%;
+  height: 100%;
   object-fit: cover;
 }
 
 .placeholder-icon {
-  font-size: 4rem;
-  width: 4rem;
-  height: 4rem;
+  font-size: clamp(2rem, 35%, 4rem);
+  width: clamp(2rem, 35%, 4rem);
+  height: clamp(2rem, 35%, 4rem);
 }
 
 .item-info {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 0.125rem;
+  padding: 0.25rem 0.5rem 0.375rem !important;
+}
+
+.item-info :deep(.d-flex.align-center) {
+  gap: 0.25rem;
+  min-height: unset;
 }
 
 .item-name {
   font-size: 0.875rem;
   font-weight: 600;
   color: #1a1a1a;
-  line-height: 1.4;
-  min-height: 2.5rem;
+  line-height: 1.1;
+  min-height: unset;
+  margin-bottom: 0;
   display: flex;
   align-items: center;
 }
@@ -232,14 +240,21 @@ export default {
 .category-tag {
   font-size: 0.75rem;
   font-weight: 600;
-  padding: 0.25rem 0.5rem;
+  padding: 0.0625rem 0.35rem;
   border-radius: 1rem;
+  margin: 0;
+}
+
+.category-tag.v-chip {
+  height: auto !important;
+  min-height: 1.25rem;
 }
 
 .item-price {
   font-size: 1rem;
   font-weight: 600;
   color: #1a1a1a;
+  line-height: 1.1;
 }
 
 /* RTL Support */

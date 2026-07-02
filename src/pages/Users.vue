@@ -4,60 +4,151 @@
 
 
     <div class="pt-4">
-      <div class="users-actions" :class="lang.dir === 'rtl' ? 'users-actions-rtl' : ''">
-        <v-btn
-          class="add-items-action-btn"
-          color="primary"
-          variant="flat"
-          :prepend-icon="lang.dir === 'ltr' ? 'mdi-account-plus' : null"
-          :append-icon="lang.dir === 'rtl' ? 'mdi-account-plus' : null"
-          @click="openAddUser"
-        >
-          {{ $t('addUser') }}
-        </v-btn>
+      <div class="users-header" :class="lang.dir === 'rtl' ? 'users-header-rtl' : ''">
+        <h1 class="users-title">{{ $t('addUsers') }}</h1>
+        <div class="users-actions" :class="lang.dir === 'rtl' ? 'users-actions-rtl' : ''">
+          <v-btn
+            class="add-items-action-btn"
+            color="primary"
+            variant="flat"
+            :prepend-icon="lang.dir === 'ltr' ? 'mdi-account-plus' : null"
+            :append-icon="lang.dir === 'rtl' ? 'mdi-account-plus' : null"
+            @click="openAddUser"
+          >
+            {{ $t('add') }}
+          </v-btn>
+        </div>
       </div>
 
       <div class="users-panel">
-        <v-card class="users-card rounded-lg elevation-3">
-          <v-card-title class="users-card-title">
-            <v-row class="w-100" align="center">
-              <v-col cols="12" md="4">
-                <span class="font-weight-bold">{{ $t('users') }}</span>
-              </v-col>
-              <v-col cols="12" md="8">
-                <v-text-field
-                  v-model="search"
-                  :label="$t('search')"
-                  density="compact"
-                  hide-details
-                  variant="outlined"
-                  :prepend-inner-icon="lang.dir === 'ltr' ? 'mdi-magnify' : null"
-                  :append-inner-icon="lang.dir === 'rtl' ? 'mdi-magnify' : null"
-                  class="users-search"
-                />
-              </v-col>
-            </v-row>
-          </v-card-title>
-          <v-divider />
-          <v-data-table
-            :headers="headers"
-            :items="users"
-            item-value="id"
-            v-model:page="pagination.page"
-            v-model:items-per-page="pagination.itemsPerPage"
-            :loading="loading"
-            :search="search"
-            :items-length="pagination.totalItems"
-            :items-per-page-options="[5, 10, 25, 50]"
-            density="compact"
-            class="users-table"
-          >
-            <template #item.actions="{ item }">
-              <v-icon size="small" class="mr-2 action-icon edit-icon" @click="editUser(item)">mdi-pencil</v-icon>
-              <v-icon size="small" class="action-icon delete-icon" @click="openDeleteDialog(item)">mdi-delete</v-icon>
-            </template>
-          </v-data-table>
-        </v-card>
+          <div class="table-responsive-container users-custom-table" :class="{ 'opacity-60': loading }" :dir="lang.dir">
+            <!-- Table Controls -->
+            <div class="table-controls">
+              <div class="rows-per-page-control">
+                <span class="control-label">{{ $t('Show') }}</span>
+                <div class="dropdown-container">
+                  <button
+                    class="dropdown-trigger"
+                    :class="{ 'dropdown-open': isPageSizeOpen }"
+                    @click="isPageSizeOpen = !isPageSizeOpen"
+                  >
+                    {{ itemsOnCurrentPage }} {{ $t('of') }} {{ pagination.itemsPerPage }}
+                    <svg class="dropdown-arrow" :class="{ rotated: isPageSizeOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                  </button>
+                  <div v-if="isPageSizeOpen" class="dropdown-menu">
+                    <div
+                      v-for="opt in [5, 10, 25, 50]"
+                      :key="opt"
+                      class="dropdown-item"
+                      :class="{ selected: pagination.itemsPerPage === opt }"
+                      @click="selectPageSize(opt)"
+                    >
+                      {{ opt }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="search-control">
+                <div class="search-input-container">
+                  <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                  </svg>
+                  <input
+                    v-model="search"
+                    type="text"
+                    :placeholder="$t('search')"
+                    class="search-input"
+                  />
+                </div>
+              </div>
+            </div>
+            <!-- Table -->
+            <div class="table-wrapper">
+              <table class="responsive-table">
+                <thead>
+                  <tr>
+                    <th
+                      v-for="h in headers"
+                      :key="h.key"
+                      class="table-header"
+                      :style="{ textAlign: lang.dir === 'rtl' ? 'right' : 'left' }"
+                    >
+                      {{ h.title }}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody v-if="filteredUsers.length > 0">
+                  <tr v-for="(item, index) in filteredUsers" :key="item.id || index" class="table-row">
+                    <td v-for="h in headers" :key="h.key" class="table-cell" :data-label="h.title">
+                      <template v-if="h.key === 'actions'">
+                        <div class="users-table-actions">
+                          <button type="button" class="action-btn edit-btn" :title="$t('editUser')" @click="editUser(item)">
+                            <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button type="button" class="action-btn delete-btn" :title="$t('delete')" @click="openDeleteDialog(item)">
+                            <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </template>
+                      <template v-else>
+                        {{ item[h.key] }}
+                      </template>
+                    </td>
+                  </tr>
+                </tbody>
+                <tbody v-else>
+                  <tr>
+                    <td :colspan="headers.length" class="no-data-cell">{{ $t('NoItemsToShow') }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <!-- Pagination -->
+            <div class="pagination-container pagination-right">
+              <button
+                type="button"
+                class="pagination-btn"
+                :class="{ disabled: pagination.page <= 1 }"
+                :disabled="pagination.page <= 1"
+                @click="goPage(pagination.page - 1)"
+              >
+                <svg class="pagination-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+                </svg>
+              </button>
+              <div class="pagination-pages">
+                <template v-for="p in visiblePages" :key="p.value">
+                  <button
+                    v-if="!p.isEllipsis"
+                    type="button"
+                    class="pagination-page"
+                    :class="{ active: p.value === pagination.page }"
+                    @click="goPage(p.value)"
+                  >
+                    {{ p.label }}
+                  </button>
+                  <span v-else class="pagination-ellipsis">...</span>
+                </template>
+              </div>
+              <button
+                type="button"
+                class="pagination-btn"
+                :class="{ disabled: pagination.page >= totalPages }"
+                :disabled="pagination.page >= totalPages"
+                @click="goPage(pagination.page + 1)"
+              >
+                <svg class="pagination-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                </svg>
+              </button>
+            </div>
+          </div>
       </div>
 
     </div>
@@ -224,7 +315,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch, getCurrentInstance } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch, getCurrentInstance } from 'vue'
 import { useState } from '../store/state'
 import TopBar from '../components/TopBar.vue'
 import UserService from '../services/UserService.js'
@@ -271,6 +362,63 @@ const headers = computed(() => [
   { title: $t('phoneNumber'), key: 'phoneNumber', sortable: false },
   { title: $t('actions'), key: 'actions', sortable: false }
 ])
+
+const isPageSizeOpen = ref(false)
+
+const filteredUsers = computed(() => {
+  if (!search.value) return users.value
+  const s = search.value.toLowerCase()
+  return users.value.filter((u) =>
+    [u.userName, u.firstNameEN, u.lastNameEN, u.email, u.phoneNumber].some((v) =>
+      String(v || '').toLowerCase().includes(s)
+    )
+  )
+})
+
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(pagination.totalItems / pagination.itemsPerPage))
+)
+
+const itemsOnCurrentPage = computed(() => filteredUsers.value.length)
+
+const visiblePages = computed(() => {
+  const total = totalPages.value
+  const current = pagination.page
+  const pages = []
+  const add = (label, value) => pages.push({ label: String(label), value, isEllipsis: false })
+  const ellipsis = (id) => pages.push({ label: '...', value: `e-${id}`, isEllipsis: true })
+  if (total <= 5) {
+    for (let i = 1; i <= total; i++) add(i, i)
+    return pages
+  }
+  if (current <= 3) {
+    add(1, 1); add(2, 2); add(3, 3); ellipsis('r'); add(total, total)
+    return pages
+  }
+  if (current >= total - 2) {
+    add(1, 1); ellipsis('l'); add(total - 2, total - 2); add(total - 1, total - 1); add(total, total)
+    return pages
+  }
+  add(1, 1); ellipsis('l'); add(current - 1, current - 1); add(current, current); add(current + 1, current + 1); ellipsis('r'); add(total, total)
+  return pages
+})
+
+function selectPageSize(size) {
+  pagination.itemsPerPage = size
+  pagination.page = 1
+  isPageSizeOpen.value = false
+  fetchUsers()
+}
+
+function goPage(page) {
+  if (page < 1 || page > totalPages.value) return
+  pagination.page = page
+  fetchUsers()
+}
+
+function closePageSizeDropdown(e) {
+  if (!e.target.closest('.dropdown-container')) isPageSizeOpen.value = false
+}
 
 async function fetchUsers() {
   loading.value = true
@@ -389,6 +537,11 @@ watch(
 
 onMounted(() => {
   fetchUsers()
+  document.addEventListener('click', closePageSizeDropdown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', closePageSizeDropdown)
 })
 </script>
 
@@ -398,11 +551,31 @@ onMounted(() => {
   min-height: 100vh;
 }
 
+.users-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  margin-left: 1rem;
+  margin-right: 1rem;
+}
+
+.users-header-rtl {
+  flex-direction: row-reverse;
+}
+
+.users-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
 .users-actions {
   display: flex;
-  justify-content: flex-end;
   gap: 0.75rem;
-  margin-bottom: 1rem;
 }
 
 .users-actions-rtl {
@@ -435,29 +608,340 @@ onMounted(() => {
   color: #fff;
 }
 
-.users-search :deep(.v-field) {
-  background: rgba(255, 255, 255, 0.95);
+/* Custom table (SimpleCustomTable-style) */
+.users-custom-table {
+  --table-primary: #00bcd4;
+}
+
+.table-responsive-container.users-custom-table {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  margin: 0;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  margin-left: 0.75rem;
+  margin-right: 0.75rem;
+}
+
+.table-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.rows-per-page-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-label {
+  font-weight: 500;
+  color: #495057;
+  font-size: 14px;
+}
+
+.dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-}
-
-.users-table :deep(thead) {
-  background-color: rgba(0, 188, 212, 0.12);
-}
-
-.users-table :deep(tbody tr:nth-child(odd)) {
-  background-color: #fafafa;
-}
-
-.action-icon {
   cursor: pointer;
+  font-size: 14px;
+  color: #495057;
+  transition: all 0.2s ease;
+  min-width: 120px;
+  justify-content: space-between;
 }
 
-.edit-icon:hover {
+.dropdown-trigger:hover,
+.dropdown-trigger.dropdown-open {
+  border-color: var(--table-primary);
+  box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.1);
+}
+
+.dropdown-arrow {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s ease;
+}
+
+.dropdown-arrow.rotated {
+  transform: rotate(180deg);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.dropdown-item {
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #495057;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  border-bottom: 1px solid #f8f9fa;
+}
+
+.dropdown-item:hover {
+  background-color: #f8f9fa;
+}
+
+.dropdown-item.selected {
+  background-color: var(--table-primary);
+  color: #fff;
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.search-control {
+  flex: 1;
+  max-width: 300px;
+}
+
+.search-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  color: #6c757d;
+  z-index: 1;
+}
+
+[dir="rtl"] .search-icon {
+  left: auto;
+  right: 12px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px 12px 8px 36px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #495057;
+  background: #fff;
+  transition: all 0.2s ease;
+}
+
+[dir="rtl"] .search-input {
+  padding-left: 12px;
+  padding-right: 36px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--table-primary);
+  box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.1);
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  background: #fff;
+}
+
+.responsive-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+  font-size: 14px;
+  min-width: 600px;
+}
+
+.table-header {
+  background: #f8f9fa;
+  color: #374151;
+  font-weight: 600;
+  text-align: left;
+  padding: 12px;
+  border-bottom: 2px solid #e2e8f0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.table-row {
+  border-bottom: 1px solid #e2e8f0;
+  transition: background-color 0.2s ease;
+}
+
+.table-row:hover {
+  background-color: #f8f9fa;
+}
+
+.table-cell {
+  padding: 12px;
+  color: #495057;
+  vertical-align: middle;
+  border: none;
+}
+
+.no-data-cell {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6c757d;
+  font-style: italic;
+  background: #f8f9fa;
+}
+
+.users-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.users-table-actions .action-btn {
+  padding: 6px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  background: transparent;
+  transition: background 0.2s, color 0.2s;
+}
+
+.users-table-actions .action-btn .action-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.users-table-actions .edit-btn:hover {
+  background: rgba(0, 188, 212, 0.15);
   color: #197783;
 }
 
-.delete-icon:hover {
+.users-table-actions .delete-btn:hover {
+  background: rgba(211, 47, 47, 0.1);
   color: #d32f2f;
+}
+
+.pagination-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 8px 14px;
+  background: #f8f9fa;
+  border-top: 1px solid #e2e8f0;
+  gap: 0;
+}
+
+.pagination-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #495057;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pagination-btn:hover:not(.disabled) {
+  background: var(--table-primary);
+  color: #fff;
+  border-color: var(--table-primary);
+}
+
+.pagination-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f8f9fa;
+  color: #6c757d;
+}
+
+.pagination-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.pagination-pages {
+  display: flex;
+  gap: 4px;
+  margin: 0 8px;
+}
+
+.pagination-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #495057;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.pagination-page:hover {
+  background: var(--table-primary);
+  color: #fff;
+  border-color: var(--table-primary);
+}
+
+.pagination-page.active {
+  background: var(--table-primary);
+  color: #fff;
+  border-color: var(--table-primary);
+  font-weight: 600;
+}
+
+.pagination-ellipsis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: #6c757d;
+}
+
+[dir="rtl"] .pagination-btn:first-child .pagination-icon {
+  transform: rotate(180deg);
+}
+
+[dir="rtl"] .pagination-btn:last-child .pagination-icon {
+  transform: rotate(180deg);
 }
 
 .delete-dialog-title {

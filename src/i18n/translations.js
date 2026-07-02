@@ -16,6 +16,13 @@ export const translations = {
     home: 'Home',
     addItems: 'Add Items',
     users: 'Users',
+    dollarRate: 'Dollar Rate',
+    setDollarRate: 'Set Dollar Rate',
+    setDollarRateSubtitle: '1 US Dollar equals how many Lebanese Pounds',
+    placeholderDollarRate: 'Enter rate',
+    dollarRateHint: 'This rate is used across the POS for price conversions.',
+    dollarRateUpdated: 'Dollar rate updated successfully',
+    dollarRateUpdateFailed: 'Failed to update dollar rate',
     
     // Home Page
     items: 'ITEMS',
@@ -24,7 +31,7 @@ export const translations = {
     newReceipt: 'New Receipt',
     search: 'Search',
     searchCart: 'Search Cart',
-    searchPlaceholder: 'Search something sweet on your mind...',
+    searchPlaceholder: 'Search here ...',
     trackOrder: 'Track Order',
     subtotal: 'Subtotal',
     tax: 'Tax',
@@ -47,6 +54,11 @@ export const translations = {
     food: 'Food',
     drinks: 'Drinks',
     
+    // Table
+    Show: 'Show',
+    of: 'of',
+    NoItemsToShow: 'No items to show',
+
     // Table Headers
     name: 'Name',
     unit: 'Unit',
@@ -73,6 +85,7 @@ export const translations = {
     barcode: 'Barcode',
     save: 'Save',
     update: 'Update',
+    add: 'Add',
     noItems: 'No items in this category',
     noCategories: 'No categories found',
 
@@ -97,6 +110,7 @@ export const translations = {
     receiptSaveFailed: 'Failed to save receipt',
 
     // Users page
+    addUsers: 'Add Users',
     addUser: 'Add User',
     editUser: 'Edit User',
     deleteUser: 'Delete User',
@@ -135,6 +149,15 @@ export const translations = {
     placeholderChoosePhoto: 'Choose a photo to upload',
     fieldRequired: 'This field is required',
     
+    // Image cropper
+    cropImage: 'Crop Image',
+    zoom: 'Zoom',
+    zoomIn: 'Zoom In',
+    zoomOut: 'Zoom Out',
+    rotateLeft: 'Rotate Left',
+    rotateRight: 'Rotate Right',
+    confirm: 'Confirm',
+    
     // Item names (these will be overridden by actual item data)
     burger: 'Burger',
     cola: 'Cola'
@@ -156,6 +179,13 @@ export const translations = {
     home: 'الرئيسية',
     addItems: 'إضافة عناصر',
     users: 'المستخدمون',
+    dollarRate: 'سعر الدولار',
+    setDollarRate: 'تعيين سعر الدولار',
+    setDollarRateSubtitle: '1 دولار أمريكي يساوي كم ليرة لبنانية',
+    placeholderDollarRate: 'أدخل السعر',
+    dollarRateHint: 'يُستخدم هذا السعر في نظام نقاط البيع لتحويل الأسعار.',
+    dollarRateUpdated: 'تم تحديث سعر الدولار بنجاح',
+    dollarRateUpdateFailed: 'فشل تحديث سعر الدولار',
     
     // Home Page
     items: 'العناصر',
@@ -164,7 +194,7 @@ export const translations = {
     newReceipt: 'فاتورة جديدة',
     search: 'بحث',
     searchCart: 'بحث في السلة',
-    searchPlaceholder: 'ابحث عن شيء حلو في ذهنك...',
+    searchPlaceholder: '... ابحث هنا',
     trackOrder: 'تتبع الطلب',
     subtotal: 'المجموع الفرعي',
     tax: 'الضريبة',
@@ -187,6 +217,11 @@ export const translations = {
     food: 'طعام',
     drinks: 'مشروبات',
     
+    // Table
+    Show: 'عرض',
+    of: 'من',
+    NoItemsToShow: 'لا توجد عناصر لعرضها',
+
     // Table Headers
     name: 'الاسم',
     unit: 'السعر',
@@ -213,6 +248,7 @@ export const translations = {
     barcode: 'الباركود',
     save: 'حفظ',
     update: 'تحديث',
+    add: 'إضافة',
     noItems: 'لا توجد عناصر في هذه الفئة',
     noCategories: 'لا توجد فئات',
 
@@ -237,6 +273,7 @@ export const translations = {
     receiptSaveFailed: 'فشل حفظ الفاتورة',
 
     // Users page
+    addUsers: 'إضافة مستخدمين',
     addUser: 'إضافة مستخدم',
     editUser: 'تعديل المستخدم',
     deleteUser: 'حذف المستخدم',
@@ -274,6 +311,15 @@ export const translations = {
     placeholderBuyingDollarRate: 'سعر صرف الدولار للشراء',
     placeholderChoosePhoto: 'اختر صورة للرفع',
     fieldRequired: 'هذا الحقل مطلوب',
+    
+    // Image cropper
+    cropImage: 'قص الصورة',
+    zoom: 'تكبير',
+    zoomIn: 'تكبير',
+    zoomOut: 'تصغير',
+    rotateLeft: 'تدوير لليسار',
+    rotateRight: 'تدوير لليمين',
+    confirm: 'تأكيد',
     
     // Item names
     burger: 'برغر',

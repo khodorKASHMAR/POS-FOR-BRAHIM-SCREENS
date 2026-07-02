@@ -2,31 +2,31 @@
   <div class="page-background">
     <TopBar />
     <div class="p-4">
-      <div class="add-items-actions" :class="lang.dir === 'rtl' ? 'add-items-actions-rtl' : ''">
-        <v-btn
-          class="add-items-action-btn"
-          color="primary"
-          variant="flat"
-          :prepend-icon="lang.dir === 'ltr' ? 'mdi-plus' : null"
-          :append-icon="lang.dir === 'rtl' ? 'mdi-plus' : null"
-          @click="openCategoryDialog(null)"
-        >
-          {{ $t('addCategory') }}
-        </v-btn>
-        <v-btn
-          class="add-items-action-btn"
-          color="primary"
-          variant="flat"
-          :prepend-icon="lang.dir === 'ltr' ? 'mdi-plus' : null"
-          :append-icon="lang.dir === 'rtl' ? 'mdi-plus' : null"
-          @click="openItemDialog()"
-        >
-          {{ $t('addItem') }}
-        </v-btn>
+      <div class="add-items-header" :class="lang.dir === 'rtl' ? 'add-items-header-rtl' : ''">
+        <h1 class="add-items-title">{{ $t('addItems') }}</h1>
+        <div class="add-items-actions" :class="lang.dir === 'rtl' ? 'add-items-actions-rtl' : ''">
+          <v-btn
+            class="add-items-action-btn"
+            variant="flat"
+            :prepend-icon="lang.dir === 'ltr' ? 'mdi-plus' : null"
+            :append-icon="lang.dir === 'rtl' ? 'mdi-plus' : null"
+            @click="openCategoryDialog(null)"
+          >
+            {{ $t('addCategory') }}
+          </v-btn>
+          <v-btn
+            class="add-items-action-btn"
+            variant="flat"
+            :prepend-icon="lang.dir === 'ltr' ? 'mdi-plus' : null"
+            :append-icon="lang.dir === 'rtl' ? 'mdi-plus' : null"
+            @click="openItemDialog()"
+          >
+            {{ $t('addItem') }}
+          </v-btn>
+        </div>
       </div>
 
       <div class="panel-content">
-
       <!-- Categories Selector: dir sets flow so "All" is first (left in LTR, right in RTL) -->
       <div class="categories-container" ref="categoriesContainerRef">
         <div
@@ -156,7 +156,7 @@
               :placeholder="$t('placeholderNameEn')"
               variant="outlined"
               density="compact"
-              :rules="[requiredRule]"
+              :rules="[requiredRule]" 
               class="mb-1 dialog-field"
             />
           </div>
@@ -452,6 +452,19 @@
         />
       </div>
     </v-dialog>
+
+    <!-- Image Cropper Dialog -->
+    <v-dialog v-model="cropperDialog" :max-width="cropperDialogMaxWidth" persistent content-class="cropper-dialog-content" :dir="lang.dir">
+      <ImageCropper
+        v-if="imageToCrop"
+        :image-src="imageToCrop"
+        :dir="lang.dir"
+        output-type="blob"
+        :output-quality="0.9"
+        @confirm="onCropComplete"
+        @cancel="onCropCancel"
+      />
+    </v-dialog>
     </div>
   </div>
 </template>
@@ -463,12 +476,14 @@ import CategoryService from '../services/CategoryService'
 import ItemService from '../services/ItemService'
 import HomeItemCard from '../components/HomeItemCard.vue'
 import TopBar from '../components/TopBar.vue'
+import ImageCropper from '../components/ImageCropper.vue'
 
 export default {
   name: 'AddItems',
   components: {
     HomeItemCard,
-    TopBar
+    TopBar,
+    ImageCropper
   },
   setup() {
     const instance = getCurrentInstance()
@@ -552,6 +567,18 @@ export default {
     const imagePreviewDialog = ref(false)
     const buyingPriceError = ref(false)
     const sellingPriceError = ref(false)
+    
+    // Image cropper refs
+    const cropperDialog = ref(false)
+    const imageToCrop = ref(null)
+    const viewportWidth = ref(0)
+    const updateViewportWidth = () => {
+      if (typeof window === 'undefined') return
+      viewportWidth.value = window.innerWidth
+    }
+    const cropperDialogMaxWidth = computed(() => (
+      viewportWidth.value >= 1700 ? '900px' : '600px'
+    ))
 
     // Computed
     const categoriesForSelect = computed(() => {
@@ -743,18 +770,6 @@ export default {
       deleteItem(item.id)
     }
 
-    const convertFileToBase64 = (file) => {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => {
-          // Get base64 string without data URL prefix
-          const base64String = reader.result.split(',')[1]
-          resolve(base64String)
-        }
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
-    }
 
 
     const triggerItemImagePick = () => {
@@ -765,17 +780,50 @@ export default {
       const input = e?.target
       const file = input?.files?.[0]
       if (!file) return
+      
+      // Clean up previous blob URL if exists
+      if (imageToCrop.value?.startsWith?.('blob:')) {
+        URL.revokeObjectURL(imageToCrop.value)
+      }
+      
+      try {
+        // Open cropper dialog with the selected image
+        imageToCrop.value = URL.createObjectURL(file)
+        cropperDialog.value = true
+      } catch (err) {
+        console.error('Error loading image for cropping:', err)
+      }
+      
+      // Reset file input
+      if (input) input.value = ''
+    }
+
+    const onCropComplete = (croppedBlob) => {
+      // Clean up previous preview URL if exists
       if (itemImagePreview.value?.startsWith?.('blob:')) {
         URL.revokeObjectURL(itemImagePreview.value)
       }
-      itemImageFile.value = file
-      try {
-        itemImagePreview.value = URL.createObjectURL(file)
-        imageError.value = false
-      } catch (err) {
-        console.error('Error loading image preview:', err)
+      
+      // Store the cropped blob and create preview
+      itemImageFile.value = croppedBlob
+      itemImagePreview.value = URL.createObjectURL(croppedBlob)
+      imageError.value = false
+      
+      // Clean up cropper state
+      if (imageToCrop.value?.startsWith?.('blob:')) {
+        URL.revokeObjectURL(imageToCrop.value)
       }
-      if (input) input.value = ''
+      imageToCrop.value = null
+      cropperDialog.value = false
+    }
+
+    const onCropCancel = () => {
+      // Clean up cropper state
+      if (imageToCrop.value?.startsWith?.('blob:')) {
+        URL.revokeObjectURL(imageToCrop.value)
+      }
+      imageToCrop.value = null
+      cropperDialog.value = false
     }
 
     const removeItemImage = () => {
@@ -1035,6 +1083,10 @@ export default {
       await state.fetchUserItems()
       await loadCategories()
       document.documentElement.setAttribute('dir', lang.value.dir)
+      updateViewportWidth()
+      if (typeof window !== 'undefined') {
+        window.addEventListener('resize', updateViewportWidth)
+      }
       if (categoriesContainerRef.value) {
         const handleWheel = (e) => {
           if (categoriesContainerRef.value.scrollWidth > categoriesContainerRef.value.clientWidth) {
@@ -1059,6 +1111,9 @@ export default {
     })
 
     onUnmounted(() => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', updateViewportWidth)
+      }
       if (categoriesContainerRef.value && categoriesContainerRef.value._wheelHandler) {
         categoriesContainerRef.value.removeEventListener('wheel', categoriesContainerRef.value._wheelHandler)
       }
@@ -1118,7 +1173,12 @@ export default {
       handleGenerateBarcode,
       imageError,
       imagePreviewDialog,
-      openImagePreview
+      openImagePreview,
+      cropperDialog,
+      cropperDialogMaxWidth,
+      imageToCrop,
+      onCropComplete,
+      onCropCancel
     }
   }
 }
@@ -1128,20 +1188,45 @@ export default {
 .page-background {
   background: #fafafa;
   min-height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-.add-items-actions {
+.page-background::-webkit-scrollbar {
+  display: none;
+}
+
+.add-items-header {
   display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
+  justify-content: space-between;
+  align-items: center;
   margin-top: 1.5rem;
   margin-bottom: 1rem;
   margin-left: 1rem;
   margin-right: 1rem;
 }
 
+.add-items-header-rtl {
+  flex-direction: row-reverse;
+}
+
+.add-items-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.add-items-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
 .add-items-actions-rtl {
-  justify-content: flex-end;
   flex-direction: row-reverse;
 }
 
@@ -1222,7 +1307,6 @@ export default {
 
 .item-dialog-card {
   background: #ffffff;
-  min-height: 95vh;
   max-height: 98vh;
   display: flex;
   flex-direction: column;
@@ -1653,10 +1737,7 @@ export default {
 }
 
 .items-wrapper {
-  height: calc(100% - 8rem);
-  overflow-y: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  width: 100%;
 }
 
 .items-wrapper::-webkit-scrollbar {
@@ -1724,6 +1805,10 @@ export default {
 [dir="rtl"] :deep(input),
 [dir="rtl"] :deep(textarea) {
   direction: rtl;
+  text-align: right;
+}
+
+[dir="rtl"] .search-field :deep(input::placeholder) {
   text-align: right;
 }
 
@@ -2018,7 +2103,7 @@ export default {
   display: none;
 }
 
-/* Image upload zone */
+/* Image upload zone - landscape 3:2 aspect ratio (matches item cards) */
 .image-upload-zone {
   position: relative;
   display: flex;
@@ -2026,20 +2111,21 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 1rem;
-  width: 100%;
-  min-height: 10rem; /* small screens */
-  padding: 2rem 1.5rem;
+  width: 16rem;
+  height: auto;
+  padding: 1.5rem;
   border: 2px dashed rgba(34, 147, 161, 0.3);
   border-radius: 1rem;
   background: rgba(255, 255, 255, 0.5);
   cursor: pointer;
   transition: all 0.3s ease;
-  margin: 0;
+  margin: 0 auto;
+  aspect-ratio: 3 / 2;
 }
 
 @media (min-width: 1700px) {
   .image-upload-zone {
-    min-height: 28rem; /* larger screens (21 inch equivalent at 96 DPI) */
+    width: 25rem;
   }
 }
 
@@ -2053,13 +2139,11 @@ export default {
   border-style: solid;
   border-color: rgba(34, 147, 161, 0.2);
   background: transparent;
-  min-height: 10rem;
 }
 
 @media (min-width: 1700px) {
   .image-upload-zone.has-image {
-    min-height: 28rem;
-    min-width: 28rem; /* match height for balanced proportions */
+    width: 25rem;
   }
 }
 
@@ -2112,7 +2196,6 @@ export default {
 .image-upload-preview {
   width: 100%;
   height: 100%;
-  min-height: clamp(10rem, 22vh, 16rem);
   border-radius: 0.875rem;
   overflow: hidden;
 }
@@ -2213,6 +2296,12 @@ export default {
   max-width: 100%;
   max-height: 90vh;
   border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+/* Image Cropper Dialog */
+:deep(.cropper-dialog-content) {
+  border-radius: 15px !important;
   overflow: hidden;
 }
 </style>

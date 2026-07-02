@@ -10,7 +10,8 @@ export function saveReceipt(receipt) {
   const payload = {
     total: receipt.total,
     receiptDate: receipt.receiptDate || new Date().toISOString(),
-    receiptDiscountPercent: receipt.receiptDiscountPercent ?? 0,
+    isReceiptDiscountPercent: receipt.isReceiptDiscountPercent ?? false,
+    receiptDiscount: receipt.receiptDiscount ?? 0,
     isReceiptDollar: receipt.isReceiptDollar ?? true,
     receiptItems: (receipt.receiptItems || []).map(ri => ({
       itemId: ri.itemId,

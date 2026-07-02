@@ -21,14 +21,19 @@
     </div>
 
     <!-- Item Info -->
-    <v-card-text class="item-info pt-0 px-2">
+    <v-card-text class="item-info">
       <!-- Item Name -->
       <div class="item-name" :class="lang.dir === 'rtl' ? 'text-left' : 'text-left'">
         {{ itemName }}
       </div>
 
-      <!-- Category Tag and Price -->
-      <div class="d-flex align-center" :class="lang.dir === 'rtl' ? 'flex-row-reverse justify-space-between' : 'justify-space-between'">
+      <!-- Price and Category Tag -->
+      <div class="d-flex flex-column w-100">
+        <!-- Price -->
+        <div class="item-price" :class="lang.dir === 'rtl' ? 'align-self-end' : 'align-self-end'">
+          {{ formattedPrice }}
+        </div>
+
         <!-- Category Tag -->
         <v-chip
           v-if="displayCategory"
@@ -36,15 +41,10 @@
           size="small"
           variant="flat"
           class="category-tag"
+          :class="lang.dir === 'rtl' ? 'align-self-start' : 'align-self-start'"
         >
           {{ displayCategory }}
         </v-chip>
-        <div v-else></div>
-
-        <!-- Price -->
-        <div class="item-price">
-          {{ formattedPrice }}
-        </div>
       </div>
     </v-card-text>
 
@@ -99,10 +99,10 @@ export default {
       type: Object,
       required: true
     },
-    // Category color (optional, defaults to pink)
+    // Category color (optional, defaults to light blue)
     categoryColor: {
       type: String,
-      default: 'pink-lighten-4'
+      default: 'light-blue-lighten-4'
     },
     // Whether card is clickable
     clickable: {
@@ -208,8 +208,7 @@ export default {
 <style scoped>
 .item-card {
   width: calc(100% - 0.5rem);
-  height: 14rem;
-  min-height: 14rem;
+  height: auto;
   border-radius: 0.75rem;
   overflow: visible;
   transition: all 0.3s ease;
@@ -219,11 +218,6 @@ export default {
   margin: 0 auto;
 }
 
-.item-card.with-actions {
-  height: 16rem;
-  min-height: 16rem;
-}
-
 .item-card.hoverable:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
@@ -231,7 +225,8 @@ export default {
 
 .item-image-container {
   width: calc(100% - 1.5rem);
-  height: calc(100% - 1rem);
+  aspect-ratio: 3 / 2;
+  flex-shrink: 0;
   border-radius: 0.75rem;
   display: flex;
   align-items: center;
@@ -246,11 +241,9 @@ export default {
 }
 
 .item-image-placeholder {
-  width: calc(100% - 2rem);
-  height: calc(100% - 2rem);
+  width: 100%;
+  height: 100%;
   border-radius: 0.75rem;
-  margin: 1rem;
-  margin-right: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -260,28 +253,36 @@ export default {
 
 .item-image {
   width: 100%;
+  height: 100%;
   object-fit: cover;
 }
 
 .placeholder-icon {
-  font-size: 4rem;
-  width: 4rem;
-  height: 4rem;
+  font-size: clamp(2rem, 35%, 4rem);
+  width: clamp(2rem, 35%, 4rem);
+  height: clamp(2rem, 35%, 4rem);
 }
 
 .item-info {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 0.125rem;
+  padding: 0.25rem 0.5rem 0.375rem !important;
+}
+
+.item-info :deep(.d-flex.flex-column) {
+  gap: 0.125rem;
 }
 
 .item-name {
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: 0.95rem;
+  font-weight: 700;
   color: #1a1a1a;
-  line-height: 1.4;
-  min-height: 2rem;
+  line-height: 1.1;
+  min-height: unset;
+  margin-bottom: 0;
   display: flex;
   align-items: center;
 }
@@ -297,21 +298,42 @@ export default {
 .category-tag {
   font-size: 0.75rem;
   font-weight: 600;
-  padding: 0.25rem 0.5rem;
+  padding: 0.0625rem 0.35rem;
   border-radius: 1rem;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.category-tag.v-chip {
+  background: linear-gradient(90deg, #b3e5fc 0%, #e1f5fe 50%, #e3f2fd 100%) !important;
+  color: #0277bd !important;
+  box-shadow: 0 2px 6px rgba(79, 195, 247, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  height: auto !important;
+  min-height: 1.25rem;
+}
+
+.category-tag.v-chip :deep(.v-chip__underlay) {
+  display: none !important;
+}
+
+.category-tag.v-chip :deep(.v-chip__content) {
+  color: #050d1b !important;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.6);
 }
 
 .item-price {
   font-size: 1rem;
   font-weight: 600;
   color: #1a1a1a;
+  line-height: 1.1;
 }
 
 .item-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
-  padding: 0 0.8rem 0.5rem;
+  gap: 0.375rem;
+  padding: 0.125rem 0.5rem 0.375rem;
 }
 
 .action-tooltip-wrapper {
@@ -347,15 +369,15 @@ export default {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   background: #fff;
   color: #6b7280;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin: 0 2px;
+  margin: 0;
 }
 
 .action-btn:hover {
@@ -377,8 +399,8 @@ export default {
 }
 
 .action-icon {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
 .action-btn:focus {

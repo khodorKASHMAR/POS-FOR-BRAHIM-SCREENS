@@ -14,6 +14,18 @@
       >
         {{ $t('brandName') }}
       </span>
+      <button
+        type="button"
+        class="sidebar-toggle-btn"
+        aria-label="Close menu"
+        @click="ui.sidebar = false"
+      >
+        <div class="two-lines-icon">
+          <div class="line"></div>
+          <div class="line"></div>
+          <div class="line"></div>
+        </div>
+      </button>
     </div>
 
     <div class="sidebar-menu">
@@ -45,6 +57,14 @@
           >
             <i class="mdi mdi-account-group nav-icon" aria-hidden="true"></i>
             <span class="nav-label">{{ $t('users') }}</span>
+          </button>
+          <button
+            class="nav-item"
+            :class="{ active: isActive('/dollar-rate') }"
+            @click="$emit('navigate', '/dollar-rate')"
+          >
+            <i class="mdi mdi-currency-usd nav-icon" aria-hidden="true"></i>
+            <span class="nav-label">{{ $t('dollarRate') }}</span>
           </button>
         </div>
       </template>
@@ -86,7 +106,7 @@ function isActive(path) {
 
 .sidebar-brand {
   flex-shrink: 0;
-  padding: 6px 12px 10px;
+
   margin-bottom: 8px;
   text-align: start;
 }
@@ -94,6 +114,8 @@ function isActive(path) {
 
 
 .sidebar-brand-text {
+  padding-left: 4px !important;
+  padding-right: 4px !important;
   font-size: 1.25rem;
   font-weight: 700;
   color: #1a1a1a;
@@ -218,5 +240,46 @@ function isActive(path) {
 
 .sidebar-nav[dir='rtl'] .nav-hint {
   text-align: center;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.sidebar-toggle-btn {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  min-width: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+/* .sidebar-toggle-btn:hover {
+  background: rgba(44, 140, 242, 0.25);
+} */
+
+.sidebar-brand .two-lines-icon {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-brand .two-lines-icon .line {
+  width: 1rem;
+  height: 2px;
+  background-color: #2c8cf2;
+  border-radius: 1px;
 }
 </style>

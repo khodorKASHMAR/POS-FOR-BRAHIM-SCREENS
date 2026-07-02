@@ -167,7 +167,6 @@ import { useState } from '../store/state'
 // Receipt structure matching backend ReceiptRequestDTO
 const receipt = reactive({
   total: 0,
-  receiptDiscountPercent: 0,
   isReceiptDollar: true,
   isReceiptDiscountPercent: true,
   receiptDiscount: 0, // % or amount per receipt currency
@@ -299,7 +298,6 @@ function addItemToCart(item) {
 
 function clearReceipt() {
   receipt.total = 0
-  receipt.receiptDiscountPercent = 0
   receipt.isReceiptDiscountPercent = true
   receipt.receiptDiscount = 0
   receipt.isReceiptDollar = state.currency === 'USD'
@@ -680,8 +678,9 @@ const updateReceiptDiscount = (event) => {
 }
 
 .order-item-image {
-  width: 6.5rem;
+  width: auto;
   height: 6.5rem;
+  aspect-ratio: 3 / 2;
   border-radius: 0.5rem;
   overflow: hidden;
   flex-shrink: 0;
