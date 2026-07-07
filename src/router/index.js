@@ -3,12 +3,17 @@ import Pos from '../pages/Pos.vue'
 import AddItems from '../pages/AddItems.vue'
 import Users from '../pages/Users.vue'
 import DollarRate from '../pages/DollarRate.vue'
+import Receipts from '../pages/Receipts.vue'
+import Dashboard from '../pages/Dashboard.vue'
 import LoginPage from '../pages/LoginPage.vue'
 import { useUserStore } from '../store/user'
 
 const routes = [
   { path: '/login', name: 'Login', component: LoginPage, meta: { requiresAuth: false } },
   { path: '/', name: 'Pos', component: Pos, meta: { requiresAuth: true, admin: false } },
+  { path: '/drafts', name: 'Drafts', component: Receipts, props: { mode: 'drafts' }, meta: { requiresAuth: true, admin: false } },
+  { path: '/receipts', name: 'Receipts', component: Receipts, meta: { requiresAuth: true, admin: false } },
+  { path: '/dashboard', name: 'Dashboard', component: Dashboard, meta: { requiresAuth: true, admin: true } },
   { path: '/add-items', name: 'AddItems', component: AddItems, meta: { requiresAuth: true, admin: true } },
   { path: '/users', name: 'Users', component: Users, meta: { requiresAuth: true, admin: true } },
   { path: '/dollar-rate', name: 'DollarRate', component: DollarRate, meta: { requiresAuth: true, admin: true } }

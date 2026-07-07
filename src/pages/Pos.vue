@@ -68,6 +68,7 @@
         ref="orderListRef"
         :items="items"
         @place-order="handlePlaceOrder"
+        @save-draft="handleSaveDraft"
       />
     </div>
   </div>
@@ -75,6 +76,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, onActivated, inject } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useState } from '../store/state'
 import { translations } from '../i18n/translations'
 import CategoryService from '../services/CategoryService'
@@ -84,6 +86,8 @@ import OrderItemsList from '../components/OrderItemsList.vue'
 import TopBar from '../components/TopBar.vue'
 
 const state = useState()
+const route = useRoute()
+const router = useRouter()
 const $t = (key) => translations[state.lang]?.[key] || key
 const orderListRef = ref(null)
 const cat = ref('All')
@@ -144,13 +148,28 @@ function addItemToCart(item) {
 
 const $notification = inject('$notification')
 
+function prepareReceipt(receipt) {
+  return {
+    ...receipt,
+    dollarRate: Number(receipt.dollarRate) || state.exchangeRate || 0
+  }
+}
+
 const handlePlaceOrder = async (orderData) => {
   if (!orderData?.receipt) return
+  const receipt = prepareReceipt(orderData.receipt)
   try {
-    await ReceiptService.saveReceipt(orderData.receipt)
+    if (receipt.id) {
+      await ReceiptService.updateReceipt(receipt.id, receipt)
+    } else {
+      await ReceiptService.saveReceipt(receipt)
+    }
     orderListRef.value?.clearReceipt()
     if (typeof $notification === 'function') {
-      $notification(orderData.receipt.isReceiptDollar ? $t('receiptSavedUsd') : $t('receiptSavedLbp'), 'success', 3000)
+      $notification(receipt.isReceiptDollar ? $t('receiptSavedUsd') : $t('receiptSavedLbp'), 'success', 3000)
+    }
+    if (route.query.draftId) {
+      router.replace({ path: '/', query: {} })
     }
   } catch (err) {
     console.error('Failed to save receipt:', err)
@@ -160,11 +179,57 @@ const handlePlaceOrder = async (orderData) => {
   }
 }
 
+const handleSaveDraft = async (orderData) => {
+  if (!orderData?.receipt) return
+  const receipt = prepareReceipt(orderData.receipt)
+  try {
+    if (receipt.id) {
+      await ReceiptService.updateReceipt(receipt.id, { ...receipt, type: 'DRAFT' })
+    } else {
+      await ReceiptService.saveDraft(receipt)
+    }
+    orderListRef.value?.clearReceipt()
+    if (typeof $notification === 'function') {
+      $notification($t('draftSaved'), 'success', 3000)
+    }
+  } catch (err) {
+    console.error('Failed to save draft:', err)
+    if (typeof $notification === 'function') {
+      $notification(err?.response?.data?.message || $t('draftSaveFailed'), 'error', 5000)
+    }
+  }
+}
+
+async function loadDraftFromQuery() {
+  const draftId = Number(route.query.draftId)
+  if (!Number.isFinite(draftId) || draftId <= 0) return
+  try {
+    const [detailsRes, itemsRes] = await Promise.all([
+      ReceiptService.getReceiptDetails(draftId),
+      ReceiptService.getReceiptItems(draftId)
+    ])
+    const details = detailsRes?.data?.data
+    const itemsView = itemsRes?.data?.data
+    if (!details || details.type === 'RECEIPT') return
+    orderListRef.value?.loadDraft({
+      id: draftId,
+      details,
+      items: itemsView?.items || []
+    })
+  } catch (err) {
+    console.error('Failed to load draft:', err)
+    if (typeof $notification === 'function') {
+      $notification($t('draftSaveFailed'), 'error', 5000)
+    }
+  }
+}
+
 // Enable horizontal scrolling with mouse wheel on categories container
 onMounted(async () => {
   await state.fetchDollarRate()
   await state.fetchUserItems()
   await loadCategories()
+  await loadDraftFromQuery()
   // Set initial document direction
   document.documentElement.setAttribute('dir', state.dir)
   
@@ -188,6 +253,11 @@ onActivated(async () => {
   await state.fetchDollarRate()
   await state.fetchUserItems()
   await loadCategories()
+  await loadDraftFromQuery()
+})
+
+watch(() => route.query.draftId, async () => {
+  await loadDraftFromQuery()
 })
 
 // Watch for language changes to update document direction and reload categories

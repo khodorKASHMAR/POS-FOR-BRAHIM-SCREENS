@@ -6,18 +6,34 @@
         color="primary"
         variant="flat"
         class="order-header-btn add-items-action-btn elevation-1"
-        @click="handlePlaceOrder"
+        prepend-icon="mdi-cash-register"
+        @click="openPayDialog"
       >
-        {{ $t('saveReceipt') }}
+        {{ $t('payReceipt') }}
       </v-btn>
       <v-btn
         color="primary"
         variant="flat"
-        class="order-header-btn add-items-action-btn elevation-1"
-        @click="handlePrintReceipt"
+        class="order-header-btn add-items-action-btn  elevation-1"
+        prepend-icon="mdi-file-document-edit-outline"
+        @click="handleSaveDraft"
       >
-        {{ $t('printReceipt') }}
+        {{ $t('saveDraft') }}
       </v-btn>
+    </div>
+
+    <div v-if="orderedCart.length > 0" class="customer-name-row" :dir="state.dir">
+      <v-text-field
+        v-model="receipt.customerName"
+        variant="outlined"
+        density="compact"
+        hide-details
+        class="customer-name-field"
+        :class="{ 'customer-name-field-rtl': state.dir === 'rtl' }"
+        :placeholder="$t('customerNamePlaceholder')"
+        :prepend-inner-icon="state.dir === 'ltr' ? 'mdi-account' : undefined"
+        :append-inner-icon="state.dir === 'rtl' ? 'mdi-account' : undefined"
+      />
     </div>
 
     <div class="order-items-list">
@@ -123,46 +139,26 @@
       </div>
     </div>
 
-    <!-- Order Summary - Total Discount (white, same width as total) -->
-    <div v-if="orderedCart.length > 0" class="total-discount-section elevation-1">
-      <div class="total-discount-row">
-        <span class="discount-label">{{ $t('totalDiscount') }}</span>
-        <v-btn
-          variant="text"
-          size="x-small"
-          class="discount-toggle-btn"
-          @click="toggleReceiptDiscountType"
-        >
-          {{ receipt.isReceiptDiscountPercent ? '%' : getCurrencySymbol() }}
-        </v-btn>
-      </div>
-      <div class="total-discount-controls">
-        <input
-          type="number"
-          class="discount-input"
-          :value="getReceiptDiscountDisplayValue()"
-          @input="updateReceiptDiscount($event)"
-          @focus="onReceiptDiscountFocus($event)"
-          @blur="onReceiptDiscountBlur"
-          :min="0"
-          :max="getReceiptDiscountMax()"
-          placeholder="0"
-        />
-      </div>
-    </div>
-
     <div class="order-summary elevation-1">
       <div class="summary-row total-row">
         <span class="summary-label">{{ $t('total') }}</span>
         <span class="summary-value">{{ formatPrice(receipt.total) }}</span>
       </div>
     </div>
+
+    <PayReceiptDialog
+      v-model="showPayDialog"
+      :receipt="receipt"
+      @save="handleSaveFromDialog"
+      @open-drawer="handleOpenDrawer"
+    />
   </div>
 </template>
 
 <script setup>
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useState } from '../store/state'
+import PayReceiptDialog from './PayReceiptDialog.vue'
 
 // Receipt structure matching backend ReceiptRequestDTO
 const receipt = reactive({
@@ -170,8 +166,19 @@ const receipt = reactive({
   isReceiptDollar: true,
   isReceiptDiscountPercent: true,
   receiptDiscount: 0, // % or amount per receipt currency
+    payWish: 0,
+    isPayWishDollar: true,
+    payDollar: 0,
+  payLebanese: 0,
+  returnedToUserValue: 0,
+  customerName: '',
+  userId: null,
+  dollarRate: 0,
   receiptItems: [] // each item: { itemId, quantity, itemDiscount, isDiscountPercent, subTotal }
 })
+
+const showPayDialog = ref(false)
+const draftReceiptId = ref(null)
 
 const props = defineProps({
   items: {
@@ -180,7 +187,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['place-order'])
+const emit = defineEmits(['place-order', 'save-draft'])
 
 const state = useState()
 
@@ -297,9 +304,18 @@ function addItemToCart(item) {
 }
 
 function clearReceipt() {
+  draftReceiptId.value = null
   receipt.total = 0
   receipt.isReceiptDiscountPercent = true
   receipt.receiptDiscount = 0
+  receipt.payWish = 0
+  receipt.isPayWishDollar = true
+  receipt.payDollar = 0
+  receipt.payLebanese = 0
+  receipt.returnedToUserValue = 0
+  receipt.customerName = ''
+  receipt.userId = null
+  receipt.dollarRate = 0
   receipt.isReceiptDollar = state.currency === 'USD'
   receipt.receiptItems = []
 }
@@ -362,7 +378,7 @@ const totalDiscount = computed(() => {
 })
 
 
-defineExpose({ addItemToCart, clearReceipt, receipt })
+defineExpose({ addItemToCart, clearReceipt, loadDraft, receipt, draftReceiptId })
 
 const getCurrencySymbol = () => {
   if (receipt.isReceiptDollar) {
@@ -499,9 +515,28 @@ const validateDiscount = (item) => {
   recalcReceiptTotal()
 }
 
+const openPayDialog = () => {
+  if (orderedCart.value.length === 0) return
+  showPayDialog.value = true
+}
+
+const handleSaveFromDialog = () => {
+  showPayDialog.value = false
+  handlePlaceOrder()
+}
+
+/** Placeholder for future drawer implementation */
+const handleOpenDrawer = () => {
+  // TODO: open cash drawer
+}
+
 const handlePlaceOrder = () => {
   emit('place-order', {
-    receipt: { ...receipt },
+    receipt: {
+      ...receipt,
+      id: draftReceiptId.value,
+      type: 'RECEIPT'
+    },
     receiptItems: [...receipt.receiptItems],
     subtotal: subtotal.value,
     discount: totalDiscount.value,
@@ -509,53 +544,54 @@ const handlePlaceOrder = () => {
   })
 }
 
-/** Placeholder for future implementation - print receipt */
-const handlePrintReceipt = () => {
-  // TODO: implement print receipt
+const handleSaveDraft = () => {
+  if (orderedCart.value.length === 0) return
+  emit('save-draft', {
+    receipt: {
+      ...receipt,
+      id: draftReceiptId.value,
+      type: 'DRAFT'
+    },
+    receiptItems: [...receipt.receiptItems],
+    subtotal: subtotal.value,
+    discount: totalDiscount.value,
+    total: receipt.total
+  })
 }
 
-// Receipt-level total discount
-const rawTotalBeforeReceiptDiscount = computed(() =>
-  receipt.receiptItems.reduce((sum, item) => sum + (Number(item.subTotal) || 0), 0)
-)
+function loadDraft({ id, details, items }) {
+  clearReceipt()
+  draftReceiptId.value = id
 
-function getReceiptDiscountMax() {
-  if (receipt.isReceiptDiscountPercent) return 100
-  const raw = rawTotalBeforeReceiptDiscount.value
-  return receipt.isReceiptDollar ? raw : raw * state.exchangeRate
-}
+  if (details) {
+    receipt.customerName = details.customerName || ''
+    receipt.isReceiptDollar = details.isReceiptDollar !== false
+    receipt.isReceiptDiscountPercent = details.isReceiptDiscountPercent !== false
+    receipt.receiptDiscount = Number(details.receiptDiscount) || 0
+    receipt.payWish = Number(details.payWish) || 0
+    receipt.isPayWishDollar = details.isPayWishDollar !== false
+    receipt.payDollar = Number(details.payDollar) || 0
+    receipt.payLebanese = Number(details.payLebanese) || 0
+    receipt.returnedToUserValue = Number(details.returnedToUserValue) || 0
+    receipt.dollarRate = Number(details.dollarRate) || state.exchangeRate || 0
+    receipt.total = Number(details.total) || 0
+    if (details.isReceiptDollar !== false) {
+      state.currency = 'USD'
+    } else {
+      state.currency = 'LBP'
+    }
+  }
 
-function clampReceiptDiscountValue(value) {
-  const max = getReceiptDiscountMax()
-  const clamped = Math.max(0, Math.min(max, value))
-  return roundDiscountForCurrency(clamped)
-}
-
-function getReceiptDiscountDisplayValue() {
-  return roundDiscountForCurrency(receipt.receiptDiscount ?? 0)
-}
-
-const toggleReceiptDiscountType = () => {
-  receipt.isReceiptDiscountPercent = !receipt.isReceiptDiscountPercent
-  receipt.receiptDiscount = 0
-  recalcReceiptTotal()
-}
-
-const onReceiptDiscountFocus = (event) => {
-  event.target.select()
-}
-
-const onReceiptDiscountBlur = () => {
-  const val = Number(receipt.receiptDiscount)
-  receipt.receiptDiscount = isNaN(val) ? 0 : clampReceiptDiscountValue(val)
-  recalcReceiptTotal()
-}
-
-const updateReceiptDiscount = (event) => {
-  let value = parseFloat(event.target.value)
-  if (isNaN(value)) value = 0
-  receipt.receiptDiscount = clampReceiptDiscountValue(value)
-  recalcReceiptTotal()
+  if (items?.length) {
+    receipt.receiptItems = items.map(item => ({
+      itemId: item.itemId,
+      quantity: item.quantity,
+      itemDiscount: Number(item.itemDiscount) || 0,
+      isDiscountPercent: item.isDiscountPercent !== false,
+      subTotal: Number(item.subTotal) || 0
+    }))
+    recalcReceiptTotal()
+  }
 }
 </script>
 
@@ -577,6 +613,39 @@ const updateReceiptDiscount = (event) => {
   margin-top: 0.2rem;
   height: 45px;
   flex-shrink: 0;
+}
+
+.customer-name-row {
+  margin-bottom: 0.5rem;
+  flex-shrink: 0;
+}
+
+.customer-name-field :deep(.v-field) {
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.customer-name-field :deep(.v-field__outline) {
+  opacity: 1;
+  color: rgba(25, 119, 131, 0.25);
+}
+
+.customer-name-field :deep(.v-field__prepend-inner .v-icon),
+.customer-name-field :deep(.v-field__append-inner .v-icon) {
+  color: #197783;
+  opacity: 0.85;
+}
+
+.customer-name-field-rtl :deep(.v-field__input) {
+  text-align: right;
+}
+
+.customer-name-field-rtl :deep(.v-field__input input) {
+  text-align: right;
+}
+
+.customer-name-field-rtl :deep(.v-field__input input::placeholder) {
+  text-align: right;
 }
 
 .order-header-btn {
@@ -1032,6 +1101,11 @@ const updateReceiptDiscount = (event) => {
 
 .add-items-action-btn :deep(.v-btn__content) {
   font-weight: 700;
+  color: #ffffff;
+}
+
+.add-items-action-btn :deep(.v-btn__prepend) {
+  color: #ffffff;
 }
 
 /* RTL Support */

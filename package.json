@@ -13,9 +13,11 @@
   "dependencies": {
     "@mdi/font": "^7.4.47",
     "axios": "^1.13.2",
+    "chart.js": "^4.5.1",
     "cropperjs": "^2.1.0",
     "pinia": "^2.1.7",
     "vue": "^3.4.0",
+    "vue-chartjs": "^5.3.4",
     "vue-cropperjs": "^5.0.0",
     "vue-router": "^4.3.0",
     "vuetify": "^3.6.0"

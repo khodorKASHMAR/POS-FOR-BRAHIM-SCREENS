@@ -38,10 +38,34 @@
           <i class="mdi mdi-home nav-icon" aria-hidden="true"></i>
           <span class="nav-label">{{ $t('home') }}</span>
         </button>
+        <button
+          class="nav-item"
+          :class="{ active: isActive('/drafts') }"
+          @click="$emit('navigate', '/drafts')"
+        >
+          <i class="mdi mdi-file-document-edit-outline nav-icon" aria-hidden="true"></i>
+          <span class="nav-label">{{ $t('drafts') }}</span>
+        </button>
+        <button
+          class="nav-item"
+          :class="{ active: isActive('/receipts') }"
+          @click="$emit('navigate', '/receipts')"
+        >
+          <i class="mdi mdi-receipt nav-icon" aria-hidden="true"></i>
+          <span class="nav-label">{{ $t('receipts') }}</span>
+        </button>
       </div>
 
       <template v-if="user.role === 'admin'">
         <div class="sidebar-section">
+          <button
+            class="nav-item"
+            :class="{ active: isActive('/dashboard') }"
+            @click="$emit('navigate', '/dashboard')"
+          >
+            <i class="mdi mdi-chart-areaspline nav-icon" aria-hidden="true"></i>
+            <span class="nav-label">{{ $t('dashboard') }}</span>
+          </button>
           <button
             class="nav-item"
             :class="{ active: isActive('/add-items') }"
