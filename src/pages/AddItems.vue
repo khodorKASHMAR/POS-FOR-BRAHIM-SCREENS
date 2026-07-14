@@ -226,17 +226,21 @@
                   <span>{{ $t('category') }}</span>
                   <span class="dialog-label-required">*</span>
                 </div>
-                <v-select
+                <PosAutocomplete
                   v-model="itemForm.categoryId"
-                  :items="categoriesForSelect"
-                  :placeholder="$t('category')"
+                  :placeholder="$t('searchCategory')"
+                  :items="categorySelectOptions"
                   item-title="name"
                   item-value="id"
-                  variant="outlined"
-                  density="compact"
+                  :loading="categorySelectLoading"
                   :disabled="!!selectedCategory"
-                  :rules="[requiredRule]"
+                  :required="true"
+                  :hide-details="false"
+                  :error-message="categorySelectError"
+                  :no-data-text="$t('noAutocompleteResults')"
+                  clearable
                   class="dialog-field"
+                  @update:search="onCategorySelectSearch"
                 />
               </div>
             </v-col>
@@ -477,13 +481,15 @@ import ItemService from '../services/ItemService'
 import HomeItemCard from '../components/HomeItemCard.vue'
 import TopBar from '../components/TopBar.vue'
 import ImageCropper from '../components/ImageCropper.vue'
+import PosAutocomplete from '../components/PosAutocomplete.vue'
 
 export default {
   name: 'AddItems',
   components: {
     HomeItemCard,
     TopBar,
-    ImageCropper
+    ImageCropper,
+    PosAutocomplete
   },
   setup() {
     const instance = getCurrentInstance()
@@ -587,6 +593,40 @@ export default {
         name: lang.value.lang === 'ar' ? category.nameAr : category.nameEn
       }))
     })
+
+    const categorySelectOptions = ref([])
+    const categorySelectLoading = ref(false)
+    const categorySelectError = ref('')
+    let categorySelectTimer = null
+
+    const syncCategorySelectOptions = (list = categoriesForSelect.value) => {
+      categorySelectOptions.value = list
+    }
+
+    const fetchCategorySelectOptions = async (query = '') => {
+      categorySelectLoading.value = true
+      try {
+        const res = await CategoryService.searchCategories(query)
+        const data = res?.data?.data || []
+        categorySelectOptions.value = data.map((category) => ({
+          id: category.id,
+          name: lang.value.lang === 'ar' ? category.nameAr : category.nameEn
+        }))
+      } catch {
+        categorySelectOptions.value = []
+      } finally {
+        categorySelectLoading.value = false
+      }
+    }
+
+    const onCategorySelectSearch = (query) => {
+      clearTimeout(categorySelectTimer)
+      categorySelectTimer = setTimeout(() => fetchCategorySelectOptions(query), 220)
+    }
+
+    watch(categoriesForSelect, (list) => {
+      if (!categorySelectOptions.value.length) syncCategorySelectOptions(list)
+    }, { immediate: true })
 
     // Methods
     const name = i => lang.value.lang === 'ar' ? i.nameAr : i.nameEn
@@ -987,13 +1027,16 @@ export default {
       }
       buyingPriceError.value = false
       sellingPriceError.value = false
+      categorySelectError.value = ''
       itemDialog.value = true
+      fetchCategorySelectOptions('')
     }
 
     const closeItemDialog = () => {
       itemDialog.value = false
       editingItem.value = null
       selectedCategory.value = null
+      categorySelectError.value = ''
       itemForm.value = {
         nameAr: '',
         nameEn: '',
@@ -1017,13 +1060,15 @@ export default {
     const saveItem = async () => {
       const hasImage = !!itemImageFile.value || !!itemImagePreview.value
       imageError.value = !editingItem.value && !hasImage
-      
+
+      categorySelectError.value = itemForm.value.categoryId ? '' : ($t('category') + ' *')
+
       // Validate price fields
       const buyingPriceValid = validateBuyingPrice()
       const sellingPriceValid = validateSellingPrice()
-      
+
       const { valid } = await itemFormRef.value?.validate() ?? { valid: false }
-      if (!valid || imageError.value || !buyingPriceValid || !sellingPriceValid) return
+      if (!valid || imageError.value || !buyingPriceValid || !sellingPriceValid || categorySelectError.value) return
 
       try {
         const payload = {
@@ -1122,6 +1167,10 @@ export default {
     return {
       lang,
       categoriesForSelect,
+      categorySelectOptions,
+      categorySelectLoading,
+      categorySelectError,
+      onCategorySelectSearch,
       items,
       cat,
       search,

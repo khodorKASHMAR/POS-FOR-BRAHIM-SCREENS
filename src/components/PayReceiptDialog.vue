@@ -4,7 +4,7 @@
     :max-width="dialogMaxWidth"
     persistent
     :dir="state.dir"
-    scrollable
+    :scrollable="isCompactViewport"
     content-class="pay-receipt-dialog-overlay"
     @update:model-value="$emit('update:modelValue', $event)"
   >
@@ -189,6 +189,8 @@ function onResize() {
 
 onMounted(() => window.addEventListener('resize', onResize))
 onUnmounted(() => window.removeEventListener('resize', onResize))
+
+const isCompactViewport = computed(() => viewportWidth.value < 1024)
 
 const dialogMaxWidth = computed(() => {
   if (viewportWidth.value >= 1400) return 640
@@ -452,8 +454,8 @@ const updateReceiptDiscount = (event) => {
 <style scoped>
 .pay-receipt-dialog {
   background: #ffffff;
-  border-radius: 16px;
-  padding: 1.25rem;
+  border-radius: 0 16px 16px 0;
+  padding: 0.5rem 1.25rem 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -466,7 +468,9 @@ const updateReceiptDiscount = (event) => {
   align-items: center;
   justify-content: center;
   position: relative;
-  margin-bottom: 0.25rem;
+  margin-top: 0;
+  margin-bottom: 0.15rem;
+  min-height: 2rem;
 }
 
 .pay-dialog-title {
@@ -478,9 +482,9 @@ const updateReceiptDiscount = (event) => {
 
 .pay-dialog-close-btn {
   position: absolute;
-  top: 50%;
+  top: 0;
   right: 0;
-  transform: translateY(-50%);
+  transform: none;
   color: #666;
 }
 
@@ -748,6 +752,10 @@ const updateReceiptDiscount = (event) => {
   left: 0;
 }
 
+.pay-receipt-dialog {
+  border-radius: 16px;
+}
+
 [dir="rtl"] .summary-row {
   flex-direction: row-reverse;
 }
@@ -796,7 +804,7 @@ const updateReceiptDiscount = (event) => {
 
 @media (min-width: 768px) {
   .pay-receipt-dialog {
-    padding: 1.5rem 1.75rem;
+    padding: 0.5rem 1.75rem 1.5rem;
     gap: 0.85rem;
   }
 
@@ -811,7 +819,9 @@ const updateReceiptDiscount = (event) => {
 
 @media (min-width: 1024px) {
   .pay-receipt-dialog {
-    padding: 1.75rem 2rem;
+    padding: 1rem 2rem 1.2rem;
+    max-height: none;
+    overflow-y: visible;
   }
 
   .pay-dialog-btn {
@@ -830,5 +840,12 @@ const updateReceiptDiscount = (event) => {
 .pay-receipt-dialog-overlay {
   align-items: center;
   justify-content: center;
+  border-radius: 0 16px 16px 0 !important;
+  overflow: hidden;
+}
+
+.pay-receipt-dialog-overlay[dir="rtl"],
+[dir="rtl"] .pay-receipt-dialog-overlay {
+  border-radius: 16px 0 0 16px !important;
 }
 </style>

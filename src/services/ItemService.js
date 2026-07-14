@@ -1,8 +1,34 @@
 import PosAxios from './index.js'
 
+function buildItemSearchBody(query) {
+  const q = (query || '').trim()
+  if (!q) {
+    return { criteriaList: [], operator: 'AND' }
+  }
+  return {
+    operator: 'OR',
+    criteriaList: [
+      { key: 'nameEn', value: q, operation: 'LIKE', caseSensitive: false },
+      { key: 'nameAr', value: q, operation: 'LIKE', caseSensitive: false },
+      { key: 'barcode', value: q, operation: 'LIKE', caseSensitive: false }
+    ]
+  }
+}
+
 export default {
   getUserItems() {
     return PosAxios.get('/item/user-items')
+  },
+
+  /**
+   * Dynamic item search. Empty query returns all items.
+   * @param {string} query
+   * @param {{ page?: number, size?: number }} [params]
+   */
+  searchItems(query = '', params = {}) {
+    const page = params.page ?? 0
+    const size = params.size ?? 50
+    return PosAxios.post(`/item/search?page=${page}&size=${size}&sort=id,asc`, buildItemSearchBody(query))
   },
 
   /**
