@@ -531,9 +531,9 @@ onUnmounted(() => {
   padding-left: 0;
 }
 
-[dir="rtl"] :deep(.v-field__input),
-[dir="rtl"] :deep(input),
-[dir="rtl"] :deep(textarea) {
+[dir="rtl"] .split-container :deep(.v-field__input),
+[dir="rtl"] .split-container :deep(input),
+[dir="rtl"] .split-container :deep(textarea) {
   direction: rtl;
   text-align: right;
 }
@@ -542,9 +542,9 @@ onUnmounted(() => {
   text-align: right;
 }
 
-[dir="ltr"] :deep(.v-field__input),
-[dir="ltr"] :deep(input),
-[dir="ltr"] :deep(textarea) {
+[dir="ltr"] .split-container :deep(.v-field__input),
+[dir="ltr"] .split-container :deep(input),
+[dir="ltr"] .split-container :deep(textarea) {
   direction: ltr;
   text-align: left;
 }

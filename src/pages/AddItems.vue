@@ -123,74 +123,33 @@
     </div>
 
     <!-- Category Dialog -->
-    <v-dialog v-model="categoryDialog" content-class="add-items-dialog-responsive add-items-dialog-category" :dir="lang.dir">
+    <v-dialog
+      v-model="categoryDialog"
+      content-class="add-items-dialog-responsive add-items-dialog-category aid-overlay"
+      :dir="lang.dir"
+    >
       <v-form ref="categoryFormRef" @submit.prevent="saveCategory">
-      <div class="add-items-dialog category-dialog-card">
-        <div class="category-dialog-title" :class="{ 'text-right': lang.dir === 'rtl' }">
-          {{ editingCategory ? $t('editCategory') : $t('addCategory') }}
-        </div>
-        <div class="category-dialog-body">
-          <div class="dialog-field-group">
-            <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
-              <span>{{ $t('nameAr') }}</span>
-              <span class="dialog-label-required">*</span>
+        <div class="aid-sheet category-dialog-card" :dir="lang.dir">
+          <header class="aid-hero">
+            <div class="aid-hero-main">
+              <span class="aid-hero-badge">
+                <v-icon size="16">mdi-shape-outline</v-icon>
+              </span>
+              <div class="aid-hero-text">
+                <h2 class="aid-hero-title">{{ editingCategory ? $t('editCategory') : $t('addCategory') }}</h2>
+              </div>
             </div>
-            <v-text-field
-              v-model="categoryForm.nameAr"
-              persistent-placeholder
-              :placeholder="$t('placeholderNameAr')"
-              variant="outlined"
-              density="compact"
-              :rules="[requiredRule]"
-              class="mb-1 dialog-field"
-            />
-          </div>
-          <div class="dialog-field-group">
-            <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
-              <span>{{ $t('nameEn') }}</span>
-              <span class="dialog-label-required">*</span>
-            </div>
-            <v-text-field
-              v-model="categoryForm.nameEn"
-              persistent-placeholder
-              :placeholder="$t('placeholderNameEn')"
-              variant="outlined"
-              density="compact"
-              :rules="[requiredRule]" 
-              class="mb-1 dialog-field"
-            />
-          </div>
-        </div>
-        <div class="dialog-actions mt-0" :class="lang.dir === 'rtl' ? 'dialog-actions-rtl' : ''">
-          <button type="button" class="dialog-action-btn dialog-cancel-btn mb-1" @click.stop="closeCategoryDialog">
-            {{ $t('cancel') }}
-          </button>
-          <button type="button" class="dialog-action-btn dialog-save-btn mb-1" @click.stop="saveCategory">
-            {{ editingCategory ? $t('update') : $t('save') }}
-          </button>
-        </div>
-      </div>
-      </v-form>
-    </v-dialog>
+          </header>
 
-    <!-- Item Dialog -->
-    <v-dialog v-model="itemDialog" content-class="add-items-dialog-responsive add-items-dialog-item" :dir="lang.dir">
-      <v-form ref="itemFormRef" @submit.prevent="saveItem">
-      <div class="add-items-dialog item-dialog-card">
-        <div class="item-dialog-title" :class="{ 'text-right': lang.dir === 'rtl' }">
-          {{ editingItem ? $t('editItem') : $t('addItem') }}
-        </div>
-        <div class="item-dialog-body">
-          <!-- Row 1: Names -->
-          <v-row class="item-dialog-row" :class="lang.dir === 'rtl' ? 'flex-row-reverse' : ''">
-            <v-col cols="12" sm="6">
+          <div class="aid-scroll category-dialog-body">
+            <div class="aid-fields aid-fields--stack">
               <div class="dialog-field-group">
                 <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
                   <span>{{ $t('nameAr') }}</span>
                   <span class="dialog-label-required">*</span>
                 </div>
                 <v-text-field
-                  v-model="itemForm.nameAr"
+                  v-model="categoryForm.nameAr"
                   persistent-placeholder
                   :placeholder="$t('placeholderNameAr')"
                   variant="outlined"
@@ -199,15 +158,13 @@
                   class="dialog-field"
                 />
               </div>
-            </v-col>
-            <v-col cols="12" sm="6">
               <div class="dialog-field-group">
                 <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
                   <span>{{ $t('nameEn') }}</span>
                   <span class="dialog-label-required">*</span>
                 </div>
                 <v-text-field
-                  v-model="itemForm.nameEn"
+                  v-model="categoryForm.nameEn"
                   persistent-placeholder
                   :placeholder="$t('placeholderNameEn')"
                   variant="outlined"
@@ -216,161 +173,228 @@
                   class="dialog-field"
                 />
               </div>
-            </v-col>
-          </v-row>
-          <!-- Row 2: Category + Buying dollar rate -->
-          <v-row class="item-dialog-row" :class="lang.dir === 'rtl' ? 'flex-row-reverse' : ''">
-            <v-col cols="12" sm="6">
-              <div class="dialog-field-group">
-                <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
-                  <span>{{ $t('category') }}</span>
-                  <span class="dialog-label-required">*</span>
-                </div>
-                <PosAutocomplete
-                  v-model="itemForm.categoryId"
-                  :placeholder="$t('searchCategory')"
-                  :items="categorySelectOptions"
-                  item-title="name"
-                  item-value="id"
-                  :loading="categorySelectLoading"
-                  :disabled="!!selectedCategory"
-                  :required="true"
-                  :hide-details="false"
-                  :error-message="categorySelectError"
-                  :no-data-text="$t('noAutocompleteResults')"
-                  clearable
-                  class="dialog-field"
-                  @update:search="onCategorySelectSearch"
-                />
-              </div>
-            </v-col>
-            <v-col cols="12" sm="6">
-              <div class="dialog-field-group">
-                <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
-                  <span>{{ $t('buyingDollarRate') }}</span>
-                  <span class="dialog-label-required">*</span>
-                </div>
-                <v-text-field
-                  v-model.number="itemForm.buyingDollarRate"
-                  type="number"
-                  persistent-placeholder
-                  :placeholder="$t('placeholderBuyingDollarRate')"
-                  variant="outlined"
-                  density="compact"
-                  :rules="[requiredRule]"
-                  class="dialog-field price-field-no-arrows"
-                />
-              </div>
-            </v-col>
-          </v-row>
-          <!-- Row 3: Barcode -->
-          <v-row class="item-dialog-row" :class="lang.dir === 'rtl' ? 'flex-row-reverse' : ''">
-            <v-col cols="12" sm="10">
-              <div class="dialog-field-group">
-                <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
-                  <span>{{ $t('barcode') }}</span>
-                </div>
-                <v-text-field
-                  v-model="itemForm.barcode"
-                  persistent-placeholder
-                  :placeholder="$t('placeholderBarcode')"
-                  variant="outlined"
-                  density="compact"
-                  :rules="[requiredRule]"
-                  :disabled="barcodeFieldDisabled"
-                  class="dialog-field"
-                />
-              </div>
-            </v-col>
-            <v-col cols="12" sm="2" class="d-flex align-center barcode-icons-container" :class="lang.dir === 'rtl' ? 'barcode-icons-rtl' : 'barcode-icons-ltr'">
-              <div class="group action-tooltip-wrapper">
-                <button type="button" class="action-btn">
-                  <v-icon size="small" class="action-icon">mdi-qrcode</v-icon>
-                </button>
-                <div class="action-tooltip">{{ $t('scanQr') }}</div>
-              </div>
-              <div class="group action-tooltip-wrapper">
-                <button type="button" class="action-btn">
-                  <v-icon size="small" class="action-icon">mdi-barcode-scan</v-icon>
-                </button>
-                <div class="action-tooltip">{{ $t('scanBarcode') }}</div>
-              </div>
-              <div class="group action-tooltip-wrapper">
-                <button type="button" class="action-btn" @click="handleGenerateBarcode">
-                  <v-icon size="small" class="action-icon">mdi-barcode</v-icon>
-                </button>
-                <div class="action-tooltip">{{ $t('generateBarcode') }}</div>
-              </div>
-            </v-col>
-          </v-row>
-          <!-- Row 4: Prices (Buying + $/LBP, Selling + $/LBP) -->
-          <v-row class="item-dialog-row price-row" align="center" :class="lang.dir === 'rtl' ? 'flex-row-reverse' : ''">
-            <v-col cols="12" sm="5" class="price-field-col">
-              <div class="dialog-field-group price-field-group">
-                <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
-                  <span>{{ $t('buyingPrice') }}</span>
-                  <span class="dialog-label-required">*</span>
-                </div>
-                <div class="price-input-wrapper">
-                  <input
-                    :value="getBuyingPriceDisplayValue()"
-                    type="number"
-                    :step="itemForm.buyingPriceUnit === 'USD' ? 0.01 : 1"
-                    :placeholder="$t('placeholderBuyingPrice')"
-                    :class="['price-input-field', { 'price-input-error': buyingPriceError }]"
-                    @input="onBuyingPriceInput($event.target.value)"
-                    @blur="validateBuyingPrice"
-                    min="0"
-                  />
-                  <div v-if="buyingPriceError" class="price-input-error-message">
-                    {{ $t('priceMustBeGreaterThanZero') }}
-                  </div>
-                </div>
-              </div>
-            </v-col>
-            <v-col cols="12" sm="1" class="price-btn-col d-flex align-end">
-              <button type="button" class="price-unit-btn" @click="toggleBuyingPriceUnit">
-                {{ itemForm.buyingPriceUnit === 'USD' ? '$' : 'LBP' }}
-              </button>
-            </v-col>
-            <v-col cols="12" sm="5" class="price-field-col">
-              <div class="dialog-field-group price-field-group">
-                <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
-                  <span>{{ $t('sellingPrice') }}</span>
-                  <span class="dialog-label-required">*</span>
-                </div>
-                <div class="price-input-wrapper">
-                  <input
-                    :value="getSellingPriceDisplayValue()"
-                    type="number"
-                    :step="itemForm.sellingPriceUnit === 'USD' ? 0.01 : 1"
-                    :placeholder="$t('placeholderSellingPrice')"
-                    :class="['price-input-field', { 'price-input-error': sellingPriceError }]"
-                    @input="onSellingPriceInput($event.target.value)"
-                    @blur="validateSellingPrice"
-                    min="0"
-                  />
-                  <div v-if="sellingPriceError" class="price-input-error-message">
-                    {{ $t('priceMustBeGreaterThanZero') }}
-                  </div>
-                </div>
-              </div>
-            </v-col>
-            <v-col cols="12" sm="1" class="price-btn-col d-flex align-end">
-              <button type="button" class="price-unit-btn" @click="toggleSellingPriceUnit">
-                {{ itemForm.sellingPriceUnit === 'USD' ? '$' : 'LBP' }}
-              </button>
-            </v-col>
-          </v-row>
-          <!-- Image section -->
-          <div class="dialog-field-group image-section">
-            <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
-              <span>{{ $t('image') }}</span>
-              <span class="dialog-label-required">*</span>
             </div>
-            <v-row class="image-upload-row">
-              <v-col cols="3"></v-col>
-              <v-col cols="6" class="d-flex justify-center">
+          </div>
+
+          <footer class="aid-bar">
+            <button type="button" class="dialog-action-btn dialog-cancel-btn" @click.stop="closeCategoryDialog">
+              {{ $t('cancel') }}
+            </button>
+            <button type="button" class="dialog-action-btn dialog-save-btn" @click.stop="saveCategory">
+              {{ editingCategory ? $t('update') : $t('save') }}
+            </button>
+          </footer>
+        </div>
+      </v-form>
+    </v-dialog>
+
+    <!-- Item Dialog -->
+    <v-dialog
+      v-model="itemDialog"
+      content-class="add-items-dialog-responsive add-items-dialog-item aid-overlay"
+      :dir="lang.dir"
+    >
+      <v-form ref="itemFormRef" @submit.prevent="saveItem">
+        <div class="aid-sheet item-dialog-card" :dir="lang.dir">
+          <header class="aid-hero">
+            <div class="aid-hero-main">
+              <span class="aid-hero-badge">
+                <v-icon size="18">mdi-package-variant-closed</v-icon>
+              </span>
+              <div class="aid-hero-text">
+                <h2 class="aid-hero-title">{{ editingItem ? $t('editItem') : $t('addItem') }}</h2>
+              </div>
+            </div>
+          </header>
+
+          <div class="aid-scroll item-dialog-body">
+            <section class="aid-block">
+              <div class="aid-block-label">
+                <span>{{ $t('nameEn') }} / {{ $t('nameAr') }}</span>
+              </div>
+              <div class="aid-fields aid-fields--2">
+                <div class="dialog-field-group">
+                  <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
+                    <span>{{ $t('nameAr') }}</span>
+                    <span class="dialog-label-required">*</span>
+                  </div>
+                  <v-text-field
+                    v-model="itemForm.nameAr"
+                    persistent-placeholder
+                    :placeholder="$t('placeholderNameAr')"
+                    variant="outlined"
+                    density="compact"
+                    :rules="[requiredRule]"
+                    class="dialog-field"
+                  />
+                </div>
+                <div class="dialog-field-group">
+                  <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
+                    <span>{{ $t('nameEn') }}</span>
+                    <span class="dialog-label-required">*</span>
+                  </div>
+                  <v-text-field
+                    v-model="itemForm.nameEn"
+                    persistent-placeholder
+                    :placeholder="$t('placeholderNameEn')"
+                    variant="outlined"
+                    density="compact"
+                    :rules="[requiredRule]"
+                    class="dialog-field"
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section class="aid-block">
+              <div class="aid-block-label">
+                <span>{{ $t('category') }}</span>
+                <span class="dialog-label-required">*</span>
+              </div>
+              <div class="aid-fields aid-fields--stack">
+                <div class="dialog-field-group">
+                  <PosAutocomplete
+                    v-model="itemForm.categoryId"
+                    :placeholder="$t('searchCategory')"
+                    :items="categorySelectOptions"
+                    item-title="name"
+                    item-value="id"
+                    :loading="categorySelectLoading"
+                    :disabled="!!selectedCategory"
+                    :required="true"
+                    :hide-details="false"
+                    :error-message="categorySelectError"
+                    :no-data-text="$t('noAutocompleteResults')"
+                    clearable
+                    class="dialog-field"
+                    @update:search="onCategorySelectSearch"
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section class="aid-block">
+              <div class="aid-block-label">
+                <span>{{ $t('barcode') }}</span>
+              </div>
+              <div class="dialog-field-group">
+                <div class="barcode-row">
+                  <v-text-field
+                    v-model="itemForm.barcode"
+                    persistent-placeholder
+                    :placeholder="$t('placeholderBarcode')"
+                    variant="outlined"
+                    density="compact"
+                    :rules="[requiredRule]"
+                    :disabled="barcodeFieldDisabled"
+                    class="dialog-field barcode-field"
+                  />
+                  <div class="barcode-icons-container" :class="lang.dir === 'rtl' ? 'barcode-icons-rtl' : 'barcode-icons-ltr'">
+                    <div class="group action-tooltip-wrapper">
+                      <button type="button" class="action-btn">
+                        <v-icon size="small" class="action-icon">mdi-qrcode</v-icon>
+                      </button>
+                      <div class="action-tooltip">{{ $t('scanQr') }}</div>
+                    </div>
+                    <div class="group action-tooltip-wrapper">
+                      <button type="button" class="action-btn">
+                        <v-icon size="small" class="action-icon">mdi-barcode-scan</v-icon>
+                      </button>
+                      <div class="action-tooltip">{{ $t('scanBarcode') }}</div>
+                    </div>
+                    <div class="group action-tooltip-wrapper">
+                      <button type="button" class="action-btn" @click="handleGenerateBarcode">
+                        <v-icon size="small" class="action-icon">mdi-barcode</v-icon>
+                      </button>
+                      <div class="action-tooltip">{{ $t('generateBarcode') }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <div class="aid-duo">
+              <section class="aid-block aid-block--fill">
+                <div class="aid-block-label">
+                  <span>{{ $t('buyingPrice') }} / {{ $t('sellingPrice') }}</span>
+                </div>
+                <div class="price-blocks">
+                  <div class="price-block">
+                    <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
+                      <span>{{ $t('buyingDollarRate') }}</span>
+                      <span class="dialog-label-required">*</span>
+                    </div>
+                    <v-text-field
+                      v-model.number="itemForm.buyingDollarRate"
+                      type="number"
+                      persistent-placeholder
+                      :placeholder="$t('placeholderBuyingDollarRate')"
+                      variant="outlined"
+                      density="compact"
+                      :rules="[requiredRule]"
+                      class="dialog-field price-field-no-arrows"
+                    />
+                  </div>
+                  <div class="price-block">
+                    <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
+                      <span>{{ $t('buyingPrice') }}</span>
+                      <span class="dialog-label-required">*</span>
+                    </div>
+                    <div class="price-control">
+                      <div class="price-input-wrapper">
+                        <input
+                          :value="getBuyingPriceDisplayValue()"
+                          type="number"
+                          :step="itemForm.buyingPriceUnit === 'USD' ? 0.01 : 1"
+                          :placeholder="$t('placeholderBuyingPrice')"
+                          :class="['price-input-field', { 'price-input-error': buyingPriceError }]"
+                          @input="onBuyingPriceInput($event.target.value)"
+                          @blur="validateBuyingPrice"
+                          min="0"
+                        />
+                        <div v-if="buyingPriceError" class="price-input-error-message">
+                          {{ $t('priceMustBeGreaterThanZero') }}
+                        </div>
+                      </div>
+                      <button type="button" class="price-unit-btn" @click="toggleBuyingPriceUnit">
+                        {{ itemForm.buyingPriceUnit === 'USD' ? '$' : 'LBP' }}
+                      </button>
+                    </div>
+                  </div>
+                  <div class="price-block">
+                    <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
+                      <span>{{ $t('sellingPrice') }}</span>
+                      <span class="dialog-label-required">*</span>
+                    </div>
+                    <div class="price-control">
+                      <div class="price-input-wrapper">
+                        <input
+                          :value="getSellingPriceDisplayValue()"
+                          type="number"
+                          :step="itemForm.sellingPriceUnit === 'USD' ? 0.01 : 1"
+                          :placeholder="$t('placeholderSellingPrice')"
+                          :class="['price-input-field', { 'price-input-error': sellingPriceError }]"
+                          @input="onSellingPriceInput($event.target.value)"
+                          @blur="validateSellingPrice"
+                          min="0"
+                        />
+                        <div v-if="sellingPriceError" class="price-input-error-message">
+                          {{ $t('priceMustBeGreaterThanZero') }}
+                        </div>
+                      </div>
+                      <button type="button" class="price-unit-btn" @click="toggleSellingPriceUnit">
+                        {{ itemForm.sellingPriceUnit === 'USD' ? '$' : 'LBP' }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="aid-block aid-block--fill aid-block--photo">
+                <div class="aid-block-label">
+                  <span>{{ $t('image') }}</span>
+                  <span class="dialog-label-required">*</span>
+                </div>
                 <input
                   ref="itemImageInputRef"
                   type="file"
@@ -392,11 +416,7 @@
                     />
                     <div class="image-zone-actions">
                       <div class="group action-tooltip-wrapper">
-                        <button
-                          type="button"
-                          class="action-btn edit-btn"
-                          @click.stop="triggerItemImagePick"
-                        >
+                        <button type="button" class="action-btn edit-btn" @click.stop="triggerItemImagePick">
                           <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
@@ -404,11 +424,7 @@
                         <div class="action-tooltip">{{ $t('replace') }}</div>
                       </div>
                       <div class="group action-tooltip-wrapper">
-                        <button
-                          type="button"
-                          class="action-btn delete-btn"
-                          @click.stop="removeItemImage"
-                        >
+                        <button type="button" class="action-btn delete-btn" @click.stop="removeItemImage">
                           <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
@@ -424,20 +440,19 @@
                     <span class="image-upload-text">{{ imageError ? $t('fieldRequired') : $t('placeholderChoosePhoto') }}</span>
                   </template>
                 </div>
-              </v-col>
-              <v-col cols="3"></v-col>
-            </v-row>
+              </section>
+            </div>
           </div>
-          <div class="dialog-actions" :class="lang.dir === 'rtl' ? 'dialog-actions-rtl' : ''">
+
+          <footer class="aid-bar">
             <button type="button" class="dialog-action-btn dialog-cancel-btn" @click.stop="closeItemDialog">
               {{ $t('cancel') }}
             </button>
             <button type="button" class="dialog-action-btn dialog-save-btn" @click.stop="saveItem">
               {{ editingItem ? $t('update') : $t('save') }}
             </button>
-          </div>
+          </footer>
         </div>
-      </div>
       </v-form>
     </v-dialog>
 
@@ -1331,59 +1346,221 @@ export default {
   margin-bottom: 0.5rem;
 }
 
-.add-items-dialog {
-  border-radius: 15px !important;
+.add-items-dialog,
+.aid-sheet {
+  border-radius: 20px !important;
   overflow: hidden;
 }
 
-.category-dialog-card {
-  background: #ffffff;
+.aid-sheet {
+  background: #ffffff !important;
+  display: flex;
+  flex-direction: column;
+  max-height: min(94vh, 880px);
+  box-shadow:
+    0 28px 60px -20px rgba(15, 23, 42, 0.35),
+    0 12px 24px -12px rgba(25, 119, 131, 0.2);
+  border: 1px solid rgba(15, 23, 42, 0.06);
 }
 
-.category-dialog-title {
-  padding: 8px 20px;
-  font-size: 1.1rem;
-  font-weight: 600;
+.aid-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(120deg, #125f68 0%, #197783 42%, #22b8c9 100%);
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.aid-hero-main {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.aid-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.55rem;
+  height: 2.55rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.aid-hero-text {
+  min-width: 0;
+}
+
+.aid-hero-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.aid-scroll {
+  padding: 1rem 1.2rem 0.85rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+  background: #f4f7f9;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(25, 119, 131, 0.45) transparent;
+}
+
+.aid-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.aid-scroll::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 0.5rem 0;
+}
+
+.aid-scroll::-webkit-scrollbar-thumb {
+  background: rgba(25, 119, 131, 0.35);
+  border-radius: 999px;
+}
+
+.aid-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(25, 119, 131, 0.55);
+}
+
+.aid-bar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.95rem 1.25rem 1.1rem;
+  background: #ffffff;
+  border-top: 1px solid #e6eef1;
+  flex-shrink: 0;
+}
+
+.aid-block {
+  background: #ffffff;
+  border: 1px solid #e5edf1;
+  border-radius: 16px;
+  padding: 0.9rem 1rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.aid-block--fill {
+  height: 100%;
+}
+
+.aid-block--photo {
+  display: flex;
+  flex-direction: column;
+}
+
+.aid-block-label {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.aid-block-label::before {
+  content: '';
+  width: 4px;
+  height: 1.05rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #197783, #32d8ee);
+  flex-shrink: 0;
+}
+
+.aid-fields {
+  display: grid;
+  gap: 0.7rem 0.9rem;
+}
+
+.aid-fields--2 {
+  grid-template-columns: 1fr;
+}
+
+.aid-fields--stack {
+  grid-template-columns: 1fr;
+}
+
+.aid-duo {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.95rem;
+}
+
+@media (min-width: 720px) {
+  .aid-fields--2 {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .aid-duo {
+    grid-template-columns: 1.05fr 0.95fr;
+    align-items: stretch;
+  }
+}
+
+.category-dialog-card,
+.item-dialog-card {
+  background: #ffffff !important;
+}
+
+.category-dialog-body,
+.item-dialog-body {
+  padding-top: 1rem;
 }
 
 .text-right {
   text-align: right;
 }
 
-.category-dialog-body {
-  padding: 12px 24px;
+.barcode-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
 }
 
-.item-dialog-card {
-  background: #ffffff;
-  max-height: 98vh;
+.barcode-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.barcode-field-group {
+  margin-top: 0.7rem;
+}
+
+.price-blocks {
   display: flex;
   flex-direction: column;
+  gap: 0.75rem;
 }
 
-.item-dialog-title {
-  padding: 8px 20px;
-  font-size: 1.1rem;
-  font-weight: 600;
+.price-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
-.item-dialog-body {
-  padding: 10px 20px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  flex: 1;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+.price-control {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
 }
-
-.item-dialog-body::-webkit-scrollbar {
-  display: none;
-}
-
-.item-dialog-row {
-  max-height: 75px;
-}
-
 
 .dialog-actions {
   display: flex;
@@ -1413,12 +1590,17 @@ export default {
 }
 
 .dialog-label-rtl {
-  justify-content: flex-end;
+  justify-content: flex-start;
   text-align: right;
 }
 
-.dialog-actions-rtl {
-  flex-direction: row-reverse;
+.aid-sheet[dir='rtl'] {
+  text-align: right;
+}
+
+.aid-sheet[dir='rtl'] :deep(.v-field__input),
+.aid-sheet[dir='rtl'] :deep(input) {
+  text-align: right;
 }
 
 .dialog-action-btn {
@@ -1427,8 +1609,9 @@ export default {
   color: #ffffff;
   margin: 0 0.25rem;
   width: 45%;
-  height: clamp(30px, 5vw, 37px);
-  font-size: 0.75rem;
+  max-width: 12rem;
+  height: clamp(36px, 5vw, 42px);
+  font-size: 0.85rem;
   border: none;
   cursor: pointer;
   padding: 0 0.5rem;
@@ -1439,12 +1622,11 @@ export default {
 }
 
 .dialog-save-btn {
-  background-image: linear-gradient(135deg, #2293a1, #32d8ee);
+  background-image: linear-gradient(135deg, #197783, #32d8ee);
 }
 
 .dialog-cancel-btn {
   background-image: linear-gradient(135deg, #dc2626, #f87171);
-  
 }
 
 .dialog-field :deep(.v-field__outline) {
@@ -1881,32 +2063,34 @@ export default {
 }
 
 /* Dialog responsive sizing (rem-based) */
+:deep(.add-items-dialog-responsive.aid-overlay) {
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
 :deep(.add-items-dialog-responsive.add-items-dialog-category) {
-  width: min(90vw, 27rem) !important;
-  max-width: 27rem !important;
+  width: min(90vw, 28rem) !important;
+  max-width: 28rem !important;
 }
 
 :deep(.add-items-dialog-responsive.add-items-dialog-item) {
-  width: 50vw !important;
-  max-width: 50vw !important;
-  top: 2.5vh !important;
+  width: min(92vw, 52rem) !important;
+  max-width: 52rem !important;
+  top: 2vh !important;
   transform: translateY(0) !important;
   margin-top: 0 !important;
 }
 
 @media (min-width: 1700px) {
   :deep(.add-items-dialog-responsive.add-items-dialog-category) {
-    max-width: 40rem !important;
-    min-width: 40rem !important;
-    min-height: 30rem !important;
-    max-height: 30rem !important;
+    max-width: 32rem !important;
+    min-width: 32rem !important;
   }
-}
 
-@media (min-width: 1700px) {
   :deep(.add-items-dialog-responsive.add-items-dialog-item) {
-    width: 60vw !important;
-    max-width: 60vw !important; 
+    width: min(70vw, 60rem) !important;
+    max-width: 60rem !important;
   }
 }
 
@@ -1925,8 +2109,8 @@ export default {
 /* Native price input field styling */
 .price-input-field {
   width: 100%;
-  min-height: 30px;
-  max-height: 30px;
+  min-height: 36px;
+  max-height: 36px;
   padding: 0.5rem 0.75rem;
   font-size: 0.85rem;
   border: 1px solid transparent;
@@ -2005,52 +2189,31 @@ export default {
   background-color: #f5f5f5 !important;
 }
 
-.price-row {
-  align-items: center;
-}
-
-.price-row .price-field-col {
-  padding-bottom: 0.5rem;
-}
-
-.price-row .price-btn-col {
-  justify-content: center;
-  align-items: flex-end;
-  padding-bottom: 0.2rem;
-}
-
-.price-field-group {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-
 .price-input-wrapper {
   position: relative;
-  height: 30px;
+  flex: 1;
+  min-width: 0;
+  height: 36px;
   display: flex;
   align-items: center;
-}
-
-[dir="rtl"] .price-row .price-btn-col {
-  justify-content: flex-end;
 }
 
 .price-unit-btn {
-  min-width: 2.75rem;
-  width: 100%;
-  max-width: 3.5rem;
-  height: 30px;
-  padding: 0 0.5rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.375rem;
-  background: #fff;
-  color: #2293a1;
-  font-weight: 600;
-  font-size: 0.875rem;
+  flex-shrink: 0;
+  min-width: 3rem;
+  width: auto;
+  max-width: 4rem;
+  height: 36px;
+  padding: 0 0.55rem;
+  border: 1px solid rgba(34, 147, 161, 0.25);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff, #f0fbfc);
+  color: #197783;
+  font-weight: 700;
+  font-size: 0.8rem;
   cursor: pointer;
   transition: all 0.2s;
-  margin-top: calc(0.75rem + 0.2rem);
+  margin-top: 0;
 }
 
 .price-unit-btn:hover {
@@ -2060,17 +2223,16 @@ export default {
 
 /* Barcode row icons - same styling as item card action buttons */
 .barcode-icons-container {
+  display: flex;
+  align-items: center;
   gap: 0.3rem;
-  margin-bottom: 0.2rem;
+  margin-top: 0.15rem;
+  flex-shrink: 0;
 }
 
-.barcode-icons-ltr {
-  justify-content: flex-end;
-}
-
+.barcode-icons-ltr,
 .barcode-icons-rtl {
-  justify-content: flex-start;
-  flex-direction: row-reverse;
+  justify-content: flex-end;
 }
 
 .barcode-icons-container .action-btn {
@@ -2103,51 +2265,14 @@ export default {
 }
 
 /* Image section */
-.image-section {
-  margin-top: 0.5rem;
-}
-
-.image-section .dialog-label {
-  margin-top: 1.5rem;
-}
-
-.image-icons-row {
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-.image-icons-row :deep(.v-col) {
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-}
-
-.image-icons-container {
-  gap: 0.5rem;
+.aid-block--photo .image-upload-zone {
+  flex: 1;
+  width: 100%;
+  max-width: none;
   margin: 0;
-  padding: 0;
+  min-height: 9.5rem;
 }
 
-.image-row-icon {
-  color: #6b7280;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.image-row-icon:hover {
-  color: #2293a1;
-}
-
-.image-upload-row {
-  margin: 0 !important;
-  padding: 0 !important;
-  margin-top: 0 !important;
-}
-
-.image-upload-row :deep(.v-col) {
-  padding-top: 0 !important;
-}
-
-/* Hidden file input */
 .hidden-file-input {
   display: none;
 }
@@ -2159,10 +2284,10 @@ export default {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
-  width: 16rem;
+  gap: 0.65rem;
+  width: 100%;
   height: auto;
-  padding: 1.5rem;
+  padding: 1rem;
   border: 2px dashed rgba(34, 147, 161, 0.3);
   border-radius: 1rem;
   background: rgba(255, 255, 255, 0.5);
@@ -2170,12 +2295,6 @@ export default {
   transition: all 0.3s ease;
   margin: 0 auto;
   aspect-ratio: 3 / 2;
-}
-
-@media (min-width: 1700px) {
-  .image-upload-zone {
-    width: 25rem;
-  }
 }
 
 .image-upload-zone:hover {
@@ -2188,12 +2307,6 @@ export default {
   border-style: solid;
   border-color: rgba(34, 147, 161, 0.2);
   background: transparent;
-}
-
-@media (min-width: 1700px) {
-  .image-upload-zone.has-image {
-    width: 25rem;
-  }
 }
 
 .image-upload-zone.image-error {
@@ -2352,5 +2465,20 @@ export default {
 :deep(.cropper-dialog-content) {
   border-radius: 15px !important;
   overflow: hidden;
+}
+</style>
+
+<style>
+/* Teleported Vuetify overlay — keep sheet opaque and connected */
+.aid-overlay.v-overlay__content,
+.v-overlay__content.aid-overlay {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+.aid-overlay .aid-sheet {
+  background: #ffffff !important;
 }
 </style>

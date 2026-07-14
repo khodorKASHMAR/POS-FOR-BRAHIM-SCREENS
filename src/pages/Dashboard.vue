@@ -13,7 +13,6 @@
             {{ $t('dashboard') }}
           </h1>
           <p class="dash-header__subtitle">{{ $t('dashboardSubtitle') }}</p>
-          <span class="dash-header__badge">{{ $t('closedReceiptsOnly') }}</span>
         </div>
 
         <div class="period-rail" role="tablist">
@@ -43,13 +42,36 @@
           <span class="kpi__label">{{ $t('unitsSoldShort') }}</span>
           <strong class="kpi__value">{{ loading ? '—' : totalUnitsSold }}</strong>
         </article>
-        <article class="kpi kpi--items">
-          <span class="kpi__label">{{ $t('items') }}</span>
-          <strong class="kpi__value">{{ loading ? '—' : topSoldItems.length }}</strong>
-        </article>
-        <article class="kpi kpi--cats">
-          <span class="kpi__label">{{ $t('mostSoldCategories') }}</span>
-          <strong class="kpi__value">{{ loading ? '—' : topSoldCategories.length }}</strong>
+      </div>
+
+      <!-- Selection insight cards (visible when an item/category filter is applied) -->
+      <div v-if="selectionInsights.length" class="select-strip">
+        <article
+          v-for="insight in selectionInsights"
+          :key="insight.key"
+          class="select-card"
+        >
+          <div class="select-card__head">
+            <span class="select-card__badge">
+              <v-icon size="15">{{ insight.icon }}</v-icon>
+              {{ insight.typeLabel }}
+            </span>
+            <strong class="select-card__name">{{ insight.name }}</strong>
+          </div>
+          <div class="select-card__stats">
+            <div class="select-card__stat">
+              <span>{{ $t('unitsSoldOfSelection') }}</span>
+              <strong>{{ insight.qty }}</strong>
+            </div>
+            <div class="select-card__stat">
+              <span>{{ $t('revenueOfSelection') }}</span>
+              <strong dir="ltr">{{ formatDisplay(insight.amount) }}</strong>
+            </div>
+            <div class="select-card__dual" dir="ltr">
+              <span>${{ formatUsd(insight.usd) }}</span>
+              <span>{{ formatLbp(insight.lbp) }}</span>
+            </div>
+          </div>
         </article>
       </div>
 
@@ -93,83 +115,53 @@
           </div>
         </div>
         <div class="filter-strip__actions" :class="state.lang === 'ar' ? 'is-ar' : 'is-en'">
-          <button type="button" class="btn-ghost" @click="resetFilters">{{ $t('reset') }}</button>
-          <button type="button" class="btn-solid" :disabled="loading" @click="loadDashboard">
-            <v-icon size="16">mdi-magnify</v-icon>
-            {{ loading ? $t('searching') : $t('applyFilters') }}
-          </button>
+          <template v-if="state.lang === 'ar'">
+            <button type="button" class="btn-solid" :disabled="loading" @click="loadDashboard">
+              <v-icon size="16">mdi-magnify</v-icon>
+              {{ loading ? $t('searching') : $t('search') }}
+            </button>
+            <button type="button" class="btn-ghost" @click="resetFilters">{{ $t('reset') }}</button>
+          </template>
+          <template v-else>
+            <button type="button" class="btn-ghost" @click="resetFilters">{{ $t('reset') }}</button>
+            <button type="button" class="btn-solid" :disabled="loading" @click="loadDashboard">
+              <v-icon size="16">mdi-magnify</v-icon>
+              {{ loading ? $t('searching') : $t('search') }}
+            </button>
+          </template>
         </div>
       </section>
 
-      <div class="workspace">
-        <section class="chart-panel">
-          <div class="panel-head">
-            <h2 class="panel-title">
-              <v-icon size="18">mdi-finance</v-icon>
-              {{ $t('revenueChart') }}
-            </h2>
-            <div class="panel-tools">
-              <div class="seg">
-                <button
-                  type="button"
-                  class="seg__btn"
-                  :class="{ 'seg__btn--on': chartType === 'line' }"
-                  :title="$t('lineChart')"
-                  @click="chartType = 'line'"
-                >
-                  <v-icon size="16">mdi-chart-line</v-icon>
-                </button>
-                <button
-                  type="button"
-                  class="seg__btn"
-                  :class="{ 'seg__btn--on': chartType === 'bar' }"
-                  :title="$t('barChart')"
-                  @click="chartType = 'bar'"
-                >
-                  <v-icon size="16">mdi-chart-bar</v-icon>
-                </button>
-              </div>
-              <button
-                type="button"
-                class="icon-btn"
-                :class="{ 'icon-btn--spin': loading }"
-                :disabled="loading"
-                @click="loadDashboard"
-              >
-                <v-icon size="17">mdi-refresh</v-icon>
-              </button>
-            </div>
-          </div>
+      <!-- Scenario switcher -->
+      <div class="scenario-tabs" role="tablist">
+        <button
+          type="button"
+          class="scenario-tab"
+          :class="{ 'scenario-tab--on': scenario === 'revenue' }"
+          @click="scenario = 'revenue'"
+        >
+          <v-icon size="17">mdi-finance</v-icon>
+          {{ $t('scenarioRevenue') }}
+        </button>
+        <button
+          type="button"
+          class="scenario-tab"
+          :class="{ 'scenario-tab--on': scenario === 'sold' }"
+          @click="scenario = 'sold'"
+        >
+          <v-icon size="17">mdi-trophy-outline</v-icon>
+          {{ $t('scenarioTopSold') }}
+        </button>
+      </div>
 
-          <div class="chart-panel__body">
-            <div v-if="loading" class="state-box">
-              <div class="pulse-bars">
-                <span v-for="n in 7" :key="n" :style="{ '--h': `${28 + (n % 4) * 16}%` }" />
-              </div>
-              <span>{{ $t('loadingDashboard') }}</span>
-            </div>
-            <div v-else-if="isChartEmpty" class="state-box">
-              <v-icon size="40" color="#9db5c0">mdi-chart-box-outline</v-icon>
-              <span>{{ $t('noDashboardData') }}</span>
-            </div>
-            <div v-else class="chart-canvas">
-              <Line v-if="chartType === 'line'" :data="chartData" :options="chartOptions" />
-              <Bar v-else :data="chartData" :options="chartOptions" />
-            </div>
-          </div>
-        </section>
-
-        <aside class="sold-panel">
-          <div class="panel-head panel-head--sold">
-            <h2 class="panel-title">
-              <v-icon size="18">mdi-trophy-outline</v-icon>
-              {{ $t('mostSoldItems') }}
-            </h2>
-          </div>
-
-          <div class="sold-toggle">
-            <span class="sold-toggle__hint">{{ $t('topSoldBy') }}</span>
-            <div class="seg seg--wide">
+      <section class="chart-panel">
+        <div class="panel-head">
+          <h2 class="panel-title">
+            <v-icon size="18">{{ scenario === 'revenue' ? 'mdi-finance' : 'mdi-trophy-outline' }}</v-icon>
+            {{ scenario === 'revenue' ? $t('revenueChart') : $t('mostSoldItems') }}
+          </h2>
+          <div class="panel-tools">
+            <div v-if="scenario === 'sold'" class="seg">
               <button
                 type="button"
                 class="seg__btn"
@@ -189,35 +181,52 @@
                 {{ $t('mostSoldCategories') }}
               </button>
             </div>
+            <div class="seg">
+              <button
+                type="button"
+                class="seg__btn"
+                :class="{ 'seg__btn--on': chartType === 'line' }"
+                :title="$t('lineChart')"
+                @click="chartType = 'line'"
+              >
+                <v-icon size="16">mdi-chart-line</v-icon>
+              </button>
+              <button
+                type="button"
+                class="seg__btn"
+                :class="{ 'seg__btn--on': chartType === 'bar' }"
+                :title="$t('barChart')"
+                @click="chartType = 'bar'"
+              >
+                <v-icon size="16">mdi-chart-bar</v-icon>
+              </button>
+            </div>
           </div>
+        </div>
 
-          <div v-if="loading" class="state-box state-box--sm">
+        <div class="chart-panel__body">
+          <div v-if="loading" class="state-box">
+            <div class="pulse-bars">
+              <span v-for="n in 7" :key="n" :style="{ '--h': `${28 + (n % 4) * 16}%` }" />
+            </div>
             <span>{{ $t('loadingDashboard') }}</span>
           </div>
-          <div v-else-if="leaderboardRows.length === 0" class="state-box state-box--sm">
-            <v-icon size="28" color="#9db5c0">mdi-inbox-outline</v-icon>
+          <div v-else-if="isCurrentChartEmpty" class="state-box">
+            <v-icon size="40" color="#9db5c0">mdi-chart-box-outline</v-icon>
             <span>{{ $t('noDashboardData') }}</span>
           </div>
-          <ul v-else class="sold-list">
-            <li
-              v-for="(row, index) in leaderboardRows"
-              :key="row.id ?? index"
-              class="sold-card"
-              :class="`sold-card--${index + 1}`"
-            >
-              <span class="sold-card__rank">{{ index + 1 }}</span>
-              <div class="sold-card__body">
-                <span class="sold-card__name">{{ row.name }}</span>
-                <span class="sold-card__meta">{{ row.qty }}× · {{ formatDisplay(row.amount) }}</span>
-              </div>
-              <div class="sold-card__dual" dir="ltr">
-                <span>${{ formatUsd(row.usd) }}</span>
-                <span>{{ formatLbp(row.lbp) }}</span>
-              </div>
-            </li>
-          </ul>
-        </aside>
-      </div>
+          <div v-else class="chart-canvas">
+            <template v-if="scenario === 'revenue'">
+              <Line v-if="chartType === 'line'" :data="chartData" :options="chartOptions" />
+              <Bar v-else :data="chartData" :options="chartOptions" />
+            </template>
+            <template v-else>
+              <Line v-if="chartType === 'line'" :data="soldChartData" :options="soldChartOptions" />
+              <Bar v-else :data="soldChartData" :options="soldChartOptions" />
+            </template>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </template>
@@ -265,6 +274,7 @@ const loading = ref(false)
 const categoryLoading = ref(false)
 const itemLoading = ref(false)
 const period = ref('daily')
+const scenario = ref('revenue')
 const chartType = ref('line')
 const soldMode = ref('items')
 
@@ -275,6 +285,11 @@ const topSoldItems = ref([])
 const topSoldCategories = ref([])
 const categoryOptions = ref([])
 const itemOptions = ref([])
+
+// Filters actually applied on the last successful load (so insight cards
+// never show a selection that has not been searched yet).
+const appliedItemId = ref(null)
+const appliedCategoryId = ref(null)
 
 const filters = ref({
   fromDate: '',
@@ -287,14 +302,29 @@ const lang = computed(() => ({ dir: state.dir, lang: state.lang }))
 const isUsd = computed(() => state.currency === 'USD')
 
 const periodOptions = [
-  { id: 'daily', labelKey: 'periodDaily', granularity: 'HOURLY' },
-  { id: 'monthly', labelKey: 'periodMonthly', granularity: 'DAILY' },
-  { id: 'yearly', labelKey: 'periodYearly', granularity: 'MONTHLY' }
+  { id: 'daily', labelKey: 'periodDaily' },
+  { id: 'monthly', labelKey: 'periodMonthly' },
+  { id: 'yearly', labelKey: 'periodYearly' }
 ]
 
+/**
+ * Granularity is derived from the selected date range instead of the period
+ * button, so any custom gap always produces a renderable series:
+ *   - single day        -> hourly buckets
+ *   - up to ~3 months   -> daily buckets (covers 2-3 day gaps too)
+ *   - anything longer   -> monthly buckets
+ */
 const granularity = computed(() => {
-  const match = periodOptions.find((option) => option.id === period.value)
-  return match?.granularity ?? 'HOURLY'
+  const from = filters.value.fromDate ? new Date(filters.value.fromDate) : null
+  const to = filters.value.toDate ? new Date(filters.value.toDate) : null
+  if (!from || !to || Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+    return 'HOURLY'
+  }
+  const dayMs = 24 * 60 * 60 * 1000
+  const days = Math.round(Math.abs(to - from) / dayMs) + 1
+  if (days <= 1) return 'HOURLY'
+  if (days <= 92) return 'DAILY'
+  return 'MONTHLY'
 })
 
 const totalIncome = computed(() =>
@@ -312,35 +342,70 @@ const totalUnitsSold = computed(() =>
   topSoldItems.value.reduce((sum, item) => sum + (item.quantitySold ?? 0), 0)
 )
 
-const isChartEmpty = computed(() =>
+const isRevenueChartEmpty = computed(() =>
   revenueSeries.value.every((p) => Number(p.revenueUsd ?? p.revenue) === 0)
 )
 
-const leaderboardRows = computed(() => {
+const soldRows = computed(() => {
   if (soldMode.value === 'categories') {
-    return topSoldCategories.value.slice(0, 8).map((c) => ({
+    return topSoldCategories.value.slice(0, 10).map((c) => ({
       id: c.categoryId,
       name: state.lang === 'ar'
         ? (c.categoryNameAr || c.categoryNameEn)
         : (c.categoryNameEn || c.categoryNameAr),
       qty: c.quantitySold ?? 0,
       usd: Number(c.revenueUsd) || 0,
-      lbp: Number(c.revenueLbp) || 0,
-      amount: isUsd.value ? Number(c.revenueUsd) || 0 : Number(c.revenueLbp) || 0
+      lbp: Number(c.revenueLbp) || 0
     }))
   }
-  return topSoldItems.value.slice(0, 8).map((item) => ({
+  return topSoldItems.value.slice(0, 10).map((item) => ({
     id: item.itemId,
     name: state.lang === 'ar'
       ? (item.itemNameAr || item.itemNameEn)
       : (item.itemNameEn || item.itemNameAr),
     qty: item.quantitySold ?? 0,
     usd: Number(item.revenueUsd ?? item.revenue) || 0,
-    lbp: Number(item.revenueLbp) || 0,
-    amount: isUsd.value
-      ? Number(item.revenueUsd ?? item.revenue) || 0
-      : Number(item.revenueLbp) || 0
+    lbp: Number(item.revenueLbp) || 0
   }))
+})
+
+const isCurrentChartEmpty = computed(() =>
+  scenario.value === 'revenue' ? isRevenueChartEmpty.value : soldRows.value.length === 0
+)
+
+const selectionInsights = computed(() => {
+  const insights = []
+  if (appliedItemId.value != null) {
+    const row = topSoldItems.value.find((i) => Number(i.itemId) === Number(appliedItemId.value))
+    insights.push({
+      key: `item-${appliedItemId.value}`,
+      icon: 'mdi-package-variant',
+      typeLabel: $t('selectedItem'),
+      name: row
+        ? (state.lang === 'ar' ? (row.itemNameAr || row.itemNameEn) : (row.itemNameEn || row.itemNameAr))
+        : (itemOptions.value.find((o) => o.value === appliedItemId.value)?.label ?? '—'),
+      qty: row?.quantitySold ?? 0,
+      usd: Number(row?.revenueUsd) || 0,
+      lbp: Number(row?.revenueLbp) || 0,
+      amount: isUsd.value ? (Number(row?.revenueUsd) || 0) : (Number(row?.revenueLbp) || 0)
+    })
+  }
+  if (appliedCategoryId.value != null) {
+    const row = topSoldCategories.value.find((c) => Number(c.categoryId) === Number(appliedCategoryId.value))
+    insights.push({
+      key: `cat-${appliedCategoryId.value}`,
+      icon: 'mdi-shape-outline',
+      typeLabel: $t('selectedCategory'),
+      name: row
+        ? (state.lang === 'ar' ? (row.categoryNameAr || row.categoryNameEn) : (row.categoryNameEn || row.categoryNameAr))
+        : (categoryOptions.value.find((o) => o.value === appliedCategoryId.value)?.label ?? '—'),
+      qty: row?.quantitySold ?? 0,
+      usd: Number(row?.revenueUsd) || 0,
+      lbp: Number(row?.revenueLbp) || 0,
+      amount: isUsd.value ? (Number(row?.revenueUsd) || 0) : (Number(row?.revenueLbp) || 0)
+    })
+  }
+  return insights
 })
 
 function formatUsd(value) {
@@ -442,6 +507,112 @@ function onItemSearch(query) {
   itemSearchTimer = setTimeout(() => fetchItems(query), 220)
 }
 
+const tealGradient = (ctx) => {
+  const { chart } = ctx
+  const { ctx: c, chartArea } = chart
+  if (!chartArea) return 'rgba(74, 158, 171, 0.12)'
+  const g = c.createLinearGradient(0, chartArea.bottom, 0, chartArea.top)
+  g.addColorStop(0, 'rgba(74, 158, 171, 0.02)')
+  g.addColorStop(1, 'rgba(74, 158, 171, 0.18)')
+  return g
+}
+
+/* --------------------------- Custom HTML tooltip -------------------------- */
+
+const andWord = computed(() => (state.lang === 'ar' ? 'و' : 'and'))
+
+/**
+ * Combined total expressed in the active currency: the USD revenue plus the
+ * LBP revenue converted back to USD at the current dollar rate.
+ */
+function combinedAtRate(usd, lbp) {
+  const rate = Number(state.exchangeRate) || 0
+  const totalUsd = (Number(usd) || 0) + (rate > 0 ? (Number(lbp) || 0) / rate : 0)
+  return isUsd.value ? totalUsd : totalUsd * rate
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[ch]))
+}
+
+function tipRow(label, value) {
+  return `<div class="dash-tip__row"><span>${escapeHtml(label)}</span><strong dir="ltr">${escapeHtml(value)}</strong></div>`
+}
+
+function buildRevenueTipHtml(index) {
+  const point = revenueSeries.value[index] || {}
+  const usd = Number(point.revenueUsd ?? point.revenue) || 0
+  const lbp = Number(point.revenueLbp) || 0
+  return (
+    `<div class="dash-tip__head">${escapeHtml(point.label || '')}</div>` +
+    `<div class="dash-tip__body">` +
+    tipRow($t('incomeUsd'), `$${formatUsd(usd)}`) +
+    tipRow($t('incomeLbp'), formatLbp(lbp)) +
+    `<div class="dash-tip__total">${tipRow($t('totalRevenueAtRate'), formatDisplay(combinedAtRate(usd, lbp)))}</div>` +
+    `</div>`
+  )
+}
+
+function buildSoldTipHtml(index) {
+  const row = soldRows.value[index]
+  if (!row) return ''
+  const perUnit = row.qty > 0 ? (isUsd.value ? row.usd : row.lbp) / row.qty : 0
+  const dualTotal = `$${formatUsd(row.usd)} ${andWord.value} ${formatLbp(row.lbp)}`
+  return (
+    `<div class="dash-tip__head">${escapeHtml(row.name || '')}</div>` +
+    `<div class="dash-tip__body">` +
+    tipRow($t('quantitySold'), row.qty) +
+    (row.qty > 0 ? tipRow($t('revenuePerUnit'), formatDisplay(perUnit)) : '') +
+    tipRow($t('totalRevenue'), dualTotal) +
+    `<div class="dash-tip__total">${tipRow($t('totalRevenueAtRate'), formatDisplay(combinedAtRate(row.usd, row.lbp)))}</div>` +
+    `</div>`
+  )
+}
+
+function externalTooltipHandler(context) {
+  const { chart, tooltip } = context
+  const parent = chart.canvas?.parentNode
+  if (!parent) return
+
+  let el = parent.querySelector('.dash-tip')
+  if (!el) {
+    el = document.createElement('div')
+    el.className = 'dash-tip'
+    parent.appendChild(el)
+  }
+
+  if (tooltip.opacity === 0) {
+    el.classList.remove('dash-tip--show')
+    return
+  }
+
+  const index = tooltip.dataPoints?.[0]?.dataIndex
+  if (index == null) return
+
+  el.setAttribute('dir', state.dir)
+  el.innerHTML = scenario.value === 'revenue' ? buildRevenueTipHtml(index) : buildSoldTipHtml(index)
+
+  // Clamp horizontally inside the chart and keep the caret on the data point.
+  const half = el.offsetWidth / 2
+  const parentWidth = parent.clientWidth
+  const clampedX = Math.min(Math.max(tooltip.caretX, half + 6), Math.max(parentWidth - half - 6, half + 6))
+  const showBelow = tooltip.caretY < el.offsetHeight + 26
+
+  el.classList.toggle('dash-tip--below', showBelow)
+  el.style.left = `${clampedX}px`
+  el.style.top = `${tooltip.caretY}px`
+  el.style.setProperty('--caret-shift', `${tooltip.caretX - clampedX}px`)
+  el.classList.add('dash-tip--show')
+}
+
+/* ------------------------- Revenue trend scenario ------------------------- */
+
 const chartData = computed(() => ({
   labels: revenueSeries.value.map((p) => p.label),
   datasets: [
@@ -451,17 +622,7 @@ const chartData = computed(() => ({
         Number(isUsd.value ? (p.revenueUsd ?? p.revenue) : p.revenueLbp) || 0
       ),
       borderColor: '#4a9eab',
-      backgroundColor: chartType.value === 'line'
-        ? (ctx) => {
-            const { chart } = ctx
-            const { ctx: c, chartArea } = chart
-            if (!chartArea) return 'rgba(74, 158, 171, 0.12)'
-            const g = c.createLinearGradient(0, chartArea.bottom, 0, chartArea.top)
-            g.addColorStop(0, 'rgba(74, 158, 171, 0.02)')
-            g.addColorStop(1, 'rgba(74, 158, 171, 0.18)')
-            return g
-          }
-        : 'rgba(74, 158, 171, 0.55)',
+      backgroundColor: chartType.value === 'line' ? tealGradient : 'rgba(74, 158, 171, 0.55)',
       pointBackgroundColor: '#197783',
       pointBorderColor: '#fff',
       pointBorderWidth: 2,
@@ -482,36 +643,7 @@ const chartOptions = computed(() => ({
   interaction: { mode: 'index', intersect: false },
   plugins: {
     legend: { display: false },
-    tooltip: {
-      enabled: true,
-      displayColors: false,
-      backgroundColor: 'rgba(255, 255, 255, 0.97)',
-      titleColor: '#334155',
-      bodyColor: '#475569',
-      borderColor: 'rgba(25, 119, 131, 0.18)',
-      borderWidth: 1,
-      padding: { top: 14, bottom: 14, left: 16, right: 16 },
-      cornerRadius: 12,
-      titleFont: { size: 15, weight: '700', family: 'inherit' },
-      bodyFont: { size: 14, weight: '600', family: 'inherit' },
-      bodySpacing: 8,
-      caretPadding: 8,
-      boxPadding: 0,
-      callbacks: {
-        title(items) {
-          return items[0]?.label || ''
-        },
-        label(context) {
-          const point = revenueSeries.value[context.dataIndex] || {}
-          const usd = Number(point.revenueUsd ?? point.revenue) || 0
-          const lbp = Number(point.revenueLbp) || 0
-          return [
-            `${$t('incomeUsd')}: $${formatUsd(usd)}`,
-            `${$t('incomeLbp')}: ${formatLbp(lbp)}`
-          ]
-        }
-      }
-    }
+    tooltip: { enabled: false, external: externalTooltipHandler }
   },
   scales: {
     x: {
@@ -534,6 +666,68 @@ const chartOptions = computed(() => ({
   }
 }))
 
+/* --------------------------- Top sold scenario ---------------------------- */
+
+const soldChartData = computed(() => ({
+  labels: soldRows.value.map((row) => row.name),
+  datasets: [
+    {
+      label: $t('quantitySold'),
+      data: soldRows.value.map((row) => row.qty),
+      borderColor: '#197783',
+      backgroundColor: chartType.value === 'line' ? tealGradient : 'rgba(25, 119, 131, 0.55)',
+      pointBackgroundColor: '#197783',
+      pointBorderColor: '#fff',
+      pointBorderWidth: 2,
+      pointRadius: chartType.value === 'line' ? 4 : 0,
+      pointHoverRadius: 6,
+      tension: 0.35,
+      fill: chartType.value === 'line',
+      borderWidth: 2.2,
+      borderRadius: 8,
+      maxBarThickness: 46
+    }
+  ]
+}))
+
+const soldChartOptions = computed(() => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  interaction: { mode: 'index', intersect: false },
+  plugins: {
+    legend: { display: false },
+    tooltip: { enabled: false, external: externalTooltipHandler }
+  },
+  scales: {
+    x: {
+      grid: { display: false },
+      border: { display: false },
+      ticks: {
+        color: '#94a3b8',
+        font: { size: 11, family: 'inherit' },
+        autoSkip: false,
+        maxRotation: 40,
+        callback(value) {
+          const label = this.getLabelForValue(value) ?? ''
+          return label.length > 14 ? `${label.slice(0, 13)}…` : label
+        }
+      }
+    },
+    y: {
+      beginAtZero: true,
+      grid: { color: 'rgba(148, 163, 184, 0.15)' },
+      border: { display: false },
+      ticks: {
+        color: '#94a3b8',
+        font: { size: 11, family: 'inherit' },
+        precision: 0
+      }
+    }
+  }
+}))
+
+/* --------------------------------- Data ---------------------------------- */
+
 async function loadDashboard() {
   loading.value = true
   try {
@@ -550,12 +744,16 @@ async function loadDashboard() {
     topSoldCategories.value = data.topSoldCategories ?? []
     totalRevenueUsd.value = Number(data.totalRevenueUsd ?? data.totalRevenue) || 0
     totalRevenueLbp.value = Number(data.totalRevenueLbp) || 0
+    appliedItemId.value = filters.value.itemId ?? null
+    appliedCategoryId.value = filters.value.categoryId ?? null
   } catch {
     revenueSeries.value = []
     topSoldItems.value = []
     topSoldCategories.value = []
     totalRevenueUsd.value = 0
     totalRevenueLbp.value = 0
+    appliedItemId.value = null
+    appliedCategoryId.value = null
   } finally {
     loading.value = false
   }
@@ -636,7 +834,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(25, 119, 131, 0.1);
+  background: linear-gradient(135deg, rgba(25, 119, 131, 0.14), rgba(50, 216, 238, 0.14));
   color: #197783;
 }
 
@@ -648,19 +846,6 @@ onMounted(async () => {
   line-height: 1.4;
 }
 
-.dash-header__badge {
-  display: inline-block;
-  margin-top: 0.45rem;
-  margin-inline-start: 2.85rem;
-  padding: 0.18rem 0.55rem;
-  border-radius: 6px;
-  font-size: 0.68rem;
-  font-weight: 650;
-  color: #5a8f97;
-  background: rgba(25, 119, 131, 0.07);
-  border: 1px solid rgba(25, 119, 131, 0.12);
-}
-
 .period-rail {
   display: inline-flex;
   gap: 0.2rem;
@@ -668,6 +853,7 @@ onMounted(async () => {
   border-radius: 11px;
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid #e4ebf1;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
 .period-rail__btn {
@@ -684,24 +870,25 @@ onMounted(async () => {
 }
 
 .period-rail__btn--on {
-  background: rgba(25, 119, 131, 0.12);
-  color: #197783;
+  background-image: linear-gradient(135deg, #197783, #32d8ee);
+  color: #fff;
 }
 
 .kpi-row {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.6rem;
 }
 
 .kpi {
-  padding: 0.8rem 0.9rem;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.88);
+  padding: 0.85rem 0.95rem;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.92);
   border: 1px solid #e6edf3;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
 .kpi__label {
@@ -713,7 +900,7 @@ onMounted(async () => {
 }
 
 .kpi__value {
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   font-weight: 750;
   color: #334155;
   font-variant-numeric: tabular-nums;
@@ -722,17 +909,104 @@ onMounted(async () => {
   white-space: nowrap;
 }
 
-.kpi--income { border-inline-start: 3px solid rgba(25, 119, 131, 0.45); }
+.kpi--income { border-inline-start: 3px solid rgba(25, 119, 131, 0.55); }
 .kpi--peak { border-inline-start: 3px solid rgba(74, 158, 171, 0.55); }
 .kpi--units { border-inline-start: 3px solid rgba(100, 180, 190, 0.55); }
-.kpi--items { border-inline-start: 3px solid rgba(44, 140, 242, 0.35); }
-.kpi--cats { border-inline-start: 3px solid rgba(232, 180, 90, 0.55); }
+
+/* Selection insight cards */
+.select-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.6rem;
+}
+
+.select-card {
+  border-radius: 13px;
+  padding: 0.8rem 0.95rem;
+  background: linear-gradient(135deg, rgba(25, 119, 131, 0.07), rgba(50, 216, 238, 0.08)), #fff;
+  border: 1px solid rgba(25, 119, 131, 0.22);
+  box-shadow: 0 2px 6px rgba(25, 119, 131, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.select-card__head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.select-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: rgba(25, 119, 131, 0.12);
+  color: #14606a;
+  flex-shrink: 0;
+}
+
+.select-card__name {
+  font-size: 0.95rem;
+  font-weight: 750;
+  color: #14606a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.select-card__stats {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.select-card__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.select-card__stat span {
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: #7a95a0;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.select-card__stat strong {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #197783;
+  font-variant-numeric: tabular-nums;
+}
+
+.select-card__dual {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.08rem;
+  font-size: 0.68rem;
+  font-weight: 650;
+  color: #5a8f97;
+}
 
 .filter-strip {
   padding: 0.85rem 1rem;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid #e6edf3;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
 .filter-strip__grid {
@@ -776,14 +1050,24 @@ onMounted(async () => {
 }
 
 .btn-ghost {
-  background: rgba(25, 119, 131, 0.05);
-  border-color: rgba(25, 119, 131, 0.2);
+  background: rgba(25, 119, 131, 0.08);
+  border-color: rgba(25, 119, 131, 0.4);
   color: #197783;
 }
 
+.btn-ghost:hover {
+  background: rgba(25, 119, 131, 0.14);
+  border-color: #197783;
+}
+
 .btn-solid {
-  background: #197783;
+  background-image: linear-gradient(135deg, #197783, #32d8ee);
   color: #fff;
+  font-weight: 700;
+}
+
+.btn-solid:hover:not(:disabled) {
+  background-image: linear-gradient(135deg, #14606a, #26c6da);
 }
 
 .btn-solid:disabled {
@@ -791,23 +1075,52 @@ onMounted(async () => {
   cursor: not-allowed;
 }
 
-.workspace {
-  display: grid;
-  grid-template-columns: 1fr 300px;
-  gap: 0.85rem;
-  flex: 1;
-  min-height: 0;
+/* Scenario tabs */
+.scenario-tabs {
+  display: flex;
+  gap: 0.55rem;
 }
 
-.chart-panel,
-.sold-panel {
+.scenario-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.65rem 1rem;
+  border-radius: 12px;
+  border: 1px solid #e4ebf1;
   background: rgba(255, 255, 255, 0.92);
+  color: #7a8fa3;
+  font-size: 0.88rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.scenario-tab:hover {
+  border-color: rgba(25, 119, 131, 0.35);
+  color: #197783;
+}
+
+.scenario-tab--on {
+  background-image: linear-gradient(135deg, #197783, #32d8ee);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(25, 119, 131, 0.28);
+}
+
+.chart-panel {
+  background: rgba(255, 255, 255, 0.94);
   border: 1px solid #e6edf3;
-  border-radius: 14px;
+  border-radius: 16px;
   display: flex;
   flex-direction: column;
   min-height: 430px;
   overflow: hidden;
+  flex: 1;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
 }
 
 .panel-head {
@@ -818,10 +1131,7 @@ onMounted(async () => {
   padding: 0.75rem 0.95rem;
   border-bottom: 1px solid #eef2f6;
   background: #fafcfd;
-}
-
-.panel-head--sold {
-  justify-content: flex-start;
+  flex-wrap: wrap;
 }
 
 .panel-title {
@@ -842,6 +1152,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  flex-wrap: wrap;
 }
 
 .seg {
@@ -851,15 +1162,6 @@ onMounted(async () => {
   border-radius: 9px;
   background: #f0f4f7;
   border: 1px solid #e4ebf1;
-}
-
-.seg--wide {
-  width: 100%;
-}
-
-.seg--wide .seg__btn {
-  flex: 1;
-  justify-content: center;
 }
 
 .seg__btn {
@@ -882,27 +1184,6 @@ onMounted(async () => {
   background: #fff;
   color: #197783;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
-}
-
-.icon-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 1px solid #e4ebf1;
-  background: #fff;
-  color: #5a9aa3;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.icon-btn--spin .v-icon {
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 .chart-panel__body {
@@ -931,10 +1212,6 @@ onMounted(async () => {
   font-size: 0.88rem;
 }
 
-.state-box--sm {
-  min-height: 160px;
-}
-
 .pulse-bars {
   display: flex;
   align-items: flex-end;
@@ -958,120 +1235,18 @@ onMounted(async () => {
   50% { opacity: 1; }
 }
 
-.sold-toggle {
-  padding: 0.7rem 0.85rem 0.35rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.sold-toggle__hint {
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: #9aabba;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.sold-list {
-  list-style: none;
-  margin: 0;
-  padding: 0.5rem 0.7rem 0.85rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.sold-card {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.6rem 0.65rem;
-  border-radius: 11px;
-  background: #f7fafc;
-  border: 1px solid #eef2f6;
-}
-
-.sold-card__rank {
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.7rem;
-  font-weight: 800;
-  background: #e4ebf1;
-  color: #7a8fa3;
-  flex-shrink: 0;
-}
-
-.sold-card--1 .sold-card__rank {
-  background: rgba(232, 180, 90, 0.35);
-  color: #9a6b14;
-}
-
-.sold-card--2 .sold-card__rank {
-  background: rgba(148, 163, 184, 0.35);
-  color: #64748b;
-}
-
-.sold-card--3 .sold-card__rank {
-  background: rgba(25, 119, 131, 0.15);
-  color: #197783;
-}
-
-.sold-card__body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-}
-
-.sold-card__name {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #3d4f5f;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sold-card__meta {
-  font-size: 0.7rem;
-  color: #9aabba;
-  font-weight: 500;
-}
-
-.sold-card__dual {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.08rem;
-  font-size: 0.66rem;
-  font-weight: 650;
-  color: #5a8f97;
-  flex-shrink: 0;
-}
-
 @media (max-width: 1100px) {
   .kpi-row {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-  .workspace {
-    grid-template-columns: 1fr;
-  }
-  .sold-panel {
-    min-height: auto;
   }
 }
 
 @media (max-width: 720px) {
   .kpi-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
+  }
+  .select-strip {
+    grid-template-columns: 1fr;
   }
   .filter-strip__grid {
     grid-template-columns: 1fr;
@@ -1086,5 +1261,117 @@ onMounted(async () => {
   .period-rail__btn {
     flex: 1;
   }
+  .scenario-tabs {
+    flex-direction: column;
+  }
+}
+</style>
+
+<style>
+/* Custom chart tooltip (created dynamically, so it cannot be scoped) */
+.dash-tip {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, calc(-100% - 16px)) scale(0.97);
+  min-width: 230px;
+  max-width: 320px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbfc 100%);
+  border: 1px solid rgba(25, 119, 131, 0.18);
+  border-radius: 14px;
+  box-shadow:
+    0 20px 44px -14px rgba(15, 23, 42, 0.28),
+    0 6px 14px -6px rgba(25, 119, 131, 0.16);
+  overflow: hidden;
+  z-index: 30;
+  transition: opacity 0.14s ease, transform 0.14s ease, left 0.08s ease-out, top 0.08s ease-out;
+  font-family: inherit;
+}
+
+.dash-tip--show {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, calc(-100% - 16px)) scale(1);
+}
+
+.dash-tip--below {
+  transform: translate(-50%, 18px) scale(0.97);
+}
+
+.dash-tip--below.dash-tip--show {
+  transform: translate(-50%, 18px) scale(1);
+}
+
+.dash-tip::after {
+  content: '';
+  position: absolute;
+  left: calc(50% + var(--caret-shift, 0px));
+  bottom: -6px;
+  width: 12px;
+  height: 12px;
+  transform: translateX(-50%) rotate(45deg);
+  background: #f7fbfc;
+  border-right: 1px solid rgba(25, 119, 131, 0.18);
+  border-bottom: 1px solid rgba(25, 119, 131, 0.18);
+}
+
+.dash-tip--below::after {
+  bottom: auto;
+  top: -6px;
+  background: #197783;
+  border: none;
+}
+
+.dash-tip__head {
+  padding: 0.6rem 0.85rem;
+  background: linear-gradient(135deg, #197783, #32d8ee);
+  color: #ffffff;
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-tip__body {
+  padding: 0.6rem 0.85rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.38rem;
+}
+
+.dash-tip__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.dash-tip__row strong {
+  color: #0f172a;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dash-tip__total {
+  margin-top: 0.2rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed rgba(25, 119, 131, 0.3);
+}
+
+.dash-tip__total .dash-tip__row span {
+  color: #14606a;
+  font-weight: 750;
+}
+
+.dash-tip__total .dash-tip__row strong {
+  color: #197783;
+  font-size: 0.88rem;
 }
 </style>

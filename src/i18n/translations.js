@@ -55,6 +55,15 @@ export const translations = {
     noAutocompleteResults: 'No results',
     closedReceiptsOnly: 'Closed receipts only',
     topSoldBy: 'Most sold by',
+    scenarioRevenue: 'Revenue Trend',
+    scenarioTopSold: 'Top Sold',
+    unitPrice: 'Unit Price',
+    revenuePerUnit: 'Profit / Unit',
+    totalRevenueAtRate: 'Total (at dollar rate)',
+    selectedItem: 'Selected Item',
+    selectedCategory: 'Selected Category',
+    unitsSoldOfSelection: 'Units Sold',
+    revenueOfSelection: 'Total Revenue',
     
     // Home Page
     items: 'ITEMS',
@@ -307,6 +316,15 @@ export const translations = {
     noAutocompleteResults: 'لا نتائج',
     closedReceiptsOnly: 'الفواتير المغلقة فقط',
     topSoldBy: 'الأكثر مبيعاً حسب',
+    scenarioRevenue: 'مخطط الإيرادات',
+    scenarioTopSold: 'الأكثر مبيعاً',
+    unitPrice: 'سعر الوحدة',
+    revenuePerUnit: 'الربح / الوحدة',
+    totalRevenueAtRate: 'الإجمالي (حسب سعر الصرف)',
+    selectedItem: 'الصنف المحدد',
+    selectedCategory: 'الفئة المحددة',
+    unitsSoldOfSelection: 'الوحدات المباعة',
+    revenueOfSelection: 'إجمالي الإيرادات',
     
     // Home Page
     items: 'العناصر',

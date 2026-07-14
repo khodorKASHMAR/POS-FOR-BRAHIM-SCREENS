@@ -32,27 +32,17 @@
 
       <div class="pos-ac__icons">
         <button
-          v-if="clearable && modelValue != null && modelValue !== '' && !disabled"
+          v-if="showClear"
           type="button"
           class="pos-ac__clear"
+          :aria-label="'Clear'"
           @click.stop="clearValue"
         >
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-            <path d="M6 18L18 6M6 6l12 12" />
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.25">
+            <path stroke-linecap="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
         <span v-if="loading" class="pos-ac__spinner" />
-        <svg
-          v-else
-          class="pos-ac__chevron"
-          :class="{ 'pos-ac__chevron--open': showDropdown }"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          stroke-width="2"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
       </div>
     </div>
 
@@ -124,6 +114,11 @@ const dropdownPos = ref({ top: 0, left: 0, width: 0 })
 
 const isLocked = computed(() => {
   if (!props.lockOnSelect || props.disabled) return false
+  return modelValue.value !== null && modelValue.value !== undefined && modelValue.value !== ''
+})
+
+const showClear = computed(() => {
+  if (!props.clearable || props.disabled) return false
   return modelValue.value !== null && modelValue.value !== undefined && modelValue.value !== ''
 })
 
@@ -309,7 +304,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   min-height: 40px;
-  padding: 0.4rem 2.4rem 0.4rem 0.85rem;
+  padding: 0.4rem 2rem 0.4rem 0.85rem;
   border-radius: 10px;
   border: 1px solid #d9e2ec;
   background: #f7fafc;
@@ -318,7 +313,7 @@ onUnmounted(() => {
 }
 
 [dir="rtl"] .pos-ac__field {
-  padding: 0.4rem 0.85rem 0.4rem 2.4rem;
+  padding: 0.4rem 0.85rem 0.4rem 2rem;
 }
 
 .pos-ac__field:hover:not(.pos-ac__field--disabled) {
@@ -387,37 +382,25 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   border: none;
   border-radius: 50%;
-  background: transparent;
-  color: #197783;
+  background: rgba(100, 116, 139, 0.12);
+  color: #64748b;
   cursor: pointer;
-  opacity: 0.7;
   padding: 0;
-  transition: opacity 0.15s, background 0.15s;
+  transition: color 0.15s, background 0.15s;
 }
 
 .pos-ac__clear:hover {
-  opacity: 1;
-  background: rgba(25, 119, 131, 0.1);
+  color: #fff;
+  background: #ef4444;
 }
 
-.pos-ac__clear svg,
-.pos-ac__chevron {
-  width: 15px;
-  height: 15px;
-}
-
-.pos-ac__chevron {
-  color: #94a3b8;
-  transition: transform 0.2s ease;
-}
-
-.pos-ac__chevron--open {
-  transform: rotate(180deg);
-  color: #197783;
+.pos-ac__clear svg {
+  width: 11px;
+  height: 11px;
 }
 
 .pos-ac__spinner {
