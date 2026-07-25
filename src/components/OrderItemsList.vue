@@ -172,8 +172,6 @@ const receipt = reactive({
   payLebanese: 0,
   returnedToUserValue: 0,
   customerName: '',
-  userId: null,
-  dollarRate: 0,
   receiptItems: [] // each item: { itemId, quantity, itemDiscount, isDiscountPercent, subTotal }
 })
 
@@ -314,8 +312,6 @@ function clearReceipt() {
   receipt.payLebanese = 0
   receipt.returnedToUserValue = 0
   receipt.customerName = ''
-  receipt.userId = null
-  receipt.dollarRate = 0
   receipt.isReceiptDollar = state.currency === 'USD'
   receipt.receiptItems = []
 }
@@ -534,8 +530,7 @@ const handlePlaceOrder = () => {
   emit('place-order', {
     receipt: {
       ...receipt,
-      id: draftReceiptId.value,
-      type: 'RECEIPT'
+      id: draftReceiptId.value
     },
     receiptItems: [...receipt.receiptItems],
     subtotal: subtotal.value,
@@ -549,8 +544,7 @@ const handleSaveDraft = () => {
   emit('save-draft', {
     receipt: {
       ...receipt,
-      id: draftReceiptId.value,
-      type: 'DRAFT'
+      id: draftReceiptId.value
     },
     receiptItems: [...receipt.receiptItems],
     subtotal: subtotal.value,
@@ -573,7 +567,6 @@ function loadDraft({ id, details, items }) {
     receipt.payDollar = Number(details.payDollar) || 0
     receipt.payLebanese = Number(details.payLebanese) || 0
     receipt.returnedToUserValue = Number(details.returnedToUserValue) || 0
-    receipt.dollarRate = Number(details.dollarRate) || state.exchangeRate || 0
     receipt.total = Number(details.total) || 0
     if (details.isReceiptDollar !== false) {
       state.currency = 'USD'

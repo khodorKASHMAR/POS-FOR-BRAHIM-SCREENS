@@ -148,23 +148,13 @@ function addItemToCart(item) {
 
 const $notification = inject('$notification')
 
-function prepareReceipt(receipt) {
-  return {
-    ...receipt,
-    dollarRate: Number(receipt.dollarRate) || state.exchangeRate || 0
-  }
-}
-
 const handlePlaceOrder = async (orderData) => {
   if (!orderData?.receipt) return
-  const receipt = prepareReceipt(orderData.receipt)
+  const receipt = orderData.receipt
   try {
-    if (receipt.id) {
-      await ReceiptService.updateReceipt(receipt.id, receipt)
-    } else {
-      await ReceiptService.saveReceipt(receipt)
-    }
+    await ReceiptService.saveReceipt(receipt)
     orderListRef.value?.clearReceipt()
+    await state.fetchUserItems({ force: true })
     if (typeof $notification === 'function') {
       $notification(receipt.isReceiptDollar ? $t('receiptSavedUsd') : $t('receiptSavedLbp'), 'success', 3000)
     }
@@ -181,10 +171,10 @@ const handlePlaceOrder = async (orderData) => {
 
 const handleSaveDraft = async (orderData) => {
   if (!orderData?.receipt) return
-  const receipt = prepareReceipt(orderData.receipt)
+  const receipt = orderData.receipt
   try {
     if (receipt.id) {
-      await ReceiptService.updateReceipt(receipt.id, { ...receipt, type: 'DRAFT' })
+      await ReceiptService.updateDraft(receipt.id, receipt)
     } else {
       await ReceiptService.saveDraft(receipt)
     }
@@ -227,7 +217,7 @@ async function loadDraftFromQuery() {
 // Enable horizontal scrolling with mouse wheel on categories container
 onMounted(async () => {
   await state.fetchDollarRate()
-  await state.fetchUserItems()
+  await state.fetchUserItems({ force: true })
   await loadCategories()
   await loadDraftFromQuery()
   // Set initial document direction
@@ -251,7 +241,7 @@ onMounted(async () => {
 
 onActivated(async () => {
   await state.fetchDollarRate()
-  await state.fetchUserItems()
+  await state.fetchUserItems({ force: true })
   await loadCategories()
   await loadDraftFromQuery()
 })

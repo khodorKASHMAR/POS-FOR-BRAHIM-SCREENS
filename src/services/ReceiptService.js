@@ -1,27 +1,8 @@
 import PosAxios from './index.js'
 
-function getUserIdFromToken() {
-  const token = localStorage.getItem('token')
-  if (!token) return null
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]))
-    const id = Number(payload.sub)
-    return Number.isFinite(id) ? id : null
-  } catch {
-    return null
-  }
-}
-
-function formatReceiptTime(date = new Date()) {
-  return date.toTimeString().slice(0, 8)
-}
-
-function buildReceiptPayload(receipt, type = 'RECEIPT') {
-  const now = new Date()
+function buildReceiptPayload(receipt) {
   return {
     total: receipt.total,
-    receiptDate: receipt.receiptDate || now.toISOString(),
-    receiptTime: receipt.receiptTime || formatReceiptTime(now),
     customerName: receipt.customerName || '',
     isReceiptDiscountPercent: receipt.isReceiptDiscountPercent ?? false,
     receiptDiscount: receipt.receiptDiscount ?? 0,
@@ -31,9 +12,6 @@ function buildReceiptPayload(receipt, type = 'RECEIPT') {
     payDollar: Number(receipt.payDollar) ?? 0,
     payLebanese: Number(receipt.payLebanese) ?? 0,
     returnedToUserValue: Number(receipt.returnedToUserValue) ?? 0,
-    userId: receipt.userId ?? getUserIdFromToken(),
-    dollarRate: Number(receipt.dollarRate) ?? 0,
-    type,
     receiptItems: (receipt.receiptItems || []).map(ri => ({
       itemId: ri.itemId,
       quantity: ri.quantity,
@@ -48,23 +26,24 @@ function buildReceiptPayload(receipt, type = 'RECEIPT') {
  * Save a receipt (ReceiptRequestDTO).
  */
 export function saveReceipt(receipt) {
-  return PosAxios.post('/receipt', buildReceiptPayload(receipt, 'RECEIPT'))
+  return PosAxios.post('/receipt', buildReceiptPayload(receipt))
 }
 
 /**
  * Save a draft receipt without payment validation.
  */
 export function saveDraft(receipt) {
-  return PosAxios.post('/receipt', buildReceiptPayload(receipt, 'DRAFT'))
+  return PosAxios.post('/draft', buildReceiptPayload(receipt))
 }
 
 /**
- * Update an existing receipt (e.g. finalize a draft).
+ * Update an existing draft.
  */
-export function updateReceipt(receiptId, receipt) {
-  const type = receipt.type || 'RECEIPT'
-  return PosAxios.put(`/receipt/${receiptId}`, buildReceiptPayload(receipt, type))
+export function updateDraft(receiptId, receipt) {
+  return PosAxios.put(`/draft/${receiptId}`, buildReceiptPayload(receipt))
 }
+
+
 
 /**
  * Search receipts for the current user.
@@ -103,7 +82,7 @@ export function getReceiptItems(receiptId) {
 export default {
   saveReceipt,
   saveDraft,
-  updateReceipt,
+  updateDraft,
   searchUserReceipts,
   getReceiptDetails,
   getReceiptItems

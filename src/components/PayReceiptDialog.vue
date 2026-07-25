@@ -287,7 +287,6 @@ function syncPaymentToReceipt() {
   props.receipt.payDollar = roundToTwo(Number(payDollarInput.value) || 0)
   props.receipt.payLebanese = Math.round(Number(payLebaneseInput.value) || 0)
   props.receipt.returnedToUserValue = overpaidLbp.value
-  props.receipt.dollarRate = state.exchangeRate
 }
 
 function togglePayWishCurrency() {
@@ -358,18 +357,6 @@ const formatPrice = (price) => {
   return `${formattedValue} ${currencySymbol}`
 }
 
-function getUserIdFromToken() {
-  const token = localStorage.getItem('token')
-  if (!token) return null
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]))
-    const id = Number(payload.sub)
-    return Number.isFinite(id) ? id : null
-  } catch {
-    return null
-  }
-}
-
 function validatePayment() {
   const total = totalLbp.value
   const paid = Math.round(paidLbp.value)
@@ -389,8 +376,6 @@ function validatePayment() {
 function handleSave() {
   syncPaymentToReceipt()
   props.receipt.returnedToUserValue = overpaidLbp.value
-  props.receipt.dollarRate = state.exchangeRate
-  props.receipt.userId = getUserIdFromToken()
 
   const error = validatePayment()
   if (error) {
