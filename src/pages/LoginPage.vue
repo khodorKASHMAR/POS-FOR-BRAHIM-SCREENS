@@ -93,8 +93,10 @@
 import { ref, reactive, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import LoginService from '../services/LoginService.js'
+import { useUserStore } from '../store/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 const notify = inject('$notification')
 
 const login = reactive({
@@ -132,7 +134,7 @@ async function submitLogin() {
   try {
     await LoginService.login(login.userName, login.password)
     notify('Login successful!', 'success', 1000)
-    router.push('/')
+    router.push(userStore.firstAllowedPath || '/')
   } catch (error) {
     const message = error.response?.data?.message || 'Login failed. Please check your credentials and try again.'
     errorMessage.value = message

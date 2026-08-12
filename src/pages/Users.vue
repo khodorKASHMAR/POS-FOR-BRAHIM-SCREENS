@@ -84,16 +84,63 @@
                     <td v-for="h in headers" :key="h.key" class="table-cell" :data-label="h.title">
                       <template v-if="h.key === 'actions'">
                         <div class="users-table-actions">
-                          <button type="button" class="action-btn edit-btn" :title="$t('editUser')" @click="editUser(item)">
-                            <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                              <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                          <button type="button" class="action-btn delete-btn" :title="$t('delete')" @click="openDeleteDialog(item)">
-                            <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                              <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                          <v-tooltip
+                            :text="$t('editUserMenus')"
+                            location="bottom"
+                            :z-index="10000"
+                            content-class="users-action-tooltip"
+                          >
+                            <template #activator="{ props: tooltipProps }">
+                              <button
+                                v-bind="tooltipProps"
+                                type="button"
+                                class="action-btn menus-btn"
+                                @click="openUserMenus(item)"
+                              >
+                                <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                              </button>
+                            </template>
+                          </v-tooltip>
+                          <v-tooltip
+                            :text="$t('editUser')"
+                            location="bottom"
+                            :z-index="10000"
+                            content-class="users-action-tooltip"
+                          >
+                            <template #activator="{ props: tooltipProps }">
+                              <button
+                                v-bind="tooltipProps"
+                                type="button"
+                                class="action-btn edit-btn"
+                                @click="editUser(item)"
+                              >
+                                <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
+                            </template>
+                          </v-tooltip>
+                          <v-tooltip
+                            :text="$t('delete')"
+                            location="bottom"
+                            :z-index="10000"
+                            content-class="users-action-tooltip"
+                          >
+                            <template #activator="{ props: tooltipProps }">
+                              <button
+                                v-bind="tooltipProps"
+                                type="button"
+                                class="action-btn delete-btn"
+                                @click="openDeleteDialog(item)"
+                              >
+                                <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </template>
+                          </v-tooltip>
                         </div>
                       </template>
                       <template v-else>
@@ -180,10 +227,12 @@
                     :placeholder="$t('userName')"
                     variant="outlined"
                     density="compact"
-                    :rules="[v => !!v || $t('fieldRequired')]"
+                    :rules="userNameRules"
                     :disabled="!!isEditing"
                     autocomplete="off"
                     class="dialog-field"
+                    @keydown.space.prevent
+                    @update:model-value="onUserNameInput"
                   />
                 </div>
               </v-col>
@@ -191,19 +240,19 @@
                 <div class="dialog-field-group">
                   <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
                     <span>{{ $t('password') }}</span>
-                    <span v-if="!isEditing" class="dialog-label-required">*</span>
+                    <span class="dialog-label-required">*</span>
                   </div>
                   <v-text-field
                     v-model="user.password"
                     :type="showPassword ? 'text' : 'password'"
                     persistent-placeholder
-                    :placeholder="isEditing ? $t('leaveBlankToKeep') : $t('password')"
+                    :placeholder="$t('password')"
                     variant="outlined"
                     density="compact"
-                    :rules="isEditing ? [] : [v => !!v || $t('fieldRequired')]"
+                    :rules="[v => !!v || $t('fieldRequired')]"
                     :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
                     @click:append-inner="showPassword = !showPassword"
-                    :autocomplete="isEditing ? 'off' : 'new-password'"
+                    autocomplete="off"
                     class="dialog-field"
                   />
                 </div>
@@ -292,6 +341,13 @@
       </v-form>
     </v-dialog>
 
+    <UserMenusDialog
+      v-model="menusDialog"
+      :user="menusUser"
+      :dir="lang.dir"
+      @saved="onUserMenusSaved"
+    />
+
     <v-dialog v-model="confirmDialog" max-width="420" persistent>
       <v-card class="rounded-lg elevation-4">
         <v-card-title class="delete-dialog-title">
@@ -318,16 +374,21 @@
 import { ref, reactive, computed, onMounted, onUnmounted, watch, getCurrentInstance } from 'vue'
 import { useState } from '../store/state'
 import TopBar from '../components/TopBar.vue'
+import UserMenusDialog from '../components/UserMenusDialog.vue'
 import UserService from '../services/UserService.js'
+import { useUserStore } from '../store/user'
 
 const instance = getCurrentInstance()
 const $t = instance?.appContext?.config?.globalProperties?.$t || (k => k)
 const $notification = (msg, status, delay) => instance?.appContext?.config?.globalProperties?.$notification?.(msg, status, delay)
 
 const state = useState()
+const userStore = useUserStore()
 const lang = computed(() => ({ lang: state.lang, dir: state.dir }))
 
 const userDialog = ref(false)
+const menusDialog = ref(false)
+const menusUser = ref(null)
 const loading = ref(false)
 const search = ref('')
 const showPassword = ref(false)
@@ -345,6 +406,15 @@ const user = reactive({
   email: '',
   phoneNumber: ''
 })
+
+const userNameRules = [
+  (v) => !!String(v || '').trim() || $t('fieldRequired'),
+  (v) => !/\s/.test(String(v || '')) || $t('userNameNoSpaces')
+]
+
+function onUserNameInput(value) {
+  user.userName = String(value || '').replace(/\s/g, '')
+}
 
 const users = ref([])
 const pagination = reactive({
@@ -474,13 +544,13 @@ async function submitForm() {
   }
   try {
     const payload = {
-      userName: user.userName,
+      userName: String(user.userName || '').trim(),
+      password: user.password,
       firstNameEN: user.firstNameEN,
       lastNameEN: user.lastNameEN,
       email: user.email || null,
       phoneNumber: user.phoneNumber || null
     }
-    if (user.password?.trim()) payload.password = user.password
 
     if (isEditing.value) {
       await UserService.updateUser(editedUserId.value, payload)
@@ -500,7 +570,7 @@ async function submitForm() {
 function editUser(row) {
   Object.assign(user, {
     userName: row.userName,
-    password: '',
+    password: row.password ?? '',
     firstNameEN: row.firstNameEN ?? '',
     lastNameEN: row.lastNameEN ?? '',
     email: row.email ?? '',
@@ -508,7 +578,19 @@ function editUser(row) {
   })
   editedUserId.value = row.id
   isEditing.value = true
+  showPassword.value = false
   userDialog.value = true
+}
+
+function openUserMenus(row) {
+  menusUser.value = row
+  menusDialog.value = true
+}
+
+function onUserMenusSaved({ userId, menuCodes }) {
+  if (String(userStore.user?.id || '') === String(userId || '')) {
+    userStore.setUser({ ...userStore.user, menus: menuCodes })
+  }
 }
 
 function openDeleteDialog(row) {
@@ -547,17 +629,41 @@ onUnmounted(() => {
 
 <style scoped>
 .page-background {
-  background: #fafafa;
+  --oil-ink: #16363a;
+  --oil-muted: #5f7a7e;
+  --oil-line: rgba(25, 119, 131, 0.16);
+  --oil-teal: #197783;
+  --oil-teal-bright: #20b4c6;
+  --oil-surface: #ffffff;
+  --oil-panel: linear-gradient(180deg, #eaf5f6 0%, #f5f9fa 45%, #eef4f5 100%);
+  background: var(--oil-panel);
   min-height: 100vh;
+  position: relative;
+}
+
+.page-background::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 34% at 0% 0%, rgba(50, 216, 238, 0.1), transparent 55%),
+    radial-gradient(ellipse 45% 28% at 100% 100%, rgba(25, 119, 131, 0.07), transparent 50%);
+  z-index: 0;
+}
+
+.page-background > * {
+  position: relative;
+  z-index: 1;
 }
 
 .users-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
-  margin-left: 1rem;
-  margin-right: 1rem;
+  margin: 0.35rem 1rem 0.9rem;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .users-header-rtl {
@@ -565,17 +671,18 @@ onUnmounted(() => {
 }
 
 .users-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #1a1a1a;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--oil-ink);
   margin: 0;
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
+  letter-spacing: -0.02em;
+  padding: 0 0.25rem;
 }
 
 .users-actions {
   display: flex;
-  gap: 0.75rem;
+  gap: 0.65rem;
+  flex-wrap: wrap;
 }
 
 .users-actions-rtl {
@@ -583,14 +690,18 @@ onUnmounted(() => {
 }
 
 .add-items-action-btn {
-  border-radius: 12px;
-  font-weight: 700;
-  background-image: linear-gradient(135deg, #197783, #32d8ee);
-  color: #ffffff;
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.01em;
+  background-image: linear-gradient(135deg, #197783, #20b4c6) !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 14px rgba(25, 119, 131, 0.22);
+  text-transform: none !important;
 }
 
 .add-items-action-btn:hover {
-  background-image: linear-gradient(135deg, #08bad1, #26c6da);
+  background-image: linear-gradient(135deg, #146873, #1aa3b4) !important;
+  box-shadow: 0 8px 18px rgba(25, 119, 131, 0.28);
 }
 
 .add-items-action-btn :deep(.v-btn__content) {
@@ -610,29 +721,27 @@ onUnmounted(() => {
 
 /* Custom table (SimpleCustomTable-style) */
 .users-custom-table {
-  --table-primary: #00bcd4;
+  --table-primary: #197783;
 }
 
 .table-responsive-container.users-custom-table {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: var(--oil-surface);
+  border-radius: 16px;
+  box-shadow: 0 10px 26px rgba(22, 54, 58, 0.08);
   overflow: hidden;
-  margin: 0;
-  border: 1px solid #e2e8f0;
+  margin: 0 1rem 1.5rem;
+  border: 1px solid var(--oil-line);
   display: flex;
   flex-direction: column;
-  margin-left: 0.75rem;
-  margin-right: 0.75rem;
 }
 
 .table-controls {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 14px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, #f1f8f9, #f7fbfc);
+  border-bottom: 1px solid var(--oil-line);
   flex-wrap: wrap;
   gap: 16px;
 }
@@ -644,8 +753,8 @@ onUnmounted(() => {
 }
 
 .control-label {
-  font-weight: 500;
-  color: #495057;
+  font-weight: 600;
+  color: var(--oil-muted);
   font-size: 14px;
 }
 
@@ -660,20 +769,20 @@ onUnmounted(() => {
   gap: 8px;
   padding: 8px 12px;
   background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border: 1px solid var(--oil-line);
+  border-radius: 10px;
   cursor: pointer;
   font-size: 14px;
-  color: #495057;
-  transition: all 0.2s ease;
+  color: var(--oil-ink);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
   min-width: 120px;
   justify-content: space-between;
 }
 
 .dropdown-trigger:hover,
 .dropdown-trigger.dropdown-open {
-  border-color: var(--table-primary);
-  box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.1);
+  border-color: var(--oil-teal-bright);
+  box-shadow: 0 0 0 3px rgba(32, 180, 198, 0.16);
 }
 
 .dropdown-arrow {
@@ -692,9 +801,9 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--oil-line);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(22, 54, 58, 0.14);
   z-index: 1000;
   margin-top: 4px;
   overflow: hidden;
@@ -703,18 +812,18 @@ onUnmounted(() => {
 .dropdown-item {
   padding: 10px 12px;
   font-size: 14px;
-  color: #495057;
+  color: var(--oil-ink);
   cursor: pointer;
   transition: background-color 0.2s ease;
-  border-bottom: 1px solid #f8f9fa;
+  border-bottom: 1px solid #f1f7f8;
 }
 
 .dropdown-item:hover {
-  background-color: #f8f9fa;
+  background-color: #f2f9fa;
 }
 
 .dropdown-item.selected {
-  background-color: var(--table-primary);
+  background: linear-gradient(135deg, #197783, #20b4c6);
   color: #fff;
 }
 
@@ -738,7 +847,7 @@ onUnmounted(() => {
   left: 12px;
   width: 16px;
   height: 16px;
-  color: #6c757d;
+  color: var(--oil-teal);
   z-index: 1;
 }
 
@@ -750,12 +859,12 @@ onUnmounted(() => {
 .search-input {
   width: 100%;
   padding: 8px 12px 8px 36px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border: 1px solid var(--oil-line);
+  border-radius: 999px;
   font-size: 14px;
-  color: #495057;
+  color: var(--oil-ink);
   background: #fff;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 [dir="rtl"] .search-input {
@@ -765,8 +874,8 @@ onUnmounted(() => {
 
 .search-input:focus {
   outline: none;
-  border-color: var(--table-primary);
-  box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.1);
+  border-color: var(--oil-teal-bright);
+  box-shadow: 0 0 0 3px rgba(32, 180, 198, 0.16);
 }
 
 .table-wrapper {
@@ -783,29 +892,29 @@ onUnmounted(() => {
 }
 
 .table-header {
-  background: #f8f9fa;
-  color: #374151;
-  font-weight: 600;
+  background: #f4fafb;
+  color: var(--oil-teal);
+  font-weight: 700;
   text-align: left;
   padding: 12px;
-  border-bottom: 2px solid #e2e8f0;
-  font-size: 13px;
+  border-bottom: 1px solid rgba(25, 119, 131, 0.22);
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.06em;
 }
 
 .table-row {
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid rgba(25, 119, 131, 0.1);
   transition: background-color 0.2s ease;
 }
 
 .table-row:hover {
-  background-color: #f8f9fa;
+  background-color: #f4fafb;
 }
 
 .table-cell {
   padding: 12px;
-  color: #495057;
+  color: var(--oil-ink);
   vertical-align: middle;
   border: none;
 }
@@ -813,9 +922,9 @@ onUnmounted(() => {
 .no-data-cell {
   text-align: center;
   padding: 40px 20px;
-  color: #6c757d;
+  color: var(--oil-muted);
   font-style: italic;
-  background: #f8f9fa;
+  background: #f7fbfc;
 }
 
 .users-table-actions {
@@ -826,11 +935,12 @@ onUnmounted(() => {
 
 .users-table-actions .action-btn {
   padding: 6px;
-  border: none;
-  border-radius: 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
   cursor: pointer;
   background: transparent;
-  transition: background 0.2s, color 0.2s;
+  color: var(--oil-muted);
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
 
 .users-table-actions .action-btn .action-icon {
@@ -840,12 +950,20 @@ onUnmounted(() => {
 }
 
 .users-table-actions .edit-btn:hover {
-  background: rgba(0, 188, 212, 0.15);
-  color: #197783;
+  background: rgba(25, 119, 131, 0.12);
+  border-color: rgba(25, 119, 131, 0.3);
+  color: var(--oil-teal);
+}
+
+.users-table-actions .menus-btn:hover {
+  background: rgba(25, 119, 131, 0.12);
+  border-color: rgba(25, 119, 131, 0.3);
+  color: var(--oil-teal);
 }
 
 .users-table-actions .delete-btn:hover {
   background: rgba(211, 47, 47, 0.1);
+  border-color: rgba(211, 47, 47, 0.35);
   color: #d32f2f;
 }
 
@@ -853,9 +971,9 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding: 8px 14px;
-  background: #f8f9fa;
-  border-top: 1px solid #e2e8f0;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, #f7fbfc, #f1f8f9);
+  border-top: 1px solid var(--oil-line);
   gap: 0;
 }
 
@@ -865,25 +983,25 @@ onUnmounted(() => {
   justify-content: center;
   width: 30px;
   height: 30px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--oil-line);
   background: #fff;
-  color: #495057;
-  border-radius: 8px;
+  color: var(--oil-muted);
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 .pagination-btn:hover:not(.disabled) {
-  background: var(--table-primary);
+  background: linear-gradient(135deg, #197783, #20b4c6);
   color: #fff;
-  border-color: var(--table-primary);
+  border-color: transparent;
 }
 
 .pagination-btn.disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
-  background: #f8f9fa;
-  color: #6c757d;
+  background: #f4f8f9;
+  color: var(--oil-muted);
 }
 
 .pagination-icon {
@@ -904,27 +1022,28 @@ onUnmounted(() => {
   min-width: 30px;
   height: 30px;
   padding: 0 8px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--oil-line);
   background: #fff;
-  color: #495057;
-  border-radius: 8px;
+  color: var(--oil-ink);
+  border-radius: 10px;
   cursor: pointer;
   font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s ease;
+  font-weight: 600;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 .pagination-page:hover {
-  background: var(--table-primary);
-  color: #fff;
-  border-color: var(--table-primary);
+  background: #e9f5f7;
+  color: var(--oil-teal);
+  border-color: rgba(32, 180, 198, 0.4);
 }
 
 .pagination-page.active {
-  background: var(--table-primary);
+  background: linear-gradient(135deg, #197783, #20b4c6);
   color: #fff;
-  border-color: var(--table-primary);
-  font-weight: 600;
+  border-color: transparent;
+  font-weight: 700;
+  box-shadow: 0 4px 10px rgba(25, 119, 131, 0.22);
 }
 
 .pagination-ellipsis {
@@ -933,7 +1052,7 @@ onUnmounted(() => {
   justify-content: center;
   width: 30px;
   height: 30px;
-  color: #6c757d;
+  color: var(--oil-muted);
 }
 
 [dir="rtl"] .pagination-btn:first-child .pagination-icon {
@@ -967,7 +1086,7 @@ onUnmounted(() => {
 }
 
 .add-items-dialog {
-  border-radius: 15px !important;
+  border-radius: 20px !important;
   overflow: hidden;
 }
 
@@ -977,12 +1096,20 @@ onUnmounted(() => {
   max-height: 94vh;
   display: flex;
   flex-direction: column;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow:
+    0 28px 60px -20px rgba(15, 23, 42, 0.35),
+    0 12px 24px -12px rgba(25, 119, 131, 0.2);
 }
 
 .item-dialog-title {
-  padding: 8px 20px;
-  font-size: 1.1rem;
-  font-weight: 600;
+  padding: 0.95rem 1.25rem;
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  background: linear-gradient(120deg, #125f68 0%, #197783 42%, #22b8c9 100%);
+  color: #ffffff;
+  flex-shrink: 0;
 }
 
 .text-right {
@@ -990,10 +1117,11 @@ onUnmounted(() => {
 }
 
 .item-dialog-body {
-  padding: 10px 20px;
+  padding: 1rem 1.25rem 1.25rem;
   overflow-y: auto;
   overflow-x: hidden;
   flex: 1;
+  background: linear-gradient(180deg, #eaf5f6 0%, #f5f9fa 55%, #eef4f5 100%);
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -1026,8 +1154,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  font-weight: 600;
-  color: #6b7280;
+  font-weight: 700;
+  color: var(--oil-muted);
   font-size: 0.75rem;
   margin-bottom: 0.1rem;
 }
@@ -1055,7 +1183,8 @@ onUnmounted(() => {
 }
 
 .dialog-save-btn {
-  background-image: linear-gradient(135deg, #2293a1, #32d8ee);
+  background-image: linear-gradient(135deg, #197783, #20b4c6);
+  box-shadow: 0 6px 14px rgba(25, 119, 131, 0.22);
 }
 
 .dialog-cancel-btn {
@@ -1085,7 +1214,7 @@ onUnmounted(() => {
   border-radius: 10px;
   background:
     linear-gradient(#ffffff, #ffffff) padding-box,
-    linear-gradient(135deg, #2293a1, #32d8ee) border-box;
+    linear-gradient(135deg, #197783, #20b4c6) border-box;
   overflow: hidden;
 }
 
@@ -1138,5 +1267,38 @@ onUnmounted(() => {
   color: #ef4444;
 }
 
+[dir="rtl"] .dialog-field :deep(.v-messages),
+[dir="rtl"] .dialog-field :deep(.v-messages__message),
+[dir="rtl"] .dialog-field :deep(.v-input__details) {
+  direction: rtl;
+  text-align: right;
+}
 
+[dir="ltr"] .dialog-field :deep(.v-messages),
+[dir="ltr"] .dialog-field :deep(.v-messages__message),
+[dir="ltr"] .dialog-field :deep(.v-input__details) {
+  direction: ltr;
+  text-align: left;
+}
+</style>
+
+<style>
+.users-action-tooltip,
+.v-overlay__content.users-action-tooltip {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  border-radius: 8px !important;
+  padding: 0.35rem 0.55rem !important;
+  font-size: 0.7rem !important;
+  font-weight: 500 !important;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.28) !important;
+  opacity: 1 !important;
+}
+
+.users-action-tooltip .v-overlay__content,
+.users-action-tooltip .v-tooltip__content {
+  background: transparent !important;
+  color: #ffffff !important;
+  padding: 0 !important;
+}
 </style>

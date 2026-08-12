@@ -29,66 +29,31 @@
     </div>
 
     <div class="sidebar-menu">
-      <div class="sidebar-section">
+      <div v-if="mainMenus.length" class="sidebar-section">
         <button
+          v-for="item in mainMenus"
+          :key="item.code"
           class="nav-item"
-          :class="{ active: isActive('/') }"
-          @click="$emit('navigate', '/')"
+          :class="{ active: isActive(item.path) }"
+          @click="$emit('navigate', item.path)"
         >
-          <i class="mdi mdi-home nav-icon" aria-hidden="true"></i>
-          <span class="nav-label">{{ $t('home') }}</span>
-        </button>
-        <button
-          class="nav-item"
-          :class="{ active: isActive('/drafts') }"
-          @click="$emit('navigate', '/drafts')"
-        >
-          <i class="mdi mdi-file-document-edit-outline nav-icon" aria-hidden="true"></i>
-          <span class="nav-label">{{ $t('drafts') }}</span>
-        </button>
-        <button
-          class="nav-item"
-          :class="{ active: isActive('/receipts') }"
-          @click="$emit('navigate', '/receipts')"
-        >
-          <i class="mdi mdi-receipt nav-icon" aria-hidden="true"></i>
-          <span class="nav-label">{{ $t('receipts') }}</span>
+          <i class="mdi nav-icon" :class="item.icon" aria-hidden="true"></i>
+          <span class="nav-label">{{ $t(item.labelKey) }}</span>
         </button>
       </div>
 
-      <template v-if="user.role === 'admin'">
+      <template v-if="adminMenus.length">
+        <div v-if="mainMenus.length" class="sidebar-divider" aria-hidden="true"></div>
         <div class="sidebar-section">
           <button
+            v-for="item in adminMenus"
+            :key="item.code"
             class="nav-item"
-            :class="{ active: isActive('/dashboard') }"
-            @click="$emit('navigate', '/dashboard')"
+            :class="{ active: isActive(item.path) }"
+            @click="$emit('navigate', item.path)"
           >
-            <i class="mdi mdi-chart-areaspline nav-icon" aria-hidden="true"></i>
-            <span class="nav-label">{{ $t('dashboard') }}</span>
-          </button>
-          <button
-            class="nav-item"
-            :class="{ active: isActive('/add-items') }"
-            @click="$emit('navigate', '/add-items')"
-          >
-            <i class="mdi mdi-shield-account nav-icon" aria-hidden="true"></i>
-            <span class="nav-label">{{ $t('addItems') }}</span>
-          </button>
-          <button
-            class="nav-item"
-            :class="{ active: isActive('/users') }"
-            @click="$emit('navigate', '/users')"
-          >
-            <i class="mdi mdi-account-group nav-icon" aria-hidden="true"></i>
-            <span class="nav-label">{{ $t('users') }}</span>
-          </button>
-          <button
-            class="nav-item"
-            :class="{ active: isActive('/dollar-rate') }"
-            @click="$emit('navigate', '/dollar-rate')"
-          >
-            <i class="mdi mdi-currency-usd nav-icon" aria-hidden="true"></i>
-            <span class="nav-label">{{ $t('dollarRate') }}</span>
+            <i class="mdi nav-icon" :class="item.icon" aria-hidden="true"></i>
+            <span class="nav-label">{{ $t(item.labelKey) }}</span>
           </button>
         </div>
       </template>
@@ -101,14 +66,19 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../store/user'
 import { useState } from '../store/state'
+import { menusForCodes } from '../constants/menus'
 
 const route = useRoute()
 const userStore = useUserStore()
 const ui = useState()
-const user = userStore.user
+
+const allowedMenus = computed(() => menusForCodes(userStore.user?.menus))
+const mainMenus = computed(() => allowedMenus.value.filter((m) => m.section === 'main'))
+const adminMenus = computed(() => allowedMenus.value.filter((m) => m.section === 'admin'))
 
 defineEmits(['navigate'])
 
@@ -119,33 +89,62 @@ function isActive(path) {
 
 <style scoped>
 .sidebar-nav {
+  --oil-ink: #16363a;
+  --oil-muted: #5f7a7e;
+  --oil-line: rgba(25, 119, 131, 0.16);
+  --oil-teal: #197783;
+  --oil-teal-bright: #20b4c6;
+  --oil-surface: #ffffff;
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 20px 12px;
+  padding: 1rem 0.75rem;
   min-height: 0;
-  background: #fafafa;
-  border-inline-end: 1px solid rgba(0, 0, 0, 0.06);
+  background: linear-gradient(180deg, #eaf5f6 0%, #f5f9fa 45%, #eef4f5 100%);
+  position: relative;
+}
+
+.sidebar-nav::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 40% at 0% 0%, rgba(50, 216, 238, 0.12), transparent 55%),
+    radial-gradient(ellipse 50% 30% at 100% 100%, rgba(25, 119, 131, 0.08), transparent 50%);
+}
+
+.sidebar-brand,
+.sidebar-menu,
+.sidebar-footer {
+  position: relative;
+  z-index: 1;
 }
 
 .sidebar-brand {
   flex-shrink: 0;
-
-  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.15rem 0.2rem 0.85rem;
+  border-bottom: 1px solid var(--oil-line);
   text-align: start;
 }
-
-
 
 .sidebar-brand-text {
   padding-left: 4px !important;
   padding-right: 4px !important;
   font-size: 1.25rem;
   font-weight: 700;
-  color: #1a1a1a;
   letter-spacing: -0.03em;
   font-style: italic;
   text-decoration: none;
+  background: linear-gradient(135deg, #197783 0%, #22a5b5 50%, #32d8ee 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .sidebar-brand-text.brand-en {
@@ -155,39 +154,53 @@ function isActive(path) {
 }
 
 .sidebar-brand-text.brand-ar {
-  font-family: 'Amiri', 'Noto Naskh Arabic', 'Traditional Arabic', serif;
+  font-family: var(--app-font-arabic);
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 .sidebar-menu {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.35rem;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.sidebar-menu::-webkit-scrollbar {
+  display: none;
 }
 
 .sidebar-section {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.3rem;
+}
+
+.sidebar-divider {
+  height: 1px;
+  margin: 0.55rem 0.4rem;
+  background: linear-gradient(90deg, transparent, var(--oil-line), transparent);
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 0.75rem;
   width: 100%;
-  padding: 10px 14px;
-  border: none;
-  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid transparent;
+  border-radius: 12px;
   background: transparent;
-  color: rgba(0, 0, 0, 0.72);
+  color: var(--oil-muted);
   font-size: 0.9375rem;
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
   text-align: start;
   position: relative;
   justify-content: flex-start;
@@ -195,8 +208,9 @@ function isActive(path) {
 }
 
 .nav-item:hover {
-  background: rgba(44, 140, 242, 0.08);
-  color: #1a1a1a;
+  background: rgba(25, 119, 131, 0.08);
+  color: var(--oil-ink);
+  border-color: rgba(25, 119, 131, 0.1);
 }
 
 .nav-item:active {
@@ -204,20 +218,24 @@ function isActive(path) {
 }
 
 .nav-item.active {
-  background: rgba(44, 140, 242, 0.12);
-  color: #2c8cf2;
-  font-weight: 600;
-  border-inline-start-color: #2c8cf2;
+  background: linear-gradient(135deg, rgba(25, 119, 131, 0.14), rgba(32, 180, 198, 0.12));
+  color: var(--oil-teal);
+  font-weight: 700;
+  border-color: rgba(25, 119, 131, 0.18);
+  border-inline-start-color: var(--oil-teal);
+  box-shadow: 0 4px 12px rgba(25, 119, 131, 0.1);
 }
 
 .nav-icon {
   font-size: 1.25rem;
   opacity: 0.9;
   flex-shrink: 0;
+  color: inherit;
 }
 
 .nav-item.active .nav-icon {
   opacity: 1;
+  color: var(--oil-teal);
 }
 
 .nav-label {
@@ -228,49 +246,18 @@ function isActive(path) {
 
 .sidebar-footer {
   flex-shrink: 0;
-  padding: 16px 12px 8px;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 0.9rem 0.65rem 0.35rem;
+  border-top: 1px solid var(--oil-line);
+  margin-top: 0.5rem;
 }
 
 .nav-hint {
-  font-size: 0.75rem;
-  color: rgba(0, 0, 0, 0.4);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--oil-muted);
   text-align: center;
-}
-
-/* RTL: icon before text; labels + icons aligned to the right; active border on the right */
-.sidebar-nav[dir='rtl'] .sidebar-brand {
-  text-align: end;
-}
-
-.sidebar-nav[dir='rtl'] .nav-item {
-  flex-direction: row;
-  direction: rtl;
-  justify-content: flex-start;
-  text-align: right;
-  border-inline-start: none;
-  border-inline-end: none;
-  border-left: none;
-  border-right: 3px solid transparent;
-}
-
-.sidebar-nav[dir='rtl'] .nav-item.active {
-  border-right-color: #2c8cf2;
-}
-
-.sidebar-nav[dir='rtl'] .nav-label {
-  text-align: right;
-}
-
-.sidebar-nav[dir='rtl'] .nav-hint {
-  text-align: center;
-}
-
-.sidebar-brand {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
+  font-weight: 600;
 }
 
 .sidebar-toggle-btn {
@@ -279,18 +266,21 @@ function isActive(path) {
   height: 2rem;
   min-width: 2rem;
   padding: 0;
-  border: none;
+  border: 1px solid var(--oil-line);
   border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* .sidebar-toggle-btn:hover {
-  background: rgba(44, 140, 242, 0.25);
-} */
+.sidebar-toggle-btn:hover {
+  background: #ffffff;
+  border-color: rgba(32, 180, 198, 0.45);
+  box-shadow: 0 0 0 3px rgba(32, 180, 198, 0.12);
+}
 
 .sidebar-brand .two-lines-icon {
   display: flex;
@@ -303,7 +293,39 @@ function isActive(path) {
 .sidebar-brand .two-lines-icon .line {
   width: 1rem;
   height: 2px;
-  background-color: #2c8cf2;
+  background: linear-gradient(90deg, var(--oil-teal), var(--oil-teal-bright));
   border-radius: 1px;
+}
+
+/* RTL: active border on the right */
+.sidebar-nav[dir='rtl'] .sidebar-brand {
+  text-align: end;
+}
+
+.sidebar-nav[dir='rtl'] .nav-item {
+  flex-direction: row;
+  direction: rtl;
+  justify-content: flex-start;
+  text-align: right;
+  border-inline-start: none;
+  border-left: 1px solid transparent;
+  border-right: 3px solid transparent;
+}
+
+.sidebar-nav[dir='rtl'] .nav-item:hover {
+  border-left-color: rgba(25, 119, 131, 0.1);
+}
+
+.sidebar-nav[dir='rtl'] .nav-item.active {
+  border-left-color: rgba(25, 119, 131, 0.18);
+  border-right-color: var(--oil-teal);
+}
+
+.sidebar-nav[dir='rtl'] .nav-label {
+  text-align: right;
+}
+
+.sidebar-nav[dir='rtl'] .nav-hint {
+  text-align: center;
 }
 </style>

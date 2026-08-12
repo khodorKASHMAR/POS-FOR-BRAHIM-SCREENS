@@ -111,9 +111,11 @@ const chevronNext = computed(() => (isAr.value ? 'mdi-chevron-left' : 'mdi-chevr
 const todayLabel = computed(() => (isAr.value ? 'اليوم' : 'Today'))
 
 const monthNames = computed(() =>
-  isAr.value
-    ? ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
-    : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  Array.from({ length: 12 }, (_, i) =>
+    new Date(2000, i, 1).toLocaleDateString(isAr.value ? 'ar-LB' : 'en-US', {
+      month: isAr.value ? 'long' : 'short'
+    })
+  )
 )
 
 const weekdays = computed(() =>

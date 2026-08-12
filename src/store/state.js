@@ -11,7 +11,7 @@ export const useState = defineStore('ui',{
     return {
       lang: savedLang || 'en',
       currency: savedCurrency || 'USD',
-      sidebar: true,
+      sidebar: false,
       exchangeRate: Number(localStorage.getItem('exchangeRate')) || 15000, // LBP per USD
       items: savedItems ? JSON.parse(savedItems) : [],
       itemsLoaded: false,

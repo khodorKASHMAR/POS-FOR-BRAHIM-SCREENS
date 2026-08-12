@@ -1,49 +1,53 @@
 <template>
   <div class="order-items-container">
-    <!-- Order actions header -->
-    <div v-if="orderedCart.length > 0" class="order-items-list-header">
-      <v-btn
-        color="primary"
-        variant="flat"
-        class="order-header-btn add-items-action-btn elevation-1"
-        prepend-icon="mdi-cash-register"
-        @click="openPayDialog"
-      >
-        {{ $t('payReceipt') }}
-      </v-btn>
-      <v-btn
-        color="primary"
-        variant="flat"
-        class="order-header-btn add-items-action-btn  elevation-1"
-        prepend-icon="mdi-file-document-edit-outline"
-        @click="handleSaveDraft"
-      >
-        {{ $t('saveDraft') }}
-      </v-btn>
-    </div>
+    <header v-if="orderedCart.length > 0" class="oil-top">
+      <div class="oil-title-row">
+        <span class="oil-title">{{ $t('cart') }}</span>
+        <span class="oil-count">{{ orderedCart.length }}</span>
+      </div>
 
-    <div v-if="orderedCart.length > 0" class="customer-name-row" :dir="state.dir">
-      <v-text-field
-        v-model="receipt.customerName"
-        variant="outlined"
-        density="compact"
-        hide-details
-        class="customer-name-field"
-        :class="{ 'customer-name-field-rtl': state.dir === 'rtl' }"
-        :placeholder="$t('customerNamePlaceholder')"
-        :prepend-inner-icon="state.dir === 'ltr' ? 'mdi-account' : undefined"
-        :append-inner-icon="state.dir === 'rtl' ? 'mdi-account' : undefined"
-      />
-    </div>
+      <div class="order-items-list-header">
+        <v-btn
+          color="primary"
+          variant="flat"
+          class="order-header-btn add-items-action-btn"
+          prepend-icon="mdi-cash-register"
+          @click="openPayDialog"
+        >
+          {{ $t('payReceipt') }}
+        </v-btn>
+        <v-btn
+          color="primary"
+          variant="flat"
+          class="order-header-btn add-items-action-btn oil-draft-btn"
+          prepend-icon="mdi-file-document-edit-outline"
+          @click="handleSaveDraft"
+        >
+          {{ $t('saveDraft') }}
+        </v-btn>
+      </div>
+
+      <div class="customer-name-row" :dir="state.dir">
+        <v-text-field
+          v-model="receipt.customerName"
+          variant="outlined"
+          density="compact"
+          hide-details
+          class="customer-name-field"
+          :class="{ 'customer-name-field-rtl': state.dir === 'rtl' }"
+          :placeholder="$t('customerNamePlaceholder')"
+          :prepend-inner-icon="state.dir === 'ltr' ? 'mdi-account-outline' : undefined"
+          :append-inner-icon="state.dir === 'rtl' ? 'mdi-account-outline' : undefined"
+        />
+      </div>
+    </header>
 
     <div class="order-items-list">
-      
-      <div
+      <article
         v-for="item in orderedCart"
         :key="item.id"
         class="order-item-card"
       >
-        <!-- Item Image -->
         <div class="order-item-image">
           <v-img
             v-if="getItemImage(item.id)"
@@ -53,13 +57,12 @@
             class="item-thumbnail"
           />
           <div v-else class="item-thumbnail-placeholder">
-            <v-icon color="grey-lighten-1">mdi-image-off</v-icon>
+            <v-icon size="22">mdi-package-variant</v-icon>
           </div>
         </div>
 
         <div class="order-item-content">
           <div class="order-item-main-row">
-            <!-- Item Details -->
             <div class="order-item-details">
               <div class="order-item-header">
                 <span class="order-item-name">{{ getItemName(item) }}</span>
@@ -78,7 +81,6 @@
               </div>
             </div>
 
-            <!-- Quantity Controls -->
             <div class="order-item-quantity">
               <div class="quantity-controls">
                 <v-btn
@@ -88,11 +90,13 @@
                   @click="decreaseQuantity(item)"
                   class="quantity-btn"
                 >
-                  <v-icon>mdi-minus</v-icon>
+                  <v-icon size="18">mdi-minus</v-icon>
                 </v-btn>
-                <input 
-                  type="number" 
-                  class="quantity-value" 
+                <input
+                  type="text"
+                  inputmode="numeric"
+                  class="quantity-value"
+                  dir="ltr"
                   :value="item.qty || 1"
                   @input="updateQuantity(item, $event)"
                   @blur="validateQuantity(item)"
@@ -105,14 +109,15 @@
                   @click="increaseQuantity(item)"
                   class="quantity-btn"
                 >
-                  <v-icon>mdi-plus</v-icon>
+                  <v-icon size="18">mdi-plus</v-icon>
                 </v-btn>
               </div>
-              <!-- Discount Controls -->
               <div class="discount-controls">
-                <input 
-                  type="number" 
-                  class="discount-input" 
+                <input
+                  type="text"
+                  inputmode="decimal"
+                  class="discount-input"
+                  dir="ltr"
                   :value="getDiscountValue(item)"
                   @input="updateDiscount(item, $event)"
                   @blur="validateDiscount(item)"
@@ -123,7 +128,7 @@
               </div>
             </div>
           </div>
-          <div class="order-item-divider"></div>
+
           <div class="order-item-subtotal-row">
             <span class="subtotal-label">{{ $t('subtotal') }}</span>
             <div class="subtotal-value-container">
@@ -131,15 +136,17 @@
             </div>
           </div>
         </div>
-      </div>
+      </article>
 
       <div v-if="orderedCart.length === 0" class="empty-cart">
-        <v-icon size="large" color="grey-lighten-1">mdi-cart-off</v-icon>
-        <p>{{ $t('emptyCart') }}</p>
+        <div class="empty-cart-orb">
+          <v-icon size="36">mdi-cart-outline</v-icon>
+        </div>
+        <p class="empty-cart-title">{{ $t('emptyCart') }}</p>
       </div>
     </div>
 
-    <div class="order-summary elevation-1">
+    <div class="order-summary">
       <div class="summary-row total-row">
         <span class="summary-label">{{ $t('total') }}</span>
         <span class="summary-value">{{ formatPrice(receipt.total) }}</span>
@@ -531,11 +538,7 @@ const handlePlaceOrder = () => {
     receipt: {
       ...receipt,
       id: draftReceiptId.value
-    },
-    receiptItems: [...receipt.receiptItems],
-    subtotal: subtotal.value,
-    discount: totalDiscount.value,
-    total: receipt.total
+    }
   })
 }
 
@@ -545,11 +548,7 @@ const handleSaveDraft = () => {
     receipt: {
       ...receipt,
       id: draftReceiptId.value
-    },
-    receiptItems: [...receipt.receiptItems],
-    subtotal: subtotal.value,
-    discount: totalDiscount.value,
-    total: receipt.total
+    }
   })
 }
 
@@ -576,12 +575,12 @@ function loadDraft({ id, details, items }) {
   }
 
   if (items?.length) {
-    receipt.receiptItems = items.map(item => ({
-      itemId: item.itemId,
-      quantity: item.quantity,
-      itemDiscount: Number(item.itemDiscount) || 0,
-      isDiscountPercent: item.isDiscountPercent !== false,
-      subTotal: Number(item.subTotal) || 0
+    receipt.receiptItems = items.map((row) => ({
+      itemId: row.item?.id ?? row.itemId,
+      quantity: row.quantity,
+      itemDiscount: Number(row.itemDiscount) || 0,
+      isDiscountPercent: row.isDiscountPercent !== false,
+      subTotal: Number(row.subTotal) || 0
     }))
     recalcReceiptTotal()
   }
@@ -590,66 +589,125 @@ function loadDraft({ id, details, items }) {
 
 <style scoped>
 .order-items-container {
+  --oil-ink: #16363a;
+  --oil-muted: #5f7a7e;
+  --oil-line: rgba(25, 119, 131, 0.16);
+  --oil-teal: #197783;
+  --oil-teal-bright: #20b4c6;
+  --oil-surface: #ffffff;
+  --oil-panel: linear-gradient(180deg, #eaf5f6 0%, #f5f9fa 45%, #eef4f5 100%);
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 1rem;
-  padding-top: 0;
-  margin-top: 0;
+  padding: 0.85rem 0.85rem 0.75rem;
+  background: var(--oil-panel);
+  position: relative;
+}
+
+.order-items-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 65% 36% at 100% 0%, rgba(50, 216, 238, 0.1), transparent 55%),
+    radial-gradient(ellipse 48% 28% at 0% 100%, rgba(25, 119, 131, 0.07), transparent 50%);
+}
+
+.oil-top,
+.order-items-list,
+.order-summary {
+  position: relative;
+  z-index: 1;
+}
+
+.oil-top {
+  flex-shrink: 0;
+  margin-bottom: 0.7rem;
+  animation: oil-fade-in 0.35s ease both;
+}
+
+.oil-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.55rem;
+  padding: 0 0.2rem;
+}
+
+.oil-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--oil-muted);
+}
+
+.oil-count {
+  min-width: 1.55rem;
+  height: 1.55rem;
+  padding: 0 0.42rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, var(--oil-teal), var(--oil-teal-bright));
+  box-shadow: 0 4px 10px rgba(25, 119, 131, 0.22);
 }
 
 .order-items-list-header {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.3rem;
-  margin-top: 0.2rem;
-  height: 45px;
+  gap: 0.55rem;
+  margin-bottom: 0.55rem;
   flex-shrink: 0;
 }
 
 .customer-name-row {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.15rem;
   flex-shrink: 0;
 }
 
 .customer-name-field :deep(.v-field) {
-  border-radius: 12px;
+  border-radius: 14px;
   background: #ffffff;
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.customer-name-field :deep(.v-field--focused) {
+  box-shadow: 0 0 0 3px rgba(32, 180, 198, 0.18);
 }
 
 .customer-name-field :deep(.v-field__outline) {
   opacity: 1;
-  color: rgba(25, 119, 131, 0.25);
+  color: var(--oil-line);
 }
 
 .customer-name-field :deep(.v-field__prepend-inner .v-icon),
 .customer-name-field :deep(.v-field__append-inner .v-icon) {
-  color: #197783;
-  opacity: 0.85;
+  color: var(--oil-teal);
+  opacity: 0.9;
 }
 
-.customer-name-field-rtl :deep(.v-field__input) {
-  text-align: right;
-}
-
-.customer-name-field-rtl :deep(.v-field__input input) {
-  text-align: right;
-}
-
+.customer-name-field-rtl :deep(.v-field__input),
+.customer-name-field-rtl :deep(.v-field__input input),
 .customer-name-field-rtl :deep(.v-field__input input::placeholder) {
   text-align: right;
 }
 
 .order-header-btn {
   flex: 1;
-  height: 40px;
-  min-height: 40px;
+  height: 42px;
+  min-height: 42px;
 }
 
 .order-items-list {
   flex: 1;
   overflow-y: auto;
+  padding-inline: 0.1rem;
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
@@ -659,68 +717,61 @@ function loadDraft({ id, details, items }) {
 }
 
 .order-item-card {
-  background: white;
-  border-radius: 0.5rem;
-  padding: 0.5rem;
-  margin-bottom: 0.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.order-item-card {
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 0.75rem;
+  background: var(--oil-surface);
+  border: 1px solid rgba(25, 119, 131, 0.1);
+  border-left: 3px solid var(--oil-teal);
+  border-radius: 16px;
+  padding: 0.7rem 0.75rem;
+  margin-bottom: 0.6rem;
+  box-shadow: 0 6px 16px rgba(22, 54, 58, 0.05);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  animation: oil-rise 0.3s ease both;
+}
+
+.order-item-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(22, 54, 58, 0.08);
+  border-color: rgba(32, 180, 198, 0.38);
+  border-left-color: var(--oil-teal-bright);
 }
 
 .order-item-content {
   display: flex;
   flex-direction: column;
   flex: 1;
-  gap: 0;
+  min-width: 0;
+  gap: 0.5rem;
 }
 
 .order-item-main-row {
   display: flex;
   flex-direction: row;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.order-item-divider {
-  margin-top: 0.5rem;
-  position: relative;
-}
-
-.order-item-divider::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: repeating-linear-gradient(
-    to right,
-    #00bcd4 0,
-    #00bcd4 7px,
-    transparent 8px,
-    transparent 22px
-  );
+  align-items: flex-start;
+  gap: 0.65rem;
 }
 
 .order-item-subtotal-row {
   display: flex;
   align-items: center;
   width: 100%;
-  margin-top: 0.25rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--oil-line);
 }
 
 .subtotal-label {
   flex: 1;
   text-align: left;
-  font-size: 0.875rem;
-  color: #666;
-  font-weight: 500;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--oil-muted);
+  font-weight: 600;
 }
 
 .subtotal-value-container {
@@ -731,21 +782,26 @@ function loadDraft({ id, details, items }) {
 }
 
 .subtotal-value {
-  background-color: white;
-  color: #4caf50;
-  font-size: 0.875rem;
-  font-weight: 600;
-  border-radius: 0.5rem;
+  color: var(--oil-teal);
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
   margin-right: 1.2rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(25, 119, 131, 0.08);
 }
 
 .order-item-image {
+  /* Match HomeItemCard / cropper: landscape 3:2 rectangle */
   width: auto;
   height: 6.5rem;
   aspect-ratio: 3 / 2;
-  border-radius: 0.5rem;
+  border-radius: 12px;
   overflow: hidden;
   flex-shrink: 0;
+  background: #e8f2f3;
+  box-shadow: inset 0 0 0 1px rgba(25, 119, 131, 0.08);
 }
 
 .item-thumbnail {
@@ -760,7 +816,8 @@ function loadDraft({ id, details, items }) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f5f5;
+  background: linear-gradient(145deg, #e7f3f5, #f3f8f9);
+  color: #8aa8ad;
 }
 
 .order-item-details {
@@ -772,41 +829,51 @@ function loadDraft({ id, details, items }) {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.15rem;
 }
 
 .order-item-name {
-  font-weight: 600;
-  font-size: 0.875rem;
-  color: #1a1a1a;
-}
-
-.item-link-icon {
-  font-size: 1rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--oil-ink);
+  line-height: 1.25;
+  text-align: left;
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .order-item-price {
-  font-size: 0.875rem;
-  color: #666;
+  font-size: 0.8rem;
+  color: var(--oil-muted);
   font-weight: 600;
-  margin-left: 1rem;
-
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  margin-left: 0;
+  margin-bottom: 0.35rem;
 }
 
 .order-item-quantity {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
   flex-shrink: 0;
+  width: 7.4rem;
 }
 
 .quantity-controls {
   display: flex;
   align-items: center;
-  background-color: #fafafa;
-  border-radius: 1rem;
-  gap: 0.5rem;
+  justify-content: space-between;
+  width: 100%;
+  background: #f2f7f8;
+  border: 1px solid var(--oil-line);
+  border-radius: 999px;
+  padding: 0.12rem;
+  gap: 0.15rem;
 }
 
 .discount-controls {
@@ -816,35 +883,60 @@ function loadDraft({ id, details, items }) {
   width: 100%;
 }
 
-.discount-toggle-btn {
-  width: 4rem ;
-  height: 1.75rem ;
-  background-color: #fafafa;
-  border-radius: 1rem;
-  color: #666;
+.order-item-discount-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.discount-label {
+  flex: 1;
+  text-align: left;
   font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0 !important;
+  color: var(--oil-muted);
+  font-weight: 500;
+}
+
+.discount-toggle-btn {
+  width: auto !important;
+  min-width: 2.6rem !important;
+  height: 1.55rem !important;
+  background-color: #eef6f7 !important;
+  border: 1px solid var(--oil-line) !important;
+  border-radius: 999px !important;
+  color: var(--oil-teal) !important;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  padding: 0 0.45rem !important;
   margin-right: 0.5rem;
-  align-items: right;
+  letter-spacing: 0.02em;
 }
 
 .discount-toggle-btn:hover {
-  border-color: #00bcd4;
-  background-color: #f0f9fa !important;
+  background-color: #e2f4f7 !important;
+  border-color: rgba(32, 180, 198, 0.45) !important;
 }
 
 .discount-input {
-  width: 7.5rem;
+  width: 100%;
+  height: 1.85rem;
+  box-sizing: border-box;
   text-align: center;
-  font-weight: 500;
-  font-size: 0.75rem;
-  border-radius: 1rem;
-  background: #fafafa;
+  text-align-last: center;
+  direction: ltr;
+  font-weight: 600;
+  font-size: 0.8rem;
+  line-height: normal;
+  border: 1px solid var(--oil-line);
+  border-radius: 999px;
+  background: #f2f7f8;
   outline: none;
-  padding: 0.3rem 0rem;
+  padding: 0;
+  color: var(--oil-ink);
+  font-variant-numeric: tabular-nums;
   appearance: textfield;
   -moz-appearance: textfield;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .discount-input::-webkit-outer-spin-button,
@@ -854,96 +946,51 @@ function loadDraft({ id, details, items }) {
 }
 
 .discount-input:focus {
-  border-color: #00bcd4;
-}
-
-.order-item-discount-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.discount-label {
-  flex: 1;
-  text-align: left;
-  font-size: 0.875rem;
-  color: #666;
-  font-weight: 500;
-}
-
-.order-item-total {
-  width: 100%;
-  padding-top: 0.75rem;
-  margin-top: 0.5rem;
-  position: relative;
-  font-size: 1rem;
-  color: #1a1a1a;
-  font-weight: 700;
-  text-align: right;
-}
-
-.order-item-total::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: repeating-linear-gradient(
-    to right,
-    #00bcd4 0,
-    #00bcd4 8px,
-    transparent 8px,
-    transparent 20px
-  );
-}
-
-.order-item-total::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: repeating-linear-gradient(
-    to right,
-    #00bcd4 0,
-    #00bcd4 8px,
-    transparent 8px,
-    transparent 25px
-  );
+  border-color: var(--oil-teal-bright);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(32, 180, 198, 0.15);
 }
 
 .quantity-btn {
-  min-width: 1.8rem;
-  width: 1.8rem;
-  height: 1.8rem;
-  margin: 0.25rem;
-  background-color: #ffffff;
+  min-width: 1.7rem !important;
+  width: 1.7rem !important;
+  height: 1.7rem !important;
+  margin: 0 !important;
+  background-color: #ffffff !important;
   border: 1px solid transparent;
-  border-radius: 1rem;
-  transition: border-color 0.2s, background-color 0.2s;
+  border-radius: 999px !important;
+  transition: border-color 0.2s, background-color 0.2s, transform 0.15s;
 }
 
 .quantity-btn:hover {
-  border-color: #00bcd4;
-  background-color: #f0f9fa;
+  border-color: rgba(32, 180, 198, 0.45);
+  background-color: #eefafc !important;
+  transform: scale(1.04);
 }
 
 .quantity-btn :deep(.v-icon) {
-  color: #1a1a1a;
+  color: var(--oil-ink);
 }
 
 .quantity-value {
-  min-width: 2rem;
+  flex: 1;
+  min-width: 1.8rem;
   width: 2rem;
+  height: 1.7rem;
+  box-sizing: border-box;
   text-align: center;
-  font-weight: 600;
-  font-size: 0.875rem;
+  text-align-last: center;
+  direction: ltr;
+  font-weight: 700;
+  font-size: 0.85rem;
+  line-height: normal;
+  color: var(--oil-ink);
   border: none;
   background: transparent;
   outline: none;
   padding: 0;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
   appearance: textfield;
   -moz-appearance: textfield;
 }
@@ -959,165 +1006,136 @@ function loadDraft({ id, details, items }) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 4rem 1rem;
-  color: #999;
+  padding: 3.5rem 1rem;
+  color: var(--oil-muted);
   text-align: center;
   width: 100%;
-  min-height: 60vh;
+  min-height: 58vh;
+  animation: oil-fade-in 0.4s ease both;
 }
 
-.empty-cart .v-icon {
-  font-size: 2.75rem ;
-  width: 2.75rem ;
-  height: 2.75rem ;
+.empty-cart-orb {
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(232, 244, 246, 0.9));
+  border: 1px solid var(--oil-line);
+  color: var(--oil-teal);
+  box-shadow: 0 10px 24px rgba(25, 119, 131, 0.08);
+  animation: oil-pulse 2.8s ease-in-out infinite;
 }
 
-.empty-cart p {
-  margin-top: 2rem;
-  font-size: 1.25rem;
-  font-weight: 500;
-}
-
-.total-discount-section {
-  width: 100%;
-  background-color: #ffffff;
-  border-radius: 12px;
-  padding: 0.5rem 0.75rem;
-  margin-bottom: 0.5rem;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.total-discount-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 1;
-}
-
-.total-discount-controls {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.total-discount-section .discount-label {
-  font-size: 1.125rem;
-  color: #1a1a1a;
+.empty-cart-title {
+  margin-top: 1.15rem;
+  margin-bottom: 0;
+  font-size: 1.05rem;
   font-weight: 700;
-}
-
-.total-discount-section .discount-toggle-btn {
-  width: 4rem;
-  height: 1.75rem;
-  background-color: #fafafa;
-  border-radius: 1rem;
-  color: #666;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.total-discount-section .discount-input {
-  width: 7.5rem;
-  text-align: center;
-  font-weight: 500;
-  font-size: 0.75rem;
-  border-radius: 1rem;
-  background: #fafafa;
+  color: var(--oil-ink);
 }
 
 .order-summary {
-  border-radius: 12px;
-  padding: 0.5rem;
-  background-image: linear-gradient(135deg, #197783, #32d8ee);
+  border-radius: 16px;
+  padding: 0.9rem 1.15rem;
+  margin-top: 0.55rem;
+  background: linear-gradient(135deg, #156974 0%, #1a8f9c 48%, #28c4d6 100%);
   color: #ffffff;
+  box-shadow: 0 10px 28px rgba(21, 105, 116, 0.28);
+  flex-shrink: 0;
 }
 
 .summary-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 0;
-}
-
-.summary-row:last-child {
-  border-bottom: none;
 }
 
 .summary-row.total-row {
-  padding-top: 0.5rem;
   font-weight: 700;
-  font-size: 1.125rem;
 }
 
 .summary-label {
-  font-size: 1.5rem;
-  color: #666;
-  font-weight: 600;
-  margin-left: 1.5rem;
+  font-size: 1.05rem;
+  color: #ffffff;
+  font-weight: 700;
+  margin-left: 0.35rem;
 }
 
 .summary-value {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-right: 1.5rem;
-}
-
-.total-row .summary-label,
-.total-row .summary-value {
-  font-size: 1.125rem;
+  font-size: 1.05rem;
   color: #ffffff;
-}
-
-.order-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.promo-btn,
-.gris-btn {
-  width: 100%;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  margin-right: 0.35rem;
 }
 
 .add-items-action-btn {
-  border-radius: 12px;
-  background-image: linear-gradient(135deg, #197783, #32d8ee);
-  color: #ffffff;
+  border-radius: 12px !important;
+  background-image: linear-gradient(135deg, #197783, #28c4d6) !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 14px rgba(25, 119, 131, 0.22) !important;
+  letter-spacing: 0.01em;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease !important;
 }
 
 .add-items-action-btn:hover {
-  background-image: linear-gradient(135deg, #08bad1, #26c6da);
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(25, 119, 131, 0.28) !important;
 }
 
-.add-items-action-btn :deep(.v-btn__content) {
-  font-weight: 700;
-  color: #ffffff;
+.oil-draft-btn {
+  background-image: linear-gradient(135deg, #2a6f78, #3aa8b4) !important;
 }
 
+.add-items-action-btn :deep(.v-btn__content),
 .add-items-action-btn :deep(.v-btn__prepend) {
   color: #ffffff;
+  font-weight: 700;
 }
 
-/* RTL Support */
+@keyframes oil-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes oil-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes oil-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+
+/* RTL Support — mirrors original layout via explicit row-reverse */
 [dir="rtl"] .order-items-list-header {
   flex-direction: row-reverse;
 }
 
-[dir="rtl"] .total-discount-section {
+[dir="rtl"] .oil-title-row {
   flex-direction: row-reverse;
 }
-
-[dir="rtl"] .total-discount-row {
-  flex-direction: row-reverse;
-}
-
-
 
 [dir="rtl"] .order-item-card {
   flex-direction: row-reverse;
+  padding: 0.7rem 0.75rem;
+  border-left: 1px solid rgba(25, 119, 131, 0.1);
+  border-right: 3px solid var(--oil-teal);
+}
+
+[dir="rtl"] .order-item-card:hover {
+  border-left-color: rgba(32, 180, 198, 0.38);
+  border-right-color: var(--oil-teal-bright);
 }
 
 [dir="rtl"] .order-item-main-row {
@@ -1135,7 +1153,7 @@ function loadDraft({ id, details, items }) {
 [dir="rtl"] .order-item-price {
   text-align: right;
   margin-left: 0;
-  margin-right: 1rem;
+  margin-right: 0;
 }
 
 [dir="rtl"] .order-item-discount-row {
@@ -1186,12 +1204,11 @@ function loadDraft({ id, details, items }) {
 
 [dir="rtl"] .summary-label {
   margin-left: 0;
-  margin-right: 1.5rem;
+  margin-right: 0.35rem;
 }
 
 [dir="rtl"] .summary-value {
   margin-right: 0;
-  margin-left: 1.5rem;
+  margin-left: 0.35rem;
 }
 </style>
-

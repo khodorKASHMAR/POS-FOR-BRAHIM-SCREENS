@@ -1,5 +1,5 @@
 <template>
-  <div ref="rootRef" class="pos-time-input">
+  <div ref="rootRef" class="pos-time-input" :dir="isAr ? 'rtl' : 'ltr'">
     <div
       ref="inputWrapRef"
       class="pos-time-field"
@@ -28,7 +28,7 @@
           <span class="pos-time-digital-value">{{ digitalDisplay }}</span>
         </div>
 
-        <div class="pos-time-columns">
+        <div class="pos-time-columns" dir="ltr">
           <div class="pos-time-col-wrap">
             <div class="pos-time-highlight" aria-hidden="true" />
             <div
@@ -84,7 +84,7 @@
           </div>
         </div>
 
-        <div class="pos-time-presets">
+        <div class="pos-time-presets" :dir="isAr ? 'rtl' : 'ltr'">
           <button
             v-for="preset in presets"
             :key="preset.value"
@@ -97,6 +97,9 @@
         </div>
 
         <div class="pos-time-footer">
+          <button type="button" class="pos-time-select" @click="confirmSelection">
+            {{ selectLabel }}
+          </button>
           <button type="button" class="pos-time-now" @click="selectNow">
             {{ nowLabel }}
           </button>
@@ -138,6 +141,7 @@ let scrollTimer = null
 
 const isAr = computed(() => state.lang === 'ar')
 const nowLabel = computed(() => (isAr.value ? 'الآن' : 'Now'))
+const selectLabel = computed(() => (isAr.value ? 'تأكيد' : 'Select'))
 
 const hours = computed(() => Array.from({ length: 24 }, (_, i) => i))
 const minutes = computed(() => Array.from({ length: 60 }, (_, i) => i))
@@ -281,6 +285,11 @@ function selectNow() {
   closePicker()
 }
 
+function confirmSelection() {
+  emitValue()
+  closePicker()
+}
+
 function calculatePopupPosition() {
   if (!inputWrapRef.value) return
   const rect = inputWrapRef.value.getBoundingClientRect()
@@ -361,6 +370,7 @@ onBeforeUnmount(removeListeners)
   color: #1a1a1a;
   cursor: pointer;
   min-width: 0;
+  text-align: start;
 }
 
 .pos-time-display::placeholder {
@@ -548,28 +558,42 @@ onBeforeUnmount(removeListeners)
 }
 
 .pos-time-footer {
+  display: flex;
+  gap: 0.5rem;
   padding-top: 0.5rem;
   margin-top: 0.5rem;
   border-top: 1px solid #e2e8f0;
 }
 
+.pos-time-select,
 .pos-time-now {
-  width: 100%;
+  flex: 1;
   padding: 0.5rem;
   border: none;
   border-radius: 8px;
   cursor: pointer;
   font-size: 0.8125rem;
   font-weight: 600;
-  background: linear-gradient(135deg, #197783, #32d8ee);
-  color: #fff;
   transition: opacity 0.15s ease, transform 0.1s ease;
 }
 
+.pos-time-select {
+  background: linear-gradient(135deg, #197783, #32d8ee);
+  color: #fff;
+}
+
+.pos-time-now {
+  background: rgba(25, 119, 131, 0.08);
+  color: #197783;
+  border: 1px solid rgba(25, 119, 131, 0.25);
+}
+
+.pos-time-select:hover,
 .pos-time-now:hover {
   opacity: 0.92;
 }
 
+.pos-time-select:active,
 .pos-time-now:active {
   transform: scale(0.98);
 }

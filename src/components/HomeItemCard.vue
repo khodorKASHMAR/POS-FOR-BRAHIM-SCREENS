@@ -4,10 +4,9 @@
     :class="{ 'cursor-pointer': clickable, 'hoverable': clickable, 'with-actions': showActions }"
     :ripple="clickable"
     @click="handleClick"
-    elevation="2"
+    elevation="0"
   >
-    <!-- Item Image -->
-    <div class="item-image-container">
+    <div class="item-media">
       <v-img
         v-if="imageSrc"
         :src="imageSrc"
@@ -16,74 +15,74 @@
         class="item-image"
       />
       <div v-else class="item-image-placeholder">
-        <v-icon class="placeholder-icon" color="grey-lighten-1">mdi-image-off</v-icon>
+        <v-icon class="placeholder-icon">mdi-package-variant</v-icon>
       </div>
+
+      <div class="item-media-fade" aria-hidden="true"></div>
+
+      <v-chip
+        v-if="displayCategory"
+        :color="categoryColor"
+        size="x-small"
+        variant="flat"
+        class="category-tag"
+        :class="lang.dir === 'rtl' ? 'category-tag-rtl' : 'category-tag-ltr'"
+      >
+        {{ displayCategory }}
+      </v-chip>
     </div>
 
-    <!-- Item Info -->
-    <v-card-text class="item-info">
-      <!-- Item Name -->
-      <div class="item-name" :class="lang.dir === 'rtl' ? 'text-left' : 'text-left'">
-        {{ itemName }}
-      </div>
-
-      <!-- Price and Category Tag -->
-      <div class="d-flex flex-column w-100">
-        <!-- Price -->
-        <div class="item-price" :class="lang.dir === 'rtl' ? 'align-self-end' : 'align-self-end'">
+    <v-card-text class="item-info" :class="{ 'item-info-with-actions': showActions }">
+      <div class="item-text">
+        <div
+          class="item-name"
+          :class="lang.dir === 'rtl' ? 'text-right' : 'text-left'"
+        >
+          {{ itemName }}
+        </div>
+        <div
+          class="item-price"
+          :class="lang.dir === 'rtl' ? 'text-right' : 'text-left'"
+        >
           {{ formattedPrice }}
         </div>
+      </div>
 
-        <!-- Category Tag -->
-        <v-chip
-          v-if="displayCategory"
-          :color="categoryColor"
-          size="small"
-          variant="flat"
-          class="category-tag"
-          :class="lang.dir === 'rtl' ? 'align-self-start' : 'align-self-start'"
-        >
-          {{ displayCategory }}
-        </v-chip>
+      <div v-if="showActions" class="item-actions" @click.stop>
+        <div class="group action-tooltip-wrapper">
+          <button
+            type="button"
+            class="action-btn edit-btn"
+            @click.stop="handleEdit"
+          >
+            <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+          </button>
+          <div class="action-tooltip">{{ $t('editItem') }}</div>
+        </div>
+        <div class="group action-tooltip-wrapper">
+          <button
+            type="button"
+            class="action-btn delete-btn"
+            @click.stop="handleDelete"
+          >
+            <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          </button>
+          <div class="action-tooltip">{{ $t('delete') }}</div>
+        </div>
       </div>
     </v-card-text>
-
-    <div v-if="showActions" class="item-actions">
-      <!-- TODO: refactor tooltip -->
-      <div class="group action-tooltip-wrapper">
-        <button
-          class="action-btn edit-btn"
-          :title="$t('editItem')"
-          @click.stop="handleEdit"
-        >
-          <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-            />
-          </svg>
-        </button>
-        <!-- <div class="action-tooltip">{{ $t('editItem') }}</div> -->
-      </div>
-      <!-- TODO: refactor tooltip -->
-      <div class="group action-tooltip-wrapper">
-        <button
-          class="action-btn delete-btn"
-          :title="$t('delete')"
-          @click.stop="handleDelete"
-        >
-          <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-            />
-          </svg>
-        </button>
-        <!-- <div class="action-tooltip">{{ $t('delete') }}</div> -->
-      </div>
-    </div>
   </v-card>
 </template>
 
@@ -94,17 +93,14 @@ import { useState } from '../store/state'
 export default {
   name: 'HomeItemCard',
   props: {
-    // Item object (contains all item data)
     item: {
       type: Object,
       required: true
     },
-    // Category color (optional, defaults to light blue)
     categoryColor: {
       type: String,
       default: 'light-blue-lighten-4'
     },
-    // Whether card is clickable
     clickable: {
       type: Boolean,
       default: true
@@ -116,39 +112,37 @@ export default {
   },
   emits: ['click', 'edit', 'delete'],
   setup(props, { emit }) {
-    const state = useState()    
+    const state = useState()
     const lang = computed(() => ({
       lang: state.lang,
       dir: state.dir
     }))
 
     const itemName = computed(() => {
-          if (!props.item) return ''
-      return lang.value.lang === 'ar' 
-        ? (props.item.nameAr || props.item.nameEn) 
+      if (!props.item) return ''
+      return lang.value.lang === 'ar'
+        ? (props.item.nameAr || props.item.nameEn)
         : (props.item.nameEn || props.item.nameAr)
     })
 
-    // Display category from item's categoryNameAr/categoryNameEn
     const displayCategory = computed(() => {
       if (!props.item) return ''
-      return lang.value.lang === 'ar' 
+      return lang.value.lang === 'ar'
         ? (props.item.categoryNameAr || props.item.categoryNameEn || '')
         : (props.item.categoryNameEn || props.item.categoryNameAr || '')
     })
 
     const formattedPrice = computed(() => {
       if (!props.item) return '0'
-      // Calculate price from UserItemDTO: sellingPriceDollar
       const sellingPriceDollar = Number(props.item.sellingPriceDollar ?? 0)
       const exchangeRate = state.exchangeRate
       const priceValue = state.currency === 'USD' ? sellingPriceDollar : sellingPriceDollar * exchangeRate
-      
+
       if (!priceValue && priceValue !== 0) return '0'
-      
+
       let formattedValue
       let currencySymbol
-      
+
       if (state.currency === 'LBP') {
         formattedValue = Math.round(priceValue).toLocaleString('en-US')
         currencySymbol = state.lang === 'ar' ? 'ل.ل.' : 'LBP'
@@ -156,24 +150,20 @@ export default {
         formattedValue = priceValue.toFixed(2)
         currencySymbol = state.lang === 'ar' ? 'دولار' : 'USD'
       }
-      
+
       return `${formattedValue} ${currencySymbol}`
     })
 
     const imageSrc = computed(() => {
       if (!props.item?.image) return null
       const image = props.item.image
-      // Check if it's already a data URL or base64
       if (image.startsWith('data:image')) {
         return image
       }
-      // If it's base64 without data URL prefix, add it
       if (image.startsWith('/9j/') || image.startsWith('iVBORw0KGgo')) {
-        // JPEG or PNG base64
         const prefix = image.startsWith('/9j/') ? 'data:image/jpeg;base64,' : 'data:image/png;base64,'
         return prefix + image
       }
-      // Assume it's a regular URL
       return image
     })
 
@@ -207,110 +197,118 @@ export default {
 
 <style scoped>
 .item-card {
-  width: calc(100% - 0.5rem);
+  --oil-ink: #16363a;
+  --oil-muted: #5f7a7e;
+  --oil-line: rgba(25, 119, 131, 0.16);
+  --oil-teal: #197783;
+  --oil-teal-bright: #20b4c6;
+  width: 100%;
   height: auto;
-  border-radius: 0.75rem;
-  overflow: visible;
-  transition: all 0.3s ease;
-  background: white;
+  border-radius: 14px;
+  overflow: hidden;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+  background: #ffffff;
   display: flex;
   flex-direction: column;
-  margin: 0 auto;
+  margin: 0;
+  border: 1px solid rgba(25, 119, 131, 0.1);
+  box-shadow: 0 4px 12px rgba(22, 54, 58, 0.05);
+}
+
+.item-card.with-actions {
+  overflow: visible;
+  position: relative;
+  z-index: 1;
+}
+
+.item-card.with-actions:hover,
+.item-card.with-actions:focus-within {
+  z-index: 80;
+}
+
+.item-card.with-actions .item-media {
+  border-radius: 14px 14px 0 0;
 }
 
 .item-card.hoverable:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  transform: translateY(-3px) scale(1.01);
+  box-shadow: 0 14px 28px rgba(22, 54, 58, 0.12);
+  border-color: rgba(32, 180, 198, 0.4);
 }
 
-.item-image-container {
-  width: calc(100% - 1.5rem);
+.item-card.hoverable:hover .item-image {
+  transform: scale(1.04);
+}
+
+.item-media {
+  position: relative;
+  width: 100%;
   aspect-ratio: 3 / 2;
   flex-shrink: 0;
-  border-radius: 0.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: auto;
-  margin-right: auto;
-  margin-top: 0.5rem;
-  margin-bottom: 0.2rem;
-  background: #f5f5f5;
   overflow: hidden;
-  box-sizing: border-box;
+  background: linear-gradient(145deg, #f6fafb, #fcfefe);
+}
+
+.item-media-fade {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 42%;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 0%, rgba(22, 54, 58, 0.1) 100%);
 }
 
 .item-image-placeholder {
   width: 100%;
   height: 100%;
-  border-radius: 0.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f5f5;
-  box-sizing: border-box;
+  color: #b7c9cd;
 }
 
 .item-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.35s ease;
 }
 
 .placeholder-icon {
-  font-size: clamp(2rem, 35%, 4rem);
-  width: clamp(2rem, 35%, 4rem);
-  height: clamp(2rem, 35%, 4rem);
-}
-
-.item-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  gap: 0.125rem;
-  padding: 0.25rem 0.5rem 0.375rem !important;
-}
-
-.item-info :deep(.d-flex.flex-column) {
-  gap: 0.125rem;
-}
-
-.item-name {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #1a1a1a;
-  line-height: 1.1;
-  min-height: unset;
-  margin-bottom: 0;
-  display: flex;
-  align-items: center;
-}
-
-.item-name.text-left {
-  justify-content: flex-start;
-}
-
-.item-name.text-right {
-  justify-content: flex-end;
+  font-size: clamp(1.4rem, 28%, 2.5rem);
+  width: clamp(1.4rem, 28%, 2.5rem);
+  height: clamp(1.4rem, 28%, 2.5rem);
+  color: #b7c9cd !important;
 }
 
 .category-tag {
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.0625rem 0.35rem;
-  border-radius: 1rem;
-  margin-top: 0;
-  margin-bottom: 0;
+  position: absolute;
+  bottom: 0.4rem;
+  z-index: 2;
+  font-size: 0.62rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em;
+  max-width: calc(100% - 0.8rem);
+  margin: 0 !important;
+}
+
+.category-tag-ltr {
+  left: 0.4rem;
+}
+
+.category-tag-rtl {
+  right: 0.4rem;
 }
 
 .category-tag.v-chip {
-  background: linear-gradient(90deg, #b3e5fc 0%, #e1f5fe 50%, #e3f2fd 100%) !important;
-  color: #0277bd !important;
-  box-shadow: 0 2px 6px rgba(79, 195, 247, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.92) !important;
+  color: var(--oil-teal) !important;
+  box-shadow: 0 2px 8px rgba(22, 54, 58, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.7);
   height: auto !important;
-  min-height: 1.25rem;
+  min-height: 1.05rem !important;
+  padding: 0 0.4rem !important;
+  backdrop-filter: blur(6px);
 }
 
 .category-tag.v-chip :deep(.v-chip__underlay) {
@@ -318,22 +316,85 @@ export default {
 }
 
 .category-tag.v-chip :deep(.v-chip__content) {
-  color: #050d1b !important;
-  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.6);
+  color: var(--oil-teal) !important;
+  text-shadow: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.62rem;
+  line-height: 1.05rem;
+}
+
+.item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.4rem 0.55rem 0.5rem !important;
+  overflow: visible;
+  position: relative;
+  z-index: 2;
+}
+
+.item-info-with-actions {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
+.item-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.item-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--oil-ink);
+  line-height: 1.2;
+  margin: 0;
+  display: -webkit-box;
+  line-clamp: 1;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.item-name.text-left {
+  text-align: left;
+}
+
+.item-name.text-right {
+  text-align: right;
 }
 
 .item-price {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #1a1a1a;
-  line-height: 1.1;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--oil-teal);
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.item-price.text-left {
+  text-align: left;
+}
+
+.item-price.text-right {
+  text-align: right;
 }
 
 .item-actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-  gap: 0.375rem;
-  padding: 0.125rem 0.5rem 0.375rem;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  padding: 0;
 }
 
 .action-tooltip-wrapper {
@@ -343,20 +404,20 @@ export default {
 
 .action-tooltip {
   position: absolute;
-  bottom: 100%;
+  top: 100%;
   left: 50%;
   transform: translateX(-50%);
-  margin-bottom: 0.5rem;
-  padding: 0.375rem 0.625rem;
+  margin-top: 0.4rem;
+  padding: 0.35rem 0.55rem;
   background: #0f172a;
-  border-radius: 6px;
-  font-size: 0.75rem;
+  border-radius: 8px;
+  font-size: 0.7rem;
   color: #ffffff;
   white-space: nowrap;
   opacity: 0;
   visibility: hidden;
   transition: all 0.15s ease;
-  z-index: 9999;
+  z-index: 200;
   pointer-events: none;
 }
 
@@ -369,21 +430,21 @@ export default {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--oil-line);
+  border-radius: 9px;
   background: #fff;
-  color: #6b7280;
+  color: var(--oil-muted);
   cursor: pointer;
   transition: all 0.2s ease;
   margin: 0;
 }
 
 .action-btn:hover {
-  background: #f3f4f6;
-  border-color: #d1d5db;
-  color: #374151;
+  background: #f2f9fa;
+  border-color: rgba(32, 180, 198, 0.4);
+  color: var(--oil-ink);
 }
 
 .edit-btn:hover {
@@ -399,35 +460,20 @@ export default {
 }
 
 .action-icon {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
 }
 
 .action-btn:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(0, 174, 139, 0.1);
+  box-shadow: 0 0 0 3px rgba(32, 180, 198, 0.15);
 }
 
-/* RTL Support */
 [dir="rtl"] .item-card {
   direction: rtl;
 }
 
-[dir="rtl"] .item-info {
-  text-align: right;
-}
-
-[dir="rtl"] .category-tag {
-  order: 2;
-}
-
-[dir="rtl"] .item-price {
-  order: 1;
-  text-align: left;
-}
-
-[dir="ltr"] .item-info {
-  text-align: left;
+[dir="rtl"] .item-actions {
+  justify-content: flex-start;
 }
 </style>
-

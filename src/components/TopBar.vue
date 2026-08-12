@@ -29,7 +29,7 @@
     <!-- Dollar Rate Display -->
     <div
       class="top-bar-btn rate-display"
-      :class="{ 'rate-display--clickable': isAdmin }"
+      :class="{ 'rate-display--clickable': canOpenDollarRate }"
       :title="$t('dollarRate')"
       @click="goToDollarRate"
     >
@@ -80,7 +80,7 @@ const currentDate = ref(new Date())
 const rateLoading = ref(false)
 let timeInterval = null
 
-const isAdmin = computed(() => userStore.user?.role === 'admin')
+const canOpenDollarRate = computed(() => userStore.hasMenu('dollar-rate'))
 
 const formattedDate = computed(() => {
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -131,7 +131,7 @@ const currencyDisplayText = computed(() => {
 })
 
 const goToDollarRate = () => {
-  if (!isAdmin.value) return
+  if (!canOpenDollarRate.value) return
   router.push('/dollar-rate')
 }
 

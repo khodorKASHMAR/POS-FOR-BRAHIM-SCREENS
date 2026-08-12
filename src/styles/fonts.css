@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap');
+
+:root {
+  --app-font-latin: 'DM Sans', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --app-font-arabic: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
+}
+
+html,
+body,
+.v-application,
+.v-application .v-btn,
+.v-application .v-field,
+.v-application input,
+.v-application textarea,
+.v-application button {
+  font-family: var(--app-font-latin);
+}
+
+[dir='rtl'],
+[dir='rtl'] .v-application,
+[dir='rtl'] .v-btn,
+[dir='rtl'] .v-field,
+[dir='rtl'] input,
+[dir='rtl'] textarea,
+[dir='rtl'] button,
+[lang='ar'] {
+  font-family: var(--app-font-arabic);
+}
+
+/* Arabic renders visually heavier at the same weight, so ease it back */
+[dir='rtl'] {
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+[dir='rtl'] h1,
+[dir='rtl'] h2,
+[dir='rtl'] h3,
+[dir='rtl'] h4,
+[dir='rtl'] strong,
+[dir='rtl'] b {
+  font-weight: 600;
+}

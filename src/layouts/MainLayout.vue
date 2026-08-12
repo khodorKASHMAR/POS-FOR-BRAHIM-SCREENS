@@ -1,10 +1,12 @@
 <template>
-  <!-- Sidebar: hidden on login page -->
+  <!-- Sidebar: hidden on login page; temporary overlay disables content behind -->
   <v-navigation-drawer
     v-if="!isLoginRoute"
     v-model="ui.sidebar"
     class="app-drawer"
-    width="220"
+    width="240"
+    temporary
+    :scrim="'rgba(22, 54, 58, 0.45)'"
     :location="ui.dir === 'rtl' ? 'end' : 'start'"
   >
     <Sidebar @navigate="handleNavigate" />
@@ -34,6 +36,7 @@ const isLoginRoute = computed(() => route.path === '/login')
 
 const handleNavigate = (path) => {
   router.push(path)
+  ui.sidebar = false
 }
 </script>
 
@@ -41,10 +44,25 @@ const handleNavigate = (path) => {
 .main-background {
   background-color: #ffffff !important;
 }
+</style>
 
-/* Light sidebar drawer to match Sidebar.vue */
-:deep(.app-drawer) {
-  background: #fafafa !important;
-  border-inline-end: 1px solid rgba(0, 0, 0, 0.06);
+<style>
+/* Global: drawer above page content, below dialogs (~2400) */
+.app-drawer.v-navigation-drawer {
+  z-index: 2200 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: 8px 0 28px rgba(22, 54, 58, 0.18) !important;
+}
+
+.app-drawer.v-navigation-drawer--right,
+[dir="rtl"] .app-drawer.v-navigation-drawer {
+  box-shadow: -8px 0 28px rgba(22, 54, 58, 0.18) !important;
+}
+
+/* Scrim dims and blocks interaction with screens behind */
+.v-overlay.v-navigation-drawer__scrim,
+.v-navigation-drawer__scrim {
+  z-index: 2190 !important;
 }
 </style>

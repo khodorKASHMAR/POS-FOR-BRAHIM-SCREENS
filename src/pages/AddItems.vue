@@ -1,7 +1,7 @@
 <template>
   <div class="page-background">
     <TopBar />
-    <div class="p-4">
+    <div class="add-items-shell">
       <div class="add-items-header" :class="lang.dir === 'rtl' ? 'add-items-header-rtl' : ''">
         <h1 class="add-items-title">{{ $t('addItems') }}</h1>
         <div class="add-items-actions" :class="lang.dir === 'rtl' ? 'add-items-actions-rtl' : ''">
@@ -54,39 +54,49 @@
               <span class="category-name">{{ lang.lang === 'ar' ? category.nameAr : category.nameEn }}</span>
             </div>
             <div class="category-edit-cell" @click.stop>
-              <!-- TODO: refactor tooltip -->
-              <div class="group action-tooltip-wrapper">
-                <button
-                  type="button"
-                  class="action-btn edit-btn category-action-btn"
-                  :title="$t('editCategory')"
-                  @click="handleEditCategory(category)"
-                >
-                  <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </button>
-                <!-- <div class="action-tooltip">{{ $t('editCategory') }}</div> -->
-              </div>
+              <v-tooltip
+                :text="$t('editCategory')"
+                location="bottom"
+                :z-index="10000"
+                content-class="category-action-tooltip"
+              >
+                <template #activator="{ props: tooltipProps }">
+                  <button
+                    v-bind="tooltipProps"
+                    type="button"
+                    class="action-btn edit-btn category-action-btn"
+                    @click="handleEditCategory(category)"
+                  >
+                    <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                </template>
+              </v-tooltip>
             </div>
             <div class="category-count-cell">
               <span class="category-count">{{ getCategoryItemCount(category.value) }} {{ $t('items') }}</span>
             </div>
             <div class="category-delete-cell" @click.stop>
-              <!-- TODO: refactor tooltip -->
-              <div class="group action-tooltip-wrapper action-tooltip-above">
-                <button
-                  type="button"
-                  class="action-btn delete-btn category-action-btn"
-                  :title="$t('delete')"
-                  @click="handleDeleteCategory(category)"
-                >
-                  <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-                <!-- <div class="action-tooltip">{{ $t('delete') }}</div> -->
-              </div>
+              <v-tooltip
+                :text="$t('delete')"
+                location="bottom"
+                :z-index="10000"
+                content-class="category-action-tooltip"
+              >
+                <template #activator="{ props: tooltipProps }">
+                  <button
+                    v-bind="tooltipProps"
+                    type="button"
+                    class="action-btn delete-btn category-action-btn"
+                    @click="handleDeleteCategory(category)"
+                  >
+                    <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </template>
+              </v-tooltip>
             </div>
           </div>
         </div>
@@ -108,7 +118,7 @@
 
       <!-- Items Grid -->
       <div class="items-wrapper" :dir="lang.dir">
-        <div class="items-grid" :class="{ 'sidebar-on': lang.sidebar, 'sidebar-off': !lang.sidebar, 'items-grid-rtl': lang.dir === 'rtl' }">
+        <div class="items-grid" :class="{ 'items-grid-rtl': lang.dir === 'rtl' }">
           <HomeItemCard
             v-for="i in filtered"
             :key="i.id"
@@ -513,8 +523,7 @@ export default {
     const state = useState()
     const lang = computed(() => ({
       lang: state.lang,
-      dir: state.dir,
-      sidebar: state.sidebar
+      dir: state.dir
     }))
 
     // Data
@@ -673,9 +682,9 @@ export default {
     }))
 
     const requiredRule = (value) => {
-      if (value === null || value === undefined) return 'This field is required'
-      if (typeof value === 'string' && value.trim() === '') return 'This field is required'
-      if (typeof value === 'number' && (isNaN(value) || value < 0)) return 'Invalid value'
+      if (value === null || value === undefined) return $t('fieldRequired')
+      if (typeof value === 'string' && value.trim() === '') return $t('fieldRequired')
+      if (typeof value === 'number' && (isNaN(value) || value < 0)) return $t('invalidValue')
       return true
     }
 
@@ -1250,26 +1259,56 @@ export default {
 
 <style scoped>
 .page-background {
-  background: #fafafa;
+  --oil-ink: #16363a;
+  --oil-muted: #5f7a7e;
+  --oil-line: rgba(25, 119, 131, 0.16);
+  --oil-teal: #197783;
+  --oil-teal-bright: #20b4c6;
+  --oil-surface: #ffffff;
+  --oil-panel: linear-gradient(180deg, #eaf5f6 0%, #f5f9fa 45%, #eef4f5 100%);
+  background: var(--oil-panel);
   min-height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  position: relative;
+}
+
+.page-background::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 34% at 0% 0%, rgba(50, 216, 238, 0.1), transparent 55%),
+    radial-gradient(ellipse 45% 28% at 100% 100%, rgba(25, 119, 131, 0.07), transparent 50%);
+  z-index: 0;
+}
+
+.page-background > * {
+  position: relative;
+  z-index: 1;
 }
 
 .page-background::-webkit-scrollbar {
   display: none;
 }
 
+.add-items-shell {
+  padding: 0.75rem 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 4rem);
+}
+
 .add-items-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 1.5rem;
-  margin-bottom: 1rem;
-  margin-left: 1rem;
-  margin-right: 1rem;
+  margin: 0.65rem 0.15rem 0.85rem;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .add-items-header-rtl {
@@ -1277,17 +1316,18 @@ export default {
 }
 
 .add-items-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #1a1a1a;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--oil-ink);
   margin: 0;
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
+  letter-spacing: -0.02em;
+  padding: 0 0.25rem;
 }
 
 .add-items-actions {
   display: flex;
-  gap: 0.75rem;
+  gap: 0.65rem;
+  flex-wrap: wrap;
 }
 
 .add-items-actions-rtl {
@@ -1295,14 +1335,18 @@ export default {
 }
 
 .add-items-action-btn {
-  border-radius: 12px;
-  font-weight: 700;
-  background-image: linear-gradient(135deg, #197783, #32d8ee);
-  color: #ffffff;
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.01em;
+  background-image: linear-gradient(135deg, #197783, #20b4c6) !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 14px rgba(25, 119, 131, 0.22);
+  text-transform: none !important;
 }
 
 .add-items-action-btn:hover {
-  background-image: linear-gradient(135deg, #08bad1, #26c6da);
+  background-image: linear-gradient(135deg, #146873, #1aa3b4) !important;
+  box-shadow: 0 8px 18px rgba(25, 119, 131, 0.28);
 }
 
 .add-items-action-btn :deep(.v-btn__content) {
@@ -1322,7 +1366,7 @@ export default {
   margin-top: 0.5rem;
   padding: 0.375rem 0.625rem;
   background: #0f172a;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 0.75rem;
   color: #ffffff;
   white-space: nowrap;
@@ -1415,7 +1459,7 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 0.95rem;
-  background: #f4f7f9;
+  background: linear-gradient(180deg, #eaf5f6 0%, #f5f9fa 55%, #eef4f5 100%);
   scrollbar-width: thin;
   scrollbar-color: rgba(25, 119, 131, 0.45) transparent;
 }
@@ -1438,6 +1482,15 @@ export default {
   background: rgba(25, 119, 131, 0.55);
 }
 
+/* Keep scrollbar on the right in Arabic; content stays RTL */
+.aid-sheet[dir='rtl'] .aid-scroll {
+  direction: ltr;
+}
+
+.aid-sheet[dir='rtl'] .aid-scroll > * {
+  direction: rtl;
+}
+
 .aid-bar {
   display: flex;
   justify-content: center;
@@ -1451,10 +1504,10 @@ export default {
 
 .aid-block {
   background: #ffffff;
-  border: 1px solid #e5edf1;
+  border: 1px solid rgba(25, 119, 131, 0.12);
   border-radius: 16px;
   padding: 0.9rem 1rem;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  box-shadow: 0 4px 12px rgba(22, 54, 58, 0.04);
 }
 
 .aid-block--fill {
@@ -1713,6 +1766,13 @@ export default {
   color: #ef4444;
 }
 
+.aid-sheet[dir='rtl'] .dialog-field :deep(.v-messages),
+.aid-sheet[dir='rtl'] .dialog-field :deep(.v-messages__message),
+.aid-sheet[dir='rtl'] .dialog-field :deep(.v-input__details) {
+  direction: rtl;
+  text-align: right;
+}
+
 /* Keep select menu inside rounded bounds */
 :deep(.v-overlay__content .v-list) {
   border-radius: 12px;
@@ -1729,17 +1789,20 @@ export default {
 }
 
 .panel-content {
-  padding: 0.2rem;
-  height: 100%;
+  padding: 0.35rem 0.15rem 0.55rem;
+  flex: 1;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
-/* Categories selector styling - z-index so category tooltips stack above search bar */
+/* Categories — z-index so tooltips stack above search */
 .categories-container {
   display: flex;
-  gap: 0.75rem;
-  padding: 0.45rem 0;
-  margin-bottom: 0.2rem;
+  gap: 0.65rem;
+  padding: 0.45rem 0.1rem;
+  margin-bottom: 0.45rem;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -1748,7 +1811,7 @@ export default {
   position: relative;
   z-index: 20;
   flex-wrap: nowrap;
-  align-items: flex-start;
+  align-items: stretch;
   flex-shrink: 0;
 }
 
@@ -1758,26 +1821,30 @@ export default {
 
 .category-item {
   flex-shrink: 0;
-  padding: 0.5rem 1.5rem;
-  border: 2px solid transparent;
-  border-radius: 0.5rem;
-  background: white;
+  display: flex;
+  align-items: center;
+  padding: 0.55rem 1.25rem;
+  border: 1px solid rgba(25, 119, 131, 0.1);
+  border-radius: 14px;
+  background: var(--oil-surface);
   cursor: pointer;
-  transition: border-color 0.2s, background-color 0.2s, color 0.2s;
-  min-width: fit-content;
+  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.18s ease;
+  min-width: 9.5rem;
   box-sizing: border-box;
-  height: fit-content;
-  align-self: flex-start;
+  align-self: stretch;
+  box-shadow: 0 4px 12px rgba(22, 54, 58, 0.04);
 }
 
 .category-item:hover:not(.active) {
-  background: #f5f5f5;
-  border-color: #80deea;
+  background: #f2f9fa;
+  border-color: rgba(32, 180, 198, 0.4);
+  transform: translateY(-1px);
 }
 
 .category-item.active {
-  border-color: #00bcd4;
-  background: white;
+  border-color: rgba(25, 119, 131, 0.35);
+  background: linear-gradient(135deg, rgba(25, 119, 131, 0.1), rgba(32, 180, 198, 0.12));
+  box-shadow: 0 6px 14px rgba(25, 119, 131, 0.12);
 }
 
 .category-content {
@@ -1785,32 +1852,31 @@ export default {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.25rem;
+  gap: 0.2rem;
   width: 100%;
 }
 
 .category-name {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #1a1a1a;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--oil-ink);
   white-space: nowrap;
 }
 
 .category-item.active .category-name {
-  color: #00bcd4;
+  color: var(--oil-teal);
 }
 
 .category-item-with-actions {
-  display: flex;
   align-items: stretch;
 }
 
 .category-card-ltr.category-item-with-actions {
-  padding: 0.5rem 0.5rem 0.5rem 1.5rem;
+  padding: 0.5rem 0.5rem 0.5rem 1.15rem;
 }
 
 .category-card-rtl.category-item-with-actions {
-  padding: 0.5rem 1.5rem 0.5rem 0.5rem;
+  padding: 0.5rem 1.15rem 0.5rem 0.5rem;
 }
 
 .category-card-grid {
@@ -1852,22 +1918,23 @@ export default {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  min-width: 1.75rem;
-  min-height: 1.75rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.375rem;
-  background: #fff;
-  color: #6b7280;
+  width: 2rem;
+  height: 2rem;
+  min-width: 2rem;
+  min-height: 2rem;
+  border: 1px solid var(--oil-line);
+  border-radius: 10px;
+  background: #f7fbfc;
+  color: var(--oil-muted);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .category-action-btn.edit-btn:hover {
-  background: #d1fae5;
-  border-color: #00ae8b;
-  color: #065f46;
+  background: rgba(25, 119, 131, 0.12);
+  border-color: rgba(25, 119, 131, 0.35);
+  color: var(--oil-teal);
+  box-shadow: 0 2px 8px rgba(25, 119, 131, 0.12);
 }
 
 .category-action-btn.delete-btn:hover {
@@ -1877,31 +1944,39 @@ export default {
 }
 
 .category-action-btn .action-icon {
-  width: 0.875rem;
-  height: 0.875rem;
+  width: 1rem;
+  height: 1rem;
 }
 
 .category-count {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   padding: 0;
-  color: #666;
+  color: var(--oil-muted);
   white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.category-item.active .category-count {
+  color: var(--oil-teal);
+  opacity: 0.85;
 }
 
 .search-wrapper {
-  margin: 0.2rem auto 0.5 rem auto;
-  border-radius: 2rem;
-  border: 2px solid rgba(0, 0, 0, 0.12);
-  background: white;
-  padding: 0.25rem 0.5rem;
-  transition: border-color 0.2s;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin: 0 0.1rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--oil-line);
+  background: rgba(255, 255, 255, 0.95);
+  padding: 0.2rem 0.55rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 12px rgba(22, 54, 58, 0.05);
   position: relative;
   z-index: 1;
+  flex-shrink: 0;
 }
 
 .search-wrapper:focus-within {
-  border-color: #00bcd4;
+  border-color: var(--oil-teal-bright);
+  box-shadow: 0 0 0 3px rgba(32, 180, 198, 0.16);
 }
 
 .search-field {
@@ -1911,6 +1986,7 @@ export default {
 .search-field :deep(.v-field) {
   border-radius: 0;
   box-shadow: none;
+  background: transparent;
 }
 
 .search-field :deep(.v-field__outline) {
@@ -1923,37 +1999,24 @@ export default {
 }
 
 .search-field :deep(.v-field__input) {
-  min-height: 34px;
+  min-height: 36px;
   padding-top: 0;
   padding-bottom: 0;
   font-size: 0.875rem;
+  color: var(--oil-ink);
 }
 
-.search-field :deep(.v-field__prepend-inner) {
-  padding-top: 0;
-  padding-bottom: 0;
-  align-self: center;
-}
-
+.search-field :deep(.v-field__prepend-inner),
 .search-field :deep(.v-field__append-inner) {
   padding-top: 0;
   padding-bottom: 0;
   align-self: center;
 }
 
-.search-field :deep(.v-field__prepend-inner .v-icon) {
-  background-color: #f5f5f5;
-  border-radius: 50%;
-  padding: 8px;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
+.search-field :deep(.v-field__prepend-inner .v-icon),
 .search-field :deep(.v-field__append-inner .v-icon) {
-  background-color: #f5f5f5;
+  background: linear-gradient(145deg, #eef6f7, #e2f2f4);
+  color: var(--oil-teal);
   border-radius: 50%;
   padding: 8px;
   width: 32px;
@@ -1965,10 +2028,19 @@ export default {
 
 .search-field :deep(.v-label) {
   font-size: 0.875rem;
+  color: var(--oil-muted);
 }
 
 .items-wrapper {
   width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.35);
+  border: 1px solid rgba(25, 119, 131, 0.08);
 }
 
 .items-wrapper::-webkit-scrollbar {
@@ -1977,48 +2049,30 @@ export default {
 
 .items-grid {
   display: grid;
-  gap: 0.5rem;
-  padding: 0.5rem;
+  gap: 0.55rem;
+  padding: 0.55rem;
   align-content: start;
-  margin-bottom: 2.5rem;
+  margin-bottom: 1.5rem;
+  grid-template-columns: repeat(7, 1fr);
 }
 
-/* Arabic/RTL: item cards start from right to left */
 .items-grid.items-grid-rtl {
   direction: rtl;
 }
 
-.items-grid.sidebar-on {
-  grid-template-columns: repeat(5, 1fr);
-}
-
-.items-grid.sidebar-off {
-  grid-template-columns: repeat(6, 1fr);
-}
-
-/* Large screens (e.g., ~75" displays) */
 @media (min-width: 1700px) {
-  .items-grid.sidebar-on {
-    grid-template-columns: repeat(7, 1fr);
-  }
-
-  .items-grid.sidebar-off {
-    grid-template-columns: repeat(8, 1fr);
-  }
-}
-
-/* Extra large screens (e.g., ~100" displays) */
-@media (min-width: 2200px) {
-  .items-grid.sidebar-on {
-    grid-template-columns: repeat(8, 1fr);
-  }
-
-  .items-grid.sidebar-off {
+  .items-grid {
     grid-template-columns: repeat(9, 1fr);
   }
 }
 
-/* RTL Support */
+@media (min-width: 2200px) {
+  .items-grid {
+    grid-template-columns: repeat(10, 1fr);
+  }
+}
+
+/* RTL: "All" stays first in reading order (right side in Arabic) */
 [dir="rtl"] .categories-container {
   flex-direction: row-reverse;
 }
@@ -2060,6 +2114,14 @@ export default {
   left: 12px;
   right: auto;
   transform-origin: top left;
+}
+
+[dir="rtl"] .panel-content {
+  text-align: right;
+}
+
+[dir="rtl"] .items-grid {
+  direction: rtl;
 }
 
 /* Dialog responsive sizing (rem-based) */
@@ -2480,5 +2542,25 @@ export default {
 
 .aid-overlay .aid-sheet {
   background: #ffffff !important;
+}
+
+/* Category action tooltips — match item card tooltip look */
+.category-action-tooltip,
+.v-overlay__content.category-action-tooltip {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  border-radius: 8px !important;
+  padding: 0.35rem 0.55rem !important;
+  font-size: 0.7rem !important;
+  font-weight: 500 !important;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.28) !important;
+  opacity: 1 !important;
+}
+
+.category-action-tooltip .v-overlay__content,
+.category-action-tooltip .v-tooltip__content {
+  background: transparent !important;
+  color: #ffffff !important;
+  padding: 0 !important;
 }
 </style>

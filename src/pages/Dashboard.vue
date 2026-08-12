@@ -34,13 +34,13 @@
           <span class="kpi__label">{{ $t('totalRevenue') }}</span>
           <strong class="kpi__value" dir="ltr">{{ loading ? '—' : formatDisplay(totalIncome) }}</strong>
         </article>
+        <article class="kpi kpi--receipts">
+          <span class="kpi__label">{{ $t('receiptCount') }}</span>
+          <strong class="kpi__value">{{ loading ? '—' : receiptCount }}</strong>
+        </article>
         <article class="kpi kpi--peak">
           <span class="kpi__label">{{ $t('peakRevenue') }}</span>
           <strong class="kpi__value" dir="ltr">{{ loading ? '—' : formatDisplay(peakIncome) }}</strong>
-        </article>
-        <article class="kpi kpi--units">
-          <span class="kpi__label">{{ $t('unitsSoldShort') }}</span>
-          <strong class="kpi__value">{{ loading ? '—' : totalUnitsSold }}</strong>
         </article>
       </div>
 
@@ -67,23 +67,50 @@
               <span>{{ $t('revenueOfSelection') }}</span>
               <strong dir="ltr">{{ formatDisplay(insight.amount) }}</strong>
             </div>
-            <div class="select-card__dual" dir="ltr">
-              <span>${{ formatUsd(insight.usd) }}</span>
-              <span>{{ formatLbp(insight.lbp) }}</span>
-            </div>
           </div>
         </article>
       </div>
 
       <section class="filter-strip">
-        <div class="filter-strip__grid">
+        <div class="filter-strip__grid" :class="{ 'filter-strip__grid--hourly': isHourlyMode }">
+          <template v-if="isHourlyMode">
+            <div class="filter-strip__field">
+              <label class="filter-strip__label">{{ $t('date') }}</label>
+              <PosDateInput v-model="filters.date" :placeholder="$t('selectDatePlaceholder')" />
+            </div>
+            <div class="filter-strip__field">
+              <label class="filter-strip__label">{{ $t('fromTime') }}</label>
+              <PosTimeInput v-model="filters.fromTime" :placeholder="$t('selectTimePlaceholder')" />
+            </div>
+            <div class="filter-strip__field">
+              <label class="filter-strip__label">{{ $t('toTime') }}</label>
+              <PosTimeInput v-model="filters.toTime" :placeholder="$t('selectTimePlaceholder')" />
+            </div>
+          </template>
+          <template v-else>
+            <div class="filter-strip__field">
+              <label class="filter-strip__label">{{ $t('fromDate') }}</label>
+              <PosDateInput v-model="filters.fromDate" :placeholder="$t('selectDatePlaceholder')" />
+            </div>
+            <div class="filter-strip__field">
+              <label class="filter-strip__label">{{ $t('toDate') }}</label>
+              <PosDateInput v-model="filters.toDate" :placeholder="$t('selectDatePlaceholder')" />
+            </div>
+          </template>
           <div class="filter-strip__field">
-            <label class="filter-strip__label">{{ $t('fromDate') }}</label>
-            <PosDateInput v-model="filters.fromDate" :placeholder="$t('selectDatePlaceholder')" />
-          </div>
-          <div class="filter-strip__field">
-            <label class="filter-strip__label">{{ $t('toDate') }}</label>
-            <PosDateInput v-model="filters.toDate" :placeholder="$t('selectDatePlaceholder')" />
+            <label class="filter-strip__label">{{ $t('receiptCurrency') }}</label>
+            <div class="currency-rail" role="tablist">
+              <button
+                v-for="option in receiptCurrencyOptions"
+                :key="option.id"
+                type="button"
+                class="currency-rail__btn"
+                :class="{ 'currency-rail__btn--on': filters.receiptCurrency === option.id }"
+                @click="filters.receiptCurrency = option.id"
+              >
+                {{ $t(option.labelKey) }}
+              </button>
+            </div>
           </div>
           <div class="filter-strip__field">
             <PosAutocomplete
@@ -248,6 +275,7 @@ import {
 import { Line, Bar } from 'vue-chartjs'
 import TopBar from '../components/TopBar.vue'
 import PosDateInput from '../components/PosDateInput.vue'
+import PosTimeInput from '../components/PosTimeInput.vue'
 import PosAutocomplete from '../components/PosAutocomplete.vue'
 import DashboardService from '../services/DashboardService'
 import CategoryService from '../services/CategoryService'
@@ -280,6 +308,7 @@ const soldMode = ref('items')
 
 const totalRevenueUsd = ref(0)
 const totalRevenueLbp = ref(0)
+const receiptCount = ref(0)
 const revenueSeries = ref([])
 const topSoldItems = ref([])
 const topSoldCategories = ref([])
@@ -292,14 +321,19 @@ const appliedItemId = ref(null)
 const appliedCategoryId = ref(null)
 
 const filters = ref({
+  date: '',
+  fromTime: '',
+  toTime: '',
   fromDate: '',
   toDate: '',
+  receiptCurrency: 'ALL',
   categoryId: null,
   itemId: null
 })
 
 const lang = computed(() => ({ dir: state.dir, lang: state.lang }))
 const isUsd = computed(() => state.currency === 'USD')
+const isHourlyMode = computed(() => period.value === 'daily')
 
 const periodOptions = [
   { id: 'daily', labelKey: 'periodDaily' },
@@ -307,22 +341,27 @@ const periodOptions = [
   { id: 'yearly', labelKey: 'periodYearly' }
 ]
 
+const receiptCurrencyOptions = [
+  { id: 'ALL', labelKey: 'receiptCurrencyAll' },
+  { id: 'USD', labelKey: 'receiptCurrencyUsd' },
+  { id: 'LBP', labelKey: 'receiptCurrencyLbp' }
+]
+
 /**
- * Granularity is derived from the selected date range instead of the period
- * button, so any custom gap always produces a renderable series:
- *   - single day        -> hourly buckets
- *   - up to ~3 months   -> daily buckets (covers 2-3 day gaps too)
- *   - anything longer   -> monthly buckets
+ * Granularity follows the period tab, or the selected date range for monthly/yearly:
+ *   - daily tab           -> hourly buckets (single day + time window)
+ *   - up to ~3 months     -> daily buckets
+ *   - anything longer     -> monthly buckets
  */
 const granularity = computed(() => {
+  if (isHourlyMode.value) return 'HOURLY'
   const from = filters.value.fromDate ? new Date(filters.value.fromDate) : null
   const to = filters.value.toDate ? new Date(filters.value.toDate) : null
   if (!from || !to || Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
-    return 'HOURLY'
+    return 'DAILY'
   }
   const dayMs = 24 * 60 * 60 * 1000
   const days = Math.round(Math.abs(to - from) / dayMs) + 1
-  if (days <= 1) return 'HOURLY'
   if (days <= 92) return 'DAILY'
   return 'MONTHLY'
 })
@@ -337,10 +376,6 @@ const peakIncome = computed(() => {
   )
   return values.length ? Math.max(...values) : 0
 })
-
-const totalUnitsSold = computed(() =>
-  topSoldItems.value.reduce((sum, item) => sum + (item.quantitySold ?? 0), 0)
-)
 
 const isRevenueChartEmpty = computed(() =>
   revenueSeries.value.every((p) => Number(p.revenueUsd ?? p.revenue) === 0)
@@ -435,11 +470,16 @@ function toIsoDate(date) {
 function setDefaultDatesForPeriod(periodId) {
   const now = new Date()
   if (periodId === 'daily') {
-    const today = toIsoDate(now)
-    filters.value.fromDate = today
-    filters.value.toDate = today
+    filters.value.date = toIsoDate(now)
+    filters.value.fromTime = '00:00'
+    filters.value.toTime = '23:59'
+    filters.value.fromDate = ''
+    filters.value.toDate = ''
     return
   }
+  filters.value.date = ''
+  filters.value.fromTime = ''
+  filters.value.toTime = ''
   if (periodId === 'monthly') {
     filters.value.fromDate = toIsoDate(new Date(now.getFullYear(), now.getMonth(), 1))
     filters.value.toDate = toIsoDate(new Date(now.getFullYear(), now.getMonth() + 1, 0))
@@ -519,18 +559,6 @@ const tealGradient = (ctx) => {
 
 /* --------------------------- Custom HTML tooltip -------------------------- */
 
-const andWord = computed(() => (state.lang === 'ar' ? 'و' : 'and'))
-
-/**
- * Combined total expressed in the active currency: the USD revenue plus the
- * LBP revenue converted back to USD at the current dollar rate.
- */
-function combinedAtRate(usd, lbp) {
-  const rate = Number(state.exchangeRate) || 0
-  const totalUsd = (Number(usd) || 0) + (rate > 0 ? (Number(lbp) || 0) / rate : 0)
-  return isUsd.value ? totalUsd : totalUsd * rate
-}
-
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
     '&': '&amp;',
@@ -541,36 +569,43 @@ function escapeHtml(value) {
   }[ch]))
 }
 
-function tipRow(label, value) {
-  return `<div class="dash-tip__row"><span>${escapeHtml(label)}</span><strong dir="ltr">${escapeHtml(value)}</strong></div>`
-}
-
+/** Revenue tip: single value in the active system currency (historical rates from API). */
 function buildRevenueTipHtml(index) {
   const point = revenueSeries.value[index] || {}
-  const usd = Number(point.revenueUsd ?? point.revenue) || 0
-  const lbp = Number(point.revenueLbp) || 0
+  const amount = isUsd.value
+    ? Number(point.revenueUsd ?? point.revenue) || 0
+    : Number(point.revenueLbp) || 0
   return (
-    `<div class="dash-tip__head">${escapeHtml(point.label || '')}</div>` +
-    `<div class="dash-tip__body">` +
-    tipRow($t('incomeUsd'), `$${formatUsd(usd)}`) +
-    tipRow($t('incomeLbp'), formatLbp(lbp)) +
-    `<div class="dash-tip__total">${tipRow($t('totalRevenueAtRate'), formatDisplay(combinedAtRate(usd, lbp)))}</div>` +
+    `<div class="dash-tip__head">` +
+    `<span class="dash-tip__eyebrow">${escapeHtml($t('revenue'))}</span>` +
+    `<strong class="dash-tip__title">${escapeHtml(point.label || '')}</strong>` +
+    `</div>` +
+    `<div class="dash-tip__body dash-tip__body--single">` +
+    `<span class="dash-tip__metric-label">${escapeHtml($t('totalRevenue'))}</span>` +
+    `<strong class="dash-tip__metric-value" dir="ltr">${escapeHtml(formatDisplay(amount))}</strong>` +
     `</div>`
   )
 }
 
+/** Top-sold tip: quantity + total in active currency (historical rates from API). */
 function buildSoldTipHtml(index) {
   const row = soldRows.value[index]
   if (!row) return ''
-  const perUnit = row.qty > 0 ? (isUsd.value ? row.usd : row.lbp) / row.qty : 0
-  const dualTotal = `$${formatUsd(row.usd)} ${andWord.value} ${formatLbp(row.lbp)}`
+  const amount = isUsd.value ? row.usd : row.lbp
   return (
-    `<div class="dash-tip__head">${escapeHtml(row.name || '')}</div>` +
-    `<div class="dash-tip__body">` +
-    tipRow($t('quantitySold'), row.qty) +
-    (row.qty > 0 ? tipRow($t('revenuePerUnit'), formatDisplay(perUnit)) : '') +
-    tipRow($t('totalRevenue'), dualTotal) +
-    `<div class="dash-tip__total">${tipRow($t('totalRevenueAtRate'), formatDisplay(combinedAtRate(row.usd, row.lbp)))}</div>` +
+    `<div class="dash-tip__head">` +
+    `<span class="dash-tip__eyebrow">${escapeHtml($t('scenarioTopSold'))}</span>` +
+    `<strong class="dash-tip__title">${escapeHtml(row.name || '')}</strong>` +
+    `</div>` +
+    `<div class="dash-tip__body dash-tip__body--stack">` +
+    `<div class="dash-tip__metric">` +
+    `<span class="dash-tip__metric-label">${escapeHtml($t('quantitySold'))}</span>` +
+    `<strong class="dash-tip__metric-value">${escapeHtml(String(row.qty ?? 0))}</strong>` +
+    `</div>` +
+    `<div class="dash-tip__metric">` +
+    `<span class="dash-tip__metric-label">${escapeHtml($t('totalRevenue'))}</span>` +
+    `<strong class="dash-tip__metric-value" dir="ltr">${escapeHtml(formatDisplay(amount))}</strong>` +
+    `</div>` +
     `</div>`
   )
 }
@@ -731,19 +766,28 @@ const soldChartOptions = computed(() => ({
 async function loadDashboard() {
   loading.value = true
   try {
-    const response = await DashboardService.getDashboardData({
-      fromDate: filters.value.fromDate || undefined,
-      toDate: filters.value.toDate || undefined,
+    const payload = {
       itemId: filters.value.itemId || undefined,
       categoryId: filters.value.categoryId || undefined,
-      granularity: granularity.value
-    })
+      granularity: granularity.value,
+      receiptCurrency: filters.value.receiptCurrency || 'ALL'
+    }
+    if (isHourlyMode.value) {
+      payload.fromDate = filters.value.date || undefined
+      payload.fromTime = filters.value.fromTime || undefined
+      payload.toTime = filters.value.toTime || undefined
+    } else {
+      payload.fromDate = filters.value.fromDate || undefined
+      payload.toDate = filters.value.toDate || undefined
+    }
+    const response = await DashboardService.getDashboardData(payload)
     const data = response?.data?.data ?? {}
     revenueSeries.value = data.revenueSeries ?? []
     topSoldItems.value = data.topSoldItems ?? []
     topSoldCategories.value = data.topSoldCategories ?? []
     totalRevenueUsd.value = Number(data.totalRevenueUsd ?? data.totalRevenue) || 0
     totalRevenueLbp.value = Number(data.totalRevenueLbp) || 0
+    receiptCount.value = Number(data.receiptCount) || 0
     appliedItemId.value = filters.value.itemId ?? null
     appliedCategoryId.value = filters.value.categoryId ?? null
   } catch {
@@ -752,6 +796,7 @@ async function loadDashboard() {
     topSoldCategories.value = []
     totalRevenueUsd.value = 0
     totalRevenueLbp.value = 0
+    receiptCount.value = 0
     appliedItemId.value = null
     appliedCategoryId.value = null
   } finally {
@@ -762,6 +807,7 @@ async function loadDashboard() {
 function resetFilters() {
   filters.value.categoryId = null
   filters.value.itemId = null
+  filters.value.receiptCurrency = 'ALL'
   setDefaultDatesForPeriod(period.value)
   fetchCategories('')
   fetchItems('')
@@ -770,7 +816,6 @@ function resetFilters() {
 
 onMounted(async () => {
   setDefaultDatesForPeriod(period.value)
-  if (!state.exchangeRate) await state.fetchDollarRate()
   await Promise.all([fetchCategories(''), fetchItems('')])
   await loadDashboard()
 })
@@ -802,8 +847,9 @@ onMounted(async () => {
   gap: 0.85rem;
   min-height: calc(100vh - 45px);
   padding: 1rem 1.25rem 1.5rem;
-  max-width: min(1280px, 100%);
-  margin: 0 auto;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
   box-sizing: border-box;
 }
 
@@ -910,8 +956,8 @@ onMounted(async () => {
 }
 
 .kpi--income { border-inline-start: 3px solid rgba(25, 119, 131, 0.55); }
-.kpi--peak { border-inline-start: 3px solid rgba(74, 158, 171, 0.55); }
-.kpi--units { border-inline-start: 3px solid rgba(100, 180, 190, 0.55); }
+.kpi--receipts { border-inline-start: 3px solid rgba(74, 158, 171, 0.55); }
+.kpi--peak { border-inline-start: 3px solid rgba(100, 180, 190, 0.55); }
 
 /* Selection insight cards */
 .select-strip {
@@ -991,14 +1037,35 @@ onMounted(async () => {
   font-variant-numeric: tabular-nums;
 }
 
-.select-card__dual {
+.currency-rail {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.08rem;
-  font-size: 0.68rem;
+  gap: 0.2rem;
+  padding: 0.22rem;
+  min-height: 40px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e4ebf1;
+  box-sizing: border-box;
+}
+
+.currency-rail__btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: #8a9aab;
+  font-size: 0.78rem;
   font-weight: 650;
-  color: #5a8f97;
+  padding: 0.4rem 0.35rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.currency-rail__btn--on {
+  background-image: linear-gradient(135deg, #197783, #32d8ee);
+  color: #fff;
 }
 
 .filter-strip {
@@ -1011,8 +1078,12 @@ onMounted(async () => {
 
 .filter-strip__grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 0.7rem;
+}
+
+.filter-strip__grid--hourly {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
 .filter-strip__label {
@@ -1324,10 +1395,25 @@ onMounted(async () => {
 }
 
 .dash-tip__head {
-  padding: 0.6rem 0.85rem;
+  padding: 0.65rem 0.9rem 0.7rem;
   background: linear-gradient(135deg, #197783, #32d8ee);
   color: #ffffff;
-  font-size: 0.84rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.dash-tip__eyebrow {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.dash-tip__title {
+  font-size: 0.92rem;
   font-weight: 800;
   letter-spacing: 0.01em;
   white-space: nowrap;
@@ -1336,42 +1422,39 @@ onMounted(async () => {
 }
 
 .dash-tip__body {
-  padding: 0.6rem 0.85rem 0.7rem;
+  padding: 0.75rem 0.9rem 0.85rem;
   display: flex;
   flex-direction: column;
-  gap: 0.38rem;
+  gap: 0.2rem;
 }
 
-.dash-tip__row {
+.dash-tip__body--single {
+  align-items: flex-start;
+}
+
+.dash-tip__body--stack {
+  gap: 0.7rem;
+}
+
+.dash-tip__metric {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #64748b;
+  flex-direction: column;
+  gap: 0.15rem;
 }
 
-.dash-tip__row strong {
-  color: #0f172a;
+.dash-tip__metric-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #8a9aab;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.dash-tip__metric-value {
+  font-size: 1.2rem;
   font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.dash-tip__total {
-  margin-top: 0.2rem;
-  padding-top: 0.5rem;
-  border-top: 1px dashed rgba(25, 119, 131, 0.3);
-}
-
-.dash-tip__total .dash-tip__row span {
-  color: #14606a;
-  font-weight: 750;
-}
-
-.dash-tip__total .dash-tip__row strong {
   color: #197783;
-  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
 </style>

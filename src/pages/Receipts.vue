@@ -243,7 +243,7 @@
                 >
                   <div
                     v-for="(receipt, index) in group.items"
-                    :key="receipt.id"
+                    :key="receipt.receiptId"
                     class="result-card"
                     :class="{ 'result-card--solo': group.items.length === 1 }"
                     :style="{ '--stagger': `${index * 40}ms` }"
@@ -274,12 +274,26 @@
                       </div>
                       <span class="total-badge">{{ formatTotal(receipt) }}</span>
                     </div>
+                    <div v-if="!isDraftsMode && hasPaymentInfo(receipt)" class="result-payment-row">
+                      <span v-if="Number(receipt.payWish)" class="pay-pill pay-pill--wish">
+                        W {{ formatPayWish(receipt) }}
+                      </span>
+                      <span v-if="Number(receipt.payDollar)" class="pay-pill pay-pill--usd">
+                        {{ formatUsd(receipt.payDollar) }}
+                      </span>
+                      <span v-if="Number(receipt.payLebanese)" class="pay-pill pay-pill--lbp">
+                        {{ formatLbp(receipt.payLebanese) }}
+                      </span>
+                      <span v-if="Number(receipt.receiptDiscount)" class="pay-pill pay-pill--discount">
+                        {{ $t('discount') }}: {{ formatDiscount(receipt) }}
+                      </span>
+                    </div>
                     <div v-if="isDraftsMode" class="result-card-footer result-card-footer--draft">
                       <div class="draft-secondary-actions">
                         <button
                           type="button"
                           class="footer-action-btn"
-                          @click="openDetails(receipt.id)"
+                          @click="openDetails(receipt.receiptId)"
                         >
                           <v-icon size="16">mdi-text-box-outline</v-icon>
                           {{ $t('receiptDetails') }}
@@ -287,7 +301,7 @@
                         <button
                           type="button"
                           class="footer-action-btn footer-action-btn--items"
-                          @click="openItems(receipt.id)"
+                          @click="openItems(receipt.receiptId)"
                         >
                           <v-icon size="16">mdi-cart-outline</v-icon>
                           {{ $t('receiptItems') }}
@@ -296,7 +310,7 @@
                       <button
                         type="button"
                         class="resume-draft-btn"
-                        @click="continueInPos(receipt.id)"
+                        @click="continueInPos(receipt.receiptId)"
                       >
                         <v-icon size="17" class="resume-draft-btn__lead">mdi-play-circle</v-icon>
                         <span class="resume-draft-btn__label">{{ $t('continueInPos') }}</span>
@@ -306,7 +320,7 @@
                       <button
                         type="button"
                         class="footer-action-btn"
-                        @click="openDetails(receipt.id)"
+                        @click="openDetails(receipt.receiptId)"
                       >
                         <v-icon size="16">mdi-text-box-outline</v-icon>
                         {{ $t('receiptDetails') }}
@@ -314,7 +328,7 @@
                       <button
                         type="button"
                         class="footer-action-btn footer-action-btn--items"
-                        @click="openItems(receipt.id)"
+                        @click="openItems(receipt.receiptId)"
                       >
                         <v-icon size="16">mdi-cart-outline</v-icon>
                         {{ $t('receiptItems') }}
@@ -560,6 +574,28 @@ function formatTotal(receipt) {
   return formatLbp(num * rate)
 }
 
+function formatPayWish(receipt) {
+  const num = Number(receipt.payWish) || 0
+  if (!num) return '—'
+  if (receipt.isPayWishDollar !== false) return formatUsd(num)
+  return formatLbp(num)
+}
+
+function formatDiscount(receipt) {
+  const val = Number(receipt.receiptDiscount) || 0
+  if (!val) return '—'
+  if (receipt.isReceiptDiscountPercent) return `${val}%`
+  if (receipt.isReceiptDollar !== false) return formatUsd(val)
+  return formatLbp(val)
+}
+
+function hasPaymentInfo(receipt) {
+  return Number(receipt.payWish) > 0
+    || Number(receipt.payDollar) > 0
+    || Number(receipt.payLebanese) > 0
+    || Number(receipt.receiptDiscount) > 0
+}
+
 function currencyLabel(receipt) {
   if (receipt.isReceiptDollar !== false) return state.lang === 'ar' ? 'دولار' : 'USD'
   return state.lang === 'ar' ? 'ل.ل.' : 'LBP'
@@ -584,8 +620,7 @@ function buildFilterPayload() {
     toDate: filters.toDate || undefined,
     fromTime: filters.fromTime ? `${filters.fromTime}:00`.slice(0, 8) : undefined,
     toTime: filters.toTime ? `${filters.toTime}:59`.slice(0, 8) : undefined,
-    customerName: customer,
-    type: isDraftsMode.value ? 'DRAFT' : 'RECEIPT'
+    customerName: customer
   }
 }
 
@@ -620,7 +655,8 @@ async function loadReceipts(resetPage = false) {
   if (resetPage) pagination.page = 1
   loading.value = true
   try {
-    const response = await ReceiptService.searchUserReceipts(buildFilterPayload(), {
+    const searchFn = isDraftsMode.value ? ReceiptService.searchUserDrafts : ReceiptService.searchUserReceipts
+    const response = await searchFn(buildFilterPayload(), {
       page: (pagination.page || 1) - 1,
       size: pagination.itemsPerPage || 5
     })
@@ -1459,6 +1495,46 @@ onUnmounted(() => {
   font-variant-numeric: tabular-nums;
   direction: ltr;
   box-shadow: 0 2px 6px rgba(25, 119, 131, 0.2);
+}
+
+.result-payment-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0 1rem 0.65rem;
+}
+
+.pay-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  direction: ltr;
+  font-variant-numeric: tabular-nums;
+}
+
+.pay-pill--wish {
+  background: rgba(220, 38, 38, 0.1);
+  color: #b91c1c;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.pay-pill--usd {
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+.pay-pill--lbp {
+  background: rgba(25, 119, 131, 0.1);
+  color: #0f4f58;
+  border: 1px solid rgba(25, 119, 131, 0.2);
+}
+
+.pay-pill--discount {
+  background: rgba(217, 119, 6, 0.1);
+  color: #b45309;
+  border: 1px solid rgba(217, 119, 6, 0.2);
 }
 
 .result-card-footer {

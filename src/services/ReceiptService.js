@@ -43,11 +43,9 @@ export function updateDraft(receiptId, receipt) {
   return PosAxios.put(`/draft/${receiptId}`, buildReceiptPayload(receipt))
 }
 
-
-
 /**
  * Search receipts for the current user.
- * @param {Object} filter - { fromDate, toDate, fromTime, toTime, customerName, type }
+ * @param {Object} filter - { fromDate, toDate, fromTime, toTime, customerName }
  * @param {Object} params - { page (0-based), size }
  */
 export function searchUserReceipts(filter = {}, params = {}) {
@@ -57,12 +55,30 @@ export function searchUserReceipts(filter = {}, params = {}) {
   if (filter.fromTime) payload.fromTime = filter.fromTime
   if (filter.toTime) payload.toTime = filter.toTime
   if (filter.customerName?.trim()) payload.customerName = filter.customerName.trim()
-  if (filter.type) payload.type = filter.type
   const query = {
     page: params.page ?? 0,
     size: params.size ?? 10
   }
   return PosAxios.post('/receipt/user-receipts', payload, { params: query })
+}
+
+/**
+ * Search drafts for the current user.
+ * @param {Object} filter - { fromDate, toDate, fromTime, toTime, customerName }
+ * @param {Object} params - { page (0-based), size }
+ */
+export function searchUserDrafts(filter = {}, params = {}) {
+  const payload = {}
+  if (filter.fromDate) payload.fromDate = filter.fromDate
+  if (filter.toDate) payload.toDate = filter.toDate
+  if (filter.fromTime) payload.fromTime = filter.fromTime
+  if (filter.toTime) payload.toTime = filter.toTime
+  if (filter.customerName?.trim()) payload.customerName = filter.customerName.trim()
+  const query = {
+    page: params.page ?? 0,
+    size: params.size ?? 10
+  }
+  return PosAxios.post('/draft/user-drafts', payload, { params: query })
 }
 
 /**
@@ -84,6 +100,7 @@ export default {
   saveDraft,
   updateDraft,
   searchUserReceipts,
+  searchUserDrafts,
   getReceiptDetails,
   getReceiptItems
 }

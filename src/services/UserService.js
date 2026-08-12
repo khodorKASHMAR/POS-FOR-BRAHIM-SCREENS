@@ -26,5 +26,17 @@ export default {
 
   deleteUser(id) {
     return PosAxios.delete(`${BASE}/${id}`)
+  },
+
+  listMenus() {
+    return PosAxios.get('/menu')
+  },
+
+  getUserMenus(id) {
+    return PosAxios.get(`${BASE}/${id}/menus`)
+  },
+
+  updateUserMenus(id, menuCodes) {
+    return PosAxios.put(`${BASE}/${id}/menus`, { menuCodes })
   }
 }

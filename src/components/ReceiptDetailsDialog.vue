@@ -150,7 +150,7 @@ import { useState } from '../store/state'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  receiptId: { type: Number, default: null },
+  receiptId: { type: [String, Number], default: null },
   isDraft: { type: Boolean, default: false }
 })
 
@@ -786,5 +786,6 @@ watch(
   background: transparent !important;
   box-shadow: none !important;
   overflow: visible !important;
+  border-radius: 20px !important;
 }
 </style>

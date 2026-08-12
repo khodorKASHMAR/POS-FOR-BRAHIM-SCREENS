@@ -439,37 +439,36 @@ const updateReceiptDiscount = (event) => {
 <style scoped>
 .pay-receipt-dialog {
   background: #ffffff;
-  border-radius: 0 16px 16px 0;
-  padding: 0.5rem 1.25rem 1.25rem;
+  border-radius: 16px;
+  padding: 0.75rem 1.25rem 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  width: 100%;
+  box-sizing: border-box;
   max-height: min(90vh, 820px);
   overflow-y: auto;
 }
 
 .pay-dialog-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 2.5rem 1fr 2.5rem;
   align-items: center;
-  justify-content: center;
-  position: relative;
-  margin-top: 0;
-  margin-bottom: 0.15rem;
-  min-height: 2rem;
+  min-height: 2.25rem;
 }
 
 .pay-dialog-title {
+  grid-column: 2;
   font-size: 1.25rem;
   font-weight: 700;
   color: #1a1a1a;
   text-align: center;
+  line-height: 1.2;
 }
 
 .pay-dialog-close-btn {
-  position: absolute;
-  top: 0;
-  right: 0;
-  transform: none;
+  grid-column: 3;
+  justify-self: end;
   color: #666;
 }
 
@@ -480,7 +479,7 @@ const updateReceiptDiscount = (event) => {
 
 .order-summary {
   border-radius: 12px;
-  padding: 0.5rem;
+  padding: 0.65rem 1rem;
   background-image: linear-gradient(135deg, #197783, #32d8ee);
   color: #ffffff;
 }
@@ -489,7 +488,8 @@ const updateReceiptDiscount = (event) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 0;
+  gap: 1rem;
+  padding: 0.15rem 0;
 }
 
 .summary-row.total-row {
@@ -497,31 +497,29 @@ const updateReceiptDiscount = (event) => {
   font-size: 1.125rem;
 }
 
-.summary-label {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin-left: 1rem;
-}
-
+.summary-label,
 .summary-value {
   font-size: 1.125rem;
   font-weight: 600;
-  margin-right: 1rem;
+  color: #ffffff;
 }
 
-.total-row .summary-label,
-.total-row .summary-value {
-  color: #ffffff;
+.summary-value {
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  unicode-bidi: isolate;
 }
 
 .total-discount-section {
   width: 100%;
+  box-sizing: border-box;
   background-color: #ffffff;
   border-radius: 12px;
-  padding: 0.5rem 0.75rem;
+  padding: 0.55rem 0.75rem;
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: space-between;
   gap: 0.75rem;
   border: 1px solid rgba(25, 119, 131, 0.15);
 }
@@ -530,24 +528,28 @@ const updateReceiptDiscount = (event) => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex: 1;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .total-discount-controls {
   display: flex;
   align-items: center;
-  flex-shrink: 0;
+  flex: 0 0 auto;
 }
 
 .discount-label {
   font-size: 1rem;
   color: #1a1a1a;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .discount-toggle-btn {
-  width: 4rem;
+  min-width: 3.5rem;
+  width: auto;
   height: 1.75rem;
+  padding-inline: 0.5rem;
   background-color: #fafafa;
   border-radius: 1rem;
   color: #666;
@@ -556,14 +558,15 @@ const updateReceiptDiscount = (event) => {
 }
 
 .discount-input {
-  width: 7.5rem;
+  width: 7rem;
+  max-width: 30vw;
   text-align: center;
-  font-weight: 500;
-  font-size: 0.75rem;
+  font-weight: 600;
+  font-size: 0.85rem;
   border-radius: 1rem;
   background: #fafafa;
   outline: none;
-  padding: 0.3rem 0;
+  padding: 0.35rem 0.5rem;
   border: 1px solid transparent;
   appearance: textfield;
   -moz-appearance: textfield;
@@ -579,14 +582,18 @@ const updateReceiptDiscount = (event) => {
   border-color: #00bcd4;
 }
 
+.wish-payment-row,
 .payment-fields {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.25rem;
+  width: 100%;
+}
+
+.payment-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
 }
 
 .payment-field-block {
-  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -603,14 +610,16 @@ const updateReceiptDiscount = (event) => {
 .payment-input-wrap {
   display: flex;
   align-items: center;
+  gap: 0.35rem;
   border-radius: 12px;
   background:
     linear-gradient(#ffffff, #ffffff) padding-box,
     linear-gradient(135deg, #2293a1, #32d8ee) border-box;
   border: 1px solid transparent;
   overflow: hidden;
-  padding: 0 0.5rem;
-  min-height: 40px;
+  padding: 0 0.55rem;
+  min-height: 42px;
+  box-sizing: border-box;
 }
 
 .payment-input-wrap:focus-within {
@@ -622,40 +631,30 @@ const updateReceiptDiscount = (event) => {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 0.7rem;
   font-weight: 800;
   color: #ffffff;
   background: linear-gradient(135deg, #d32f2f, #f44336);
-  margin-right: 0.35rem;
-}
-
-.wish-payment-row {
-  width: 100%;
-  margin-top: 0.25rem;
-}
-
-.wish-payment-wrap {
-  width: 100%;
 }
 
 .wish-currency-toggle {
   flex-shrink: 0;
-  width: 3.5rem;
+  min-width: 3.25rem;
+  width: auto;
   height: 1.75rem;
+  padding-inline: 0.35rem;
   background-color: #fafafa;
   border-radius: 1rem;
   color: #666;
   font-size: 0.7rem;
   font-weight: 600;
-  margin-left: 0.25rem;
 }
 
 .payment-symbol-icon {
   flex-shrink: 0;
-  margin-right: 0.35rem;
 }
 
 .dollar-symbol-icon {
@@ -667,18 +666,17 @@ const updateReceiptDiscount = (event) => {
   font-size: 0.65rem;
   font-weight: 700;
   color: #197783;
-  margin-right: 0.35rem;
   white-space: nowrap;
 }
 
 .payment-input {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
   border: none;
   outline: none;
   background: transparent;
   text-align: center;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: #1a1a1a;
   appearance: textfield;
@@ -693,7 +691,7 @@ const updateReceiptDiscount = (event) => {
 
 .rate-hint {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   gap: 0.4rem;
   padding: 0.55rem 0.75rem;
@@ -701,22 +699,25 @@ const updateReceiptDiscount = (event) => {
   background: rgba(44, 140, 242, 0.06);
   color: rgba(0, 0, 0, 0.58);
   font-size: 0.78rem;
-  text-align: center;
+  text-align: start;
+  line-height: 1.35;
 }
 
 .rate-hint-icon {
   color: #2c8cf2;
   flex-shrink: 0;
+  margin-top: 1px;
 }
 
 .pay-dialog-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
-  margin-top: 0.5rem;
+  margin-top: 0.25rem;
 }
 
 .pay-dialog-btn {
-  flex: 1;
+  width: 100%;
   height: 44px;
   border-radius: 12px;
   font-weight: 700;
@@ -732,64 +733,9 @@ const updateReceiptDiscount = (event) => {
   color: #197783 !important;
 }
 
-[dir="rtl"] .pay-dialog-close-btn {
-  right: auto;
-  left: 0;
-}
-
-.pay-receipt-dialog {
-  border-radius: 16px;
-}
-
-[dir="rtl"] .summary-row {
-  flex-direction: row-reverse;
-}
-
-[dir="rtl"] .summary-label {
-  margin-left: 0;
-  margin-right: 1rem;
-}
-
-[dir="rtl"] .summary-value {
-  margin-right: 0;
-  margin-left: 1rem;
-}
-
-[dir="rtl"] .total-discount-section {
-  flex-direction: row-reverse;
-}
-
-[dir="rtl"] .total-discount-row {
-  flex-direction: row-reverse;
-}
-
-[dir="rtl"] .payment-fields {
-  flex-direction: row-reverse;
-}
-
-[dir="rtl"] .wish-payment-wrap {
-  flex-direction: row-reverse;
-}
-
-[dir="rtl"] .wish-currency-toggle {
-  margin-left: 0;
-  margin-right: 0.25rem;
-}
-
-[dir="rtl"] .wish-symbol,
-[dir="rtl"] .payment-symbol-icon,
-[dir="rtl"] .lbp-symbol {
-  margin-right: 0;
-  margin-left: 0.35rem;
-}
-
-[dir="rtl"] .pay-dialog-actions {
-  flex-direction: row-reverse;
-}
-
 @media (min-width: 768px) {
   .pay-receipt-dialog {
-    padding: 0.5rem 1.75rem 1.5rem;
+    padding: 0.85rem 1.75rem 1.5rem;
     gap: 0.85rem;
   }
 
@@ -804,7 +750,7 @@ const updateReceiptDiscount = (event) => {
 
 @media (min-width: 1024px) {
   .pay-receipt-dialog {
-    padding: 1rem 2rem 1.2rem;
+    padding: 1rem 2rem 1.25rem;
     max-height: none;
     overflow-y: visible;
   }
@@ -816,21 +762,37 @@ const updateReceiptDiscount = (event) => {
 
   .order-summary,
   .total-discount-section {
-    padding: 0.65rem 0.85rem;
+    padding: 0.7rem 1rem;
+  }
+
+  .payment-input-wrap {
+    min-height: 46px;
+  }
+}
+
+@media (max-width: 420px) {
+  .payment-fields,
+  .pay-dialog-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .discount-input {
+    width: 5.5rem;
   }
 }
 </style>
 
 <style>
 .pay-receipt-dialog-overlay {
-  align-items: center;
-  justify-content: center;
-  border-radius: 0 16px 16px 0 !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 16px !important;
   overflow: hidden;
+  margin: 12px !important;
 }
 
-.pay-receipt-dialog-overlay[dir="rtl"],
-[dir="rtl"] .pay-receipt-dialog-overlay {
-  border-radius: 16px 0 0 16px !important;
+.pay-receipt-dialog-overlay .v-overlay__content {
+  border-radius: 16px !important;
+  overflow: hidden !important;
 }
 </style>

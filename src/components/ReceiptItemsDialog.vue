@@ -100,7 +100,6 @@
                 </span>
               </span>
               <span class="col-item" :class="{ 'col-item--ar': state.lang === 'ar' }">
-                <span class="item-index">{{ index + 1 }}</span>
                 <span class="item-name">{{ itemName(row) }}</span>
               </span>
               <span class="col-price numeric">{{ formatUnitPrice(row) }}</span>
@@ -161,7 +160,7 @@ import { useState } from '../store/state'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  receiptId: { type: Number, default: null }
+  receiptId: { type: [String, Number], default: null }
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -216,8 +215,23 @@ const itemName = (row) => {
   return row.itemNameEn || row.itemNameAr || '—'
 }
 
+function normalizeItemRow(raw) {
+  const nested = raw?.item || {}
+  return {
+    itemId: nested.id ?? raw.itemId,
+    itemNameAr: nested.nameAr ?? raw.itemNameAr,
+    itemNameEn: nested.nameEn ?? raw.itemNameEn,
+    image: nested.image ?? raw.image,
+    sellingPrice: nested.sellingPriceDollar ?? raw.sellingPrice ?? raw.sellingPriceDollar,
+    quantity: raw.quantity,
+    itemDiscount: raw.itemDiscount,
+    isDiscountPercent: raw.isDiscountPercent,
+    subTotal: raw.subTotal
+  }
+}
+
 function resolveImage(image) {
-  if (!image) return null
+  if (!image || typeof image !== 'string') return null
   if (image.startsWith('data:image')) return image
   if (image.startsWith('/9j/') || image.startsWith('iVBORw0KGgo')) {
     const prefix = image.startsWith('/9j/') ? 'data:image/jpeg;base64,' : 'data:image/png;base64,'
@@ -309,10 +323,13 @@ async function loadItems() {
   try {
     const response = await ReceiptService.getReceiptItems(props.receiptId)
     const data = response?.data?.data || {}
-    items.value = data.items || []
+    items.value = (data.items || []).map(normalizeItemRow)
     isReceiptDollar.value = data.isReceiptDollar !== false
     dollarRate.value = Number(data.dollarRate) || 0
-    itemsSubtotal.value = Number(data.itemsSubtotal) || 0
+    const subtotalFromApi = Number(data.itemsSubtotal)
+    itemsSubtotal.value = Number.isFinite(subtotalFromApi) && subtotalFromApi > 0
+      ? subtotalFromApi
+      : items.value.reduce((sum, row) => sum + (Number(row.subTotal) || 0), 0)
   } catch (error) {
     console.error('Failed to load receipt items:', error)
   } finally {
@@ -938,6 +955,7 @@ watch(
   background: transparent !important;
   box-shadow: none !important;
   overflow: visible !important;
+  border-radius: 20px !important;
 }
 
 .image-preview-overlay {

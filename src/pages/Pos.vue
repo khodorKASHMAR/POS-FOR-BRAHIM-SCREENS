@@ -50,7 +50,7 @@
 
         <!-- Items Grid -->
         <div class="items-wrapper">
-          <div class="items-grid" :class="{ 'sidebar-on': state.sidebar, 'sidebar-off': !state.sidebar }">
+          <div class="items-grid" :class="{ 'items-grid-rtl': state.dir === 'rtl' }">
             <HomeItemCard
               v-for="i in filtered"
               :key="i.id"
@@ -191,8 +191,8 @@ const handleSaveDraft = async (orderData) => {
 }
 
 async function loadDraftFromQuery() {
-  const draftId = Number(route.query.draftId)
-  if (!Number.isFinite(draftId) || draftId <= 0) return
+  const draftId = route.query.draftId
+  if (!draftId || typeof draftId !== 'string') return
   try {
     const [detailsRes, itemsRes] = await Promise.all([
       ReceiptService.getReceiptDetails(draftId),
@@ -265,6 +265,13 @@ onUnmounted(() => {
 
 <style scoped>
 .split-container {
+  --oil-ink: #16363a;
+  --oil-muted: #5f7a7e;
+  --oil-line: rgba(25, 119, 131, 0.16);
+  --oil-teal: #197783;
+  --oil-teal-bright: #20b4c6;
+  --oil-surface: #ffffff;
+  --oil-panel: linear-gradient(180deg, #eaf5f6 0%, #f5f9fa 45%, #eef4f5 100%);
   display: flex;
   height: 100vh;
   width: 100%;
@@ -277,8 +284,25 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-right: 1px solid rgba(0, 0, 0, 0.12);
-  background: #fafafa;
+  border-right: 1px solid var(--oil-line);
+  background: var(--oil-panel);
+  position: relative;
+}
+
+.left-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 34% at 0% 0%, rgba(50, 216, 238, 0.1), transparent 55%),
+    radial-gradient(ellipse 45% 28% at 100% 100%, rgba(25, 119, 131, 0.07), transparent 50%);
+  z-index: 0;
+}
+
+.left-panel > * {
+  position: relative;
+  z-index: 1;
 }
 
 .right-panel {
@@ -287,21 +311,23 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #f9f9f9;
+  background: transparent;
 }
 
 .panel-content {
-  padding: 0.2rem;
+  padding: 0.35rem 0.55rem 0.55rem;
   height: 100%;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
-/* Categories selector styling */
 .categories-container {
   display: flex;
-  gap: 0.75rem;
-  padding: 0.45rem 0;
-  margin-bottom: 0.2rem;
+  gap: 0.65rem;
+  padding: 0.45rem 0.15rem;
+  margin-bottom: 0.45rem;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -313,34 +339,35 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
-
-
 .categories-container::-webkit-scrollbar {
   display: none;
 }
 
 .category-item {
   flex-shrink: 0;
-  padding: 0.5rem 1.5rem;
-  border: 2px solid transparent;
-  border-radius: 0.5rem;
-  background: white;
+  padding: 0.55rem 1.25rem;
+  border: 1px solid rgba(25, 119, 131, 0.1);
+  border-radius: 14px;
+  background: var(--oil-surface);
   cursor: pointer;
-  transition: border-color 0.2s, background-color 0.2s, color 0.2s;
+  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.18s ease;
   min-width: fit-content;
   box-sizing: border-box;
   height: fit-content;
   align-self: flex-start;
+  box-shadow: 0 4px 12px rgba(22, 54, 58, 0.04);
 }
 
 .category-item:hover:not(.active) {
-  background: #f5f5f5;
-  border-color: #80deea;
+  background: #f2f9fa;
+  border-color: rgba(32, 180, 198, 0.4);
+  transform: translateY(-1px);
 }
 
 .category-item.active {
-  border-color: #00bcd4;
-  background: white;
+  border-color: rgba(25, 119, 131, 0.35);
+  background: linear-gradient(135deg, rgba(25, 119, 131, 0.1), rgba(32, 180, 198, 0.12));
+  box-shadow: 0 6px 14px rgba(25, 119, 131, 0.12);
 }
 
 .category-content {
@@ -348,40 +375,48 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.25rem;
+  gap: 0.2rem;
   width: 100%;
 }
 
 .category-name {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #1a1a1a;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--oil-ink);
   white-space: nowrap;
 }
 
 .category-item.active .category-name {
-  color: #00bcd4;
+  color: var(--oil-teal);
 }
 
 .category-count {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   padding: 0;
-  color: #666;
+  color: var(--oil-muted);
   white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.category-item.active .category-count {
+  color: var(--oil-teal);
+  opacity: 0.85;
 }
 
 .search-wrapper {
-  margin: 0 auto 0.1rem auto;
-  border-radius: 2rem;
-  border: 2px solid rgba(0, 0, 0, 0.12);
-  background: white;
-  padding: 0.25rem 0.5rem;
-  transition: border-color 0.2s;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin: 0 0.15rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--oil-line);
+  background: rgba(255, 255, 255, 0.95);
+  padding: 0.2rem 0.55rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 12px rgba(22, 54, 58, 0.05);
+  flex-shrink: 0;
 }
 
 .search-wrapper:focus-within {
-  border-color: #00bcd4;
+  border-color: var(--oil-teal-bright);
+  box-shadow: 0 0 0 3px rgba(32, 180, 198, 0.16);
 }
 
 .search-field {
@@ -391,6 +426,7 @@ onUnmounted(() => {
 .search-field :deep(.v-field) {
   border-radius: 0;
   box-shadow: none;
+  background: transparent;
 }
 
 .search-field :deep(.v-field__outline) {
@@ -403,37 +439,24 @@ onUnmounted(() => {
 }
 
 .search-field :deep(.v-field__input) {
-  min-height: 34px;
+  min-height: 36px;
   padding-top: 0;
   padding-bottom: 0;
   font-size: 0.875rem;
+  color: var(--oil-ink);
 }
 
-.search-field :deep(.v-field__prepend-inner) {
-  padding-top: 0;
-  padding-bottom: 0;
-  align-self: center;
-}
-
+.search-field :deep(.v-field__prepend-inner),
 .search-field :deep(.v-field__append-inner) {
   padding-top: 0;
   padding-bottom: 0;
   align-self: center;
 }
 
-.search-field :deep(.v-field__prepend-inner .v-icon) {
-  background-color: #f5f5f5;
-  border-radius: 50%;
-  padding: 8px;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
+.search-field :deep(.v-field__prepend-inner .v-icon),
 .search-field :deep(.v-field__append-inner .v-icon) {
-  background-color: #f5f5f5;
+  background: linear-gradient(145deg, #eef6f7, #e2f2f4);
+  color: var(--oil-teal);
   border-radius: 50%;
   padding: 8px;
   width: 32px;
@@ -445,64 +468,51 @@ onUnmounted(() => {
 
 .search-field :deep(.v-label) {
   font-size: 0.875rem;
+  color: var(--oil-muted);
 }
 
 .items-wrapper {
-  height: calc(100% - 8rem);
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.35);
+  border: 1px solid rgba(25, 119, 131, 0.08);
 }
 
 .items-wrapper::-webkit-scrollbar {
-  display: none; /* Chrome, Safari and Opera */
+  display: none;
 }
 
 .items-grid {
   display: grid;
-  gap: 0.5rem;
-  padding: 0.5rem;
+  gap: 0.55rem;
+  padding: 0.55rem;
   align-content: start;
-  margin-bottom: 2.5rem;
+  margin-bottom: 1.5rem;
+  grid-template-columns: repeat(5, 1fr);
 }
 
-/* Arabic/RTL: item cards start from right to left */
 .items-grid.items-grid-rtl {
   direction: rtl;
 }
 
-.items-grid.sidebar-on {
-  grid-template-columns: repeat(3, 1fr);
-}
-
-.items-grid.sidebar-off {
-  grid-template-columns: repeat(4, 1fr);
-}
-
-/* Large screens (e.g., ~75" displays) */
 @media (min-width: 1700px) {
-  .items-grid.sidebar-on {
-    grid-template-columns: repeat(4, 1fr);
-  }
-
-  .items-grid.sidebar-off {
-    grid-template-columns: repeat(5, 1fr);
-  }
-}
-
-/* Extra large screens (e.g., ~100" displays) */
-@media (min-width: 2200px) {
-  .items-grid.sidebar-on {
-    grid-template-columns: repeat(5, 1fr);
-  }
-
-  .items-grid.sidebar-off {
+  .items-grid {
     grid-template-columns: repeat(6, 1fr);
   }
 }
 
+@media (min-width: 2200px) {
+  .items-grid {
+    grid-template-columns: repeat(7, 1fr);
+  }
+}
+
 .page-background {
-  background-color: #f5f5f5;
+  background: var(--oil-panel);
   min-height: 100vh;
 }
 
@@ -561,12 +571,12 @@ onUnmounted(() => {
 
 [dir="rtl"] .left-panel {
   border-right: none;
-  border-left: 1px solid rgba(0, 0, 0, 0.12);
+  border-left: 1px solid var(--oil-line);
 }
 
 [dir="rtl"] .right-panel {
   border-left: none;
-  border-right: 1px solid rgba(0, 0, 0, 0.12);
+  border-right: 1px solid var(--oil-line);
 }
 
 [dir="rtl"] .split-container {

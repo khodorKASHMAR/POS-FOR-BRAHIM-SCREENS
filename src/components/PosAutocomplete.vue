@@ -1,5 +1,5 @@
 <template>
-  <div ref="container" class="pos-ac">
+  <div ref="container" class="pos-ac" :dir="textDir">
     <label v-if="label" class="pos-ac__label">
       {{ label }}
       <span v-if="required" class="pos-ac__required">*</span>
@@ -21,6 +21,7 @@
         v-model="searchQuery"
         type="text"
         class="pos-ac__input"
+        :dir="textDir"
         :placeholder="displayPlaceholder"
         :disabled="disabled"
         :readonly="isLocked"
@@ -53,6 +54,7 @@
         v-if="showDropdown"
         ref="dropdown"
         class="pos-ac__dropdown"
+        :dir="textDir"
         :style="dropdownStyle"
       >
         <div v-if="!items.length && !loading" class="pos-ac__empty">
@@ -81,6 +83,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useState } from '../store/state'
 
 const props = defineProps({
   label: { type: String, default: '' },
@@ -102,6 +105,9 @@ const props = defineProps({
 
 const emit = defineEmits(['update:search'])
 const modelValue = defineModel({ default: null })
+
+const state = useState()
+const textDir = computed(() => (state.dir === 'rtl' ? 'rtl' : 'ltr'))
 
 const container = ref(null)
 const trigger = ref(null)
@@ -161,6 +167,11 @@ function findSelectedItem() {
 }
 
 function syncSearchFromModel() {
+  // While typing, parent refreshes `items` on every keystroke. Do not overwrite
+  // the in-progress query (that was clearing each typed letter).
+  if (input.value && document.activeElement === input.value && !isLocked.value) {
+    return
+  }
   const selected = findSelectedItem()
   if (selected) {
     searchQuery.value = getItemTitle(selected)
@@ -294,6 +305,10 @@ onUnmounted(() => {
   letter-spacing: 0.04em;
 }
 
+.pos-ac[dir='rtl'] .pos-ac__label {
+  text-align: right;
+}
+
 .pos-ac__required {
   color: #e57373;
   margin-inline-start: 0.15rem;
@@ -312,7 +327,7 @@ onUnmounted(() => {
   transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 
-[dir="rtl"] .pos-ac__field {
+.pos-ac[dir='rtl'] .pos-ac__field {
   padding: 0.4rem 0.85rem 0.4rem 2rem;
 }
 
@@ -355,10 +370,25 @@ onUnmounted(() => {
   line-height: 1.4;
   color: #1e293b;
   font-family: inherit;
+  text-align: start;
+}
+
+.pos-ac__input[dir='rtl'] {
+  direction: rtl;
+  text-align: right;
+}
+
+.pos-ac__input[dir='ltr'] {
+  direction: ltr;
+  text-align: left;
 }
 
 .pos-ac__input::placeholder {
   color: #94a3b8;
+}
+
+.pos-ac__input[dir='rtl']::placeholder {
+  text-align: right;
 }
 
 .pos-ac__input:read-only {
@@ -437,6 +467,21 @@ onUnmounted(() => {
   animation: pos-ac-enter 0.18s ease;
 }
 
+/* Keep scrollbar on the right in Arabic; option text stays RTL */
+.pos-ac__dropdown[dir='rtl'] {
+  direction: ltr;
+}
+
+.pos-ac__dropdown[dir='rtl'] > * {
+  direction: rtl;
+  text-align: right;
+}
+
+.pos-ac__dropdown[dir='ltr'] > * {
+  direction: ltr;
+  text-align: left;
+}
+
 @keyframes pos-ac-enter {
   from {
     opacity: 0;
@@ -461,7 +506,7 @@ onUnmounted(() => {
   padding: 0.6rem 1rem;
   border: none;
   background: none;
-  text-align: start;
+  text-align: inherit;
   font-size: 0.9rem;
   color: #1e293b;
   cursor: pointer;
