@@ -80,7 +80,7 @@ const currentDate = ref(new Date())
 const rateLoading = ref(false)
 let timeInterval = null
 
-const canOpenDollarRate = computed(() => userStore.hasMenu('dollar-rate'))
+const canOpenDollarRate = computed(() => userStore.hasMenu('currency-rate'))
 
 const formattedDate = computed(() => {
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -132,7 +132,7 @@ const currencyDisplayText = computed(() => {
 
 const goToDollarRate = () => {
   if (!canOpenDollarRate.value) return
-  router.push('/dollar-rate')
+  router.push('/currency-rate')
 }
 
 const handleLogout = () => {

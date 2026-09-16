@@ -5,11 +5,14 @@ export const MENUS = {
   'cash-drawer': { code: 'cash-drawer', path: '/cash-drawer', labelKey: 'cashDrawer', icon: 'mdi-cash-register', section: 'main' },
   'add-items': { code: 'add-items', path: '/add-items', labelKey: 'addItems', icon: 'mdi-shield-account', section: 'admin' },
   users: { code: 'users', path: '/users', labelKey: 'users', icon: 'mdi-account-group', section: 'admin' },
-  'dollar-rate': { code: 'dollar-rate', path: '/dollar-rate', labelKey: 'dollarRate', icon: 'mdi-currency-usd', section: 'admin' },
+  'currency-rate': { code: 'currency-rate', path: '/currency-rate', labelKey: 'dollarRate', icon: 'mdi-currency-usd', section: 'admin' },
+  'print-templates': { code: 'print-templates', path: '/print-templates', labelKey: 'printTemplates', icon: 'mdi-printer-pos', section: 'admin' },
   dashboard: { code: 'dashboard', path: '/dashboard', labelKey: 'dashboard', icon: 'mdi-chart-areaspline', section: 'admin' }
 }
 
 export const MENU_LIST = Object.values(MENUS)
+
+export const MOBILE_PRIMARY_CODES = ['home', 'drafts', 'receipts', 'cash-drawer']
 
 export function menusForCodes(codes) {
   const allowed = new Set(codes || [])

@@ -22,9 +22,9 @@
               <span
                 v-if="!loading && items.length"
                 class="currency-tag"
-                :class="isReceiptDollar !== false ? 'currency-tag--usd' : 'currency-tag--lbp'"
+                :class="isUsdReceipt ? 'currency-tag--usd' : 'currency-tag--lbp'"
               >
-                {{ isReceiptDollar !== false ? (state.lang === 'ar' ? 'دولار' : 'USD') : (state.lang === 'ar' ? 'ل.ل.' : 'LBP') }}
+                {{ isUsdReceipt ? (state.lang === 'ar' ? 'دولار' : 'USD') : (state.lang === 'ar' ? 'ل.ل.' : 'LBP') }}
               </span>
             </div>
           </div>
@@ -86,13 +86,13 @@
             >
               <span class="col-photo">
                 <button
-                  v-if="resolveImage(row.image)"
+                  v-if="resolveRowImage(row)"
                   type="button"
                   class="photo-btn"
                   :aria-label="$t('viewImage')"
                   @click.stop="openImage(row)"
                 >
-                  <img :src="resolveImage(row.image)" alt="" class="photo-thumb" />
+                  <img :src="resolveRowImage(row)" alt="" class="photo-thumb" />
                   <span class="photo-zoom-hint"><v-icon size="12">mdi-magnify-plus</v-icon></span>
                 </button>
                 <span v-else class="photo-placeholder">
@@ -157,6 +157,12 @@
 import { computed, getCurrentInstance, onMounted, onUnmounted, ref, watch } from 'vue'
 import ReceiptService from '../services/ReceiptService'
 import { useState } from '../store/state'
+import { CurrencyEnum } from '../constants/enums'
+import {
+  isDollarCurrency,
+  uiCurrencyToEnum,
+  unitPriceInReceiptCurrency
+} from '../constants/currency'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -171,14 +177,16 @@ const state = useState()
 
 const loading = ref(false)
 const items = ref([])
-const isReceiptDollar = ref(true)
-const dollarRate = ref(0)
+const receiptCurrency = ref(CurrencyEnum.DOLLAR)
+const currencyRate = ref(0)
 const itemsSubtotal = ref(0)
 const imageOpen = ref(false)
 const previewImage = ref('')
 const previewName = ref('')
 const viewportWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1024)
 const viewportHeight = ref(typeof window !== 'undefined' ? window.innerHeight : 768)
+
+const isUsdReceipt = computed(() => isDollarCurrency(receiptCurrency.value))
 
 const isCompactViewport = computed(() =>
   viewportWidth.value < 768 || viewportHeight.value < 720
@@ -222,7 +230,8 @@ function normalizeItemRow(raw) {
     itemNameAr: nested.nameAr ?? raw.itemNameAr,
     itemNameEn: nested.nameEn ?? raw.itemNameEn,
     image: nested.image ?? raw.image,
-    sellingPrice: nested.sellingPriceDollar ?? raw.sellingPrice ?? raw.sellingPriceDollar,
+    sellingPrice: nested.sellingPrice ?? nested.sellingPriceDollar ?? raw.sellingPrice ?? raw.sellingPriceDollar,
+    sellingCurrency: nested.sellingCurrency ?? raw.sellingCurrency ?? 0,
     quantity: raw.quantity,
     itemDiscount: raw.itemDiscount,
     isDiscountPercent: raw.isDiscountPercent,
@@ -243,8 +252,13 @@ function resolveImage(image) {
   return null
 }
 
+function resolveRowImage(row) {
+  void state.itemImageVersion
+  return resolveImage(row?.image) || resolveImage(state.getItemImage(row?.itemId))
+}
+
 function openImage(row) {
-  const src = resolveImage(row.image)
+  const src = resolveRowImage(row)
   if (!src) return
   previewImage.value = src
   previewName.value = itemName(row)
@@ -267,41 +281,38 @@ function formatLbp(value) {
   return `${formatted} LBP`
 }
 
-function toDisplayAmount(usdAmount) {
-  const num = Number(usdAmount) || 0
-  if (!num) return 0
-  if (isReceiptDollar.value !== false) return num
-  const rate = Number(dollarRate.value) || state.exchangeRate
-  return num * rate
+function catalogUnitInReceipt(row) {
+  const rate = Number(currencyRate.value) || state.exchangeRate || 1
+  return unitPriceInReceiptCurrency(
+    row.sellingPrice,
+    row.sellingCurrency,
+    receiptCurrency.value,
+    rate
+  )
 }
 
-function formatMoney(usdAmount) {
-  const display = toDisplayAmount(usdAmount)
-  if (!display) return '—'
-  if (isReceiptDollar.value !== false) return formatUsd(display)
-  return formatLbp(display)
+function formatMoney(amountInReceiptCurrency) {
+  const num = Number(amountInReceiptCurrency)
+  if (!num && num !== 0) return '—'
+  return isUsdReceipt.value ? formatUsd(num) : formatLbp(num)
 }
 
-function unitPriceAfterDiscountUsd(row) {
-  const unitPrice = Number(row.sellingPrice) || 0
+function unitPriceAfterDiscount(row) {
+  const unitPrice = catalogUnitInReceipt(row)
   const discount = Number(row.itemDiscount) || 0
   if (!discount) return unitPrice
   if (row.isDiscountPercent) {
     return Math.max(0, unitPrice * (1 - discount / 100))
   }
-  if (isReceiptDollar.value !== false) {
-    return Math.max(0, unitPrice - discount)
-  }
-  const rate = Number(dollarRate.value) || state.exchangeRate
-  return Math.max(0, unitPrice - discount / rate)
+  return Math.max(0, unitPrice - discount)
 }
 
 function formatUnitPrice(row) {
-  return formatMoney(row.sellingPrice)
+  return formatMoney(catalogUnitInReceipt(row))
 }
 
 function formatUnitPriceAfterDiscount(row) {
-  return formatMoney(unitPriceAfterDiscountUsd(row))
+  return formatMoney(unitPriceAfterDiscount(row))
 }
 
 function formatLineTotal(row) {
@@ -312,8 +323,7 @@ function formatItemDiscount(row) {
   const val = Number(row.itemDiscount) || 0
   if (!val) return '—'
   if (row.isDiscountPercent) return `${val}%`
-  if (isReceiptDollar.value !== false) return formatUsd(val)
-  return formatLbp(val)
+  return isUsdReceipt.value ? formatUsd(val) : formatLbp(val)
 }
 
 async function loadItems() {
@@ -324,8 +334,12 @@ async function loadItems() {
     const response = await ReceiptService.getReceiptItems(props.receiptId)
     const data = response?.data?.data || {}
     items.value = (data.items || []).map(normalizeItemRow)
-    isReceiptDollar.value = data.isReceiptDollar !== false
-    dollarRate.value = Number(data.dollarRate) || 0
+    await state.ensureItemImages(items.value.map((row) => row.itemId))
+    receiptCurrency.value =
+      data.currency != null
+        ? uiCurrencyToEnum(data.currency)
+        : uiCurrencyToEnum(data.isReceiptDollar === false ? 'LBP' : 'USD')
+    currencyRate.value = Number(data.currencyRate ?? data.dollarRate) || 0
     const subtotalFromApi = Number(data.itemsSubtotal)
     itemsSubtotal.value = Number.isFinite(subtotalFromApi) && subtotalFromApi > 0
       ? subtotalFromApi

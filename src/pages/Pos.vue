@@ -8,28 +8,26 @@
       <div class="panel-content">
         <!-- Categories Selector: dir sets flow so "All" is first (left in LTR, right in RTL) -->
         <div class="categories-container" ref="categoriesContainerRef">
-          <!-- Static "All" category -->
-          <div 
+          <div
             class="category-item"
-            :class="{ 'active': cat === 'All' }"
-            @click="cat = 'All'"
+            :class="{ 'active': cat === 'all' }"
+            @click="selectCategory('all')"
           >
             <div class="category-content">
               <div class="category-name">{{ $t('allMenu') }}</div>
-              <div class="category-count">{{ getCategoryItemCount('All') }} {{ $t('items') }}</div>
+              <div class="category-count">{{ state.totalItemCount }} {{ $t('items') }}</div>
             </div>
           </div>
-          <!-- Other categories -->
-          <div 
-            v-for="category in otherCategories" 
-            :key="category.value"
+          <div
+            v-for="category in state.categories"
+            :key="category.id"
             class="category-item"
-            :class="{ 'active': cat === category.value }"
-            @click="cat = category.value"
+            :class="{ 'active': cat === String(category.id) }"
+            @click="selectCategory(String(category.id))"
           >
             <div class="category-content">
               <div class="category-name">{{ state.lang === 'ar' ? category.nameAr : category.nameEn }}</div>
-              <div class="category-count">{{ getCategoryItemCount(category.value) }} {{ $t('items') }}</div>
+              <div class="category-count">{{ category.itemCount }} {{ $t('items') }}</div>
             </div>
           </div>
         </div>
@@ -52,12 +50,13 @@
         <div class="items-wrapper">
           <div class="items-grid" :class="{ 'items-grid-rtl': state.dir === 'rtl' }">
             <HomeItemCard
-              v-for="i in filtered"
+              v-for="i in gridItems"
               :key="i.id"
               :item="i"
               @click="addItemToCart(i)"
             />
           </div>
+          <div v-if="!search.trim()" ref="sentinelRef" class="items-sentinel" aria-hidden="true" />
         </div>
       </div>
     </div>
@@ -66,7 +65,7 @@
     <div class="right-panel">
       <OrderItemsList
         ref="orderListRef"
-        :items="items"
+        :items="state.items"
         @place-order="handlePlaceOrder"
         @save-draft="handleSaveDraft"
       />
@@ -79,68 +78,63 @@ import { ref, computed, watch, onMounted, onUnmounted, onActivated, inject } fro
 import { useRoute, useRouter } from 'vue-router'
 import { useState } from '../store/state'
 import { translations } from '../i18n/translations'
-import CategoryService from '../services/CategoryService'
+import { isDollarCurrency } from '../constants/currency'
 import ReceiptService from '../services/ReceiptService'
 import HomeItemCard from '../components/HomeItemCard.vue'
 import OrderItemsList from '../components/OrderItemsList.vue'
 import TopBar from '../components/TopBar.vue'
+import { useInfiniteScroll } from '../composables/useInfiniteScroll'
 
 const state = useState()
 const route = useRoute()
 const router = useRouter()
 const $t = (key) => translations[state.lang]?.[key] || key
 const orderListRef = ref(null)
-const cat = ref('All')
+const cat = ref('all')
 const search = ref('')
 const categoriesContainerRef = ref(null)
-const categories = ref([])
-const categoriesLoading = ref(false)
+const sentinelRef = ref(null)
+let searchTimer = null
 
-const items = computed(() => state.items)
-
-const getCategoryKey = (item) => {
-  if (state.lang === 'ar') {
-    return item.categoryNameAr
-  }
-  return item.categoryNameEn
-}
-
-const loadCategories = async () => {
-  if (categoriesLoading.value) return
-  categoriesLoading.value = true
-  try {
-    const response = await CategoryService.getAllCategories()
-    const data = response?.data?.data || []
-    categories.value = data.map(cat => ({
-      id: cat.id,
-      value: state.lang === 'ar' ? cat.nameAr : cat.nameEn,
-      nameAr: cat.nameAr || '',
-      nameEn: cat.nameEn || ''
-    }))
-    // Same order in both directions; "All" stays first via container dir (row-reverse in RTL)
-  } catch (error) {
-    console.error('Error loading categories:', error)
-  } finally {
-    categoriesLoading.value = false
-  }
-}
-
-const otherCategories = computed(() => {
-  return categories.value
+const gridItems = computed(() => {
+  if (search.value.trim()) return state.searchResults
+  return state.getCategoryItemsPageItems(cat.value)
 })
 
-const name = i => state.lang==='ar'?i.nameAr:i.nameEn
-const price = i => state.currency==='USD'?i.usd:i.lb
+watch(
+  gridItems,
+  (list) => {
+    state.ensureItemImages(list)
+  },
+  { immediate: true }
+)
 
-const getCategoryItemCount = (categoryValue) => {
-  if (categoryValue === 'All') return items.value.length
-  return items.value.filter(i => getCategoryKey(i) === categoryValue).length
+useInfiniteScroll(
+  sentinelRef,
+  () => state.loadItemsPage({ categoryId: cat.value }),
+  () => {
+    const p = state.getCategoryItemsPageState(cat.value)
+    return p && !p.loading && p.page + 1 < p.totalPages && !search.value.trim()
+  }
+)
+
+function selectCategory(categoryId) {
+  cat.value = categoryId
+  search.value = ''
+  state.loadItemsPage({ categoryId: cat.value, reset: true })
 }
 
-const filtered = computed(()=> items.value.filter(i=>{
-  const n = name(i).toLowerCase()
-  return (cat.value==='All'||getCategoryKey(i)===cat.value) && n.includes(search.value.toLowerCase())
-}))
+watch(search, (q) => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    const query = (q || '').trim()
+    if (!query) {
+      state.searchItems({ query: '', categoryId: cat.value })
+      return
+    }
+    state.searchItems({ query, categoryId: cat.value })
+  }, 300)
+})
 
 function addItemToCart(item) {
   orderListRef.value?.addItemToCart(item)
@@ -154,9 +148,8 @@ const handlePlaceOrder = async (orderData) => {
   try {
     await ReceiptService.saveReceipt(receipt)
     orderListRef.value?.clearReceipt()
-    await state.fetchUserItems({ force: true })
     if (typeof $notification === 'function') {
-      $notification(receipt.isReceiptDollar ? $t('receiptSavedUsd') : $t('receiptSavedLbp'), 'success', 3000)
+      $notification(isDollarCurrency(receipt.currency) ? $t('receiptSavedUsd') : $t('receiptSavedLbp'), 'success', 3000)
     }
     if (route.query.draftId) {
       router.replace({ path: '/', query: {} })
@@ -214,35 +207,40 @@ async function loadDraftFromQuery() {
   }
 }
 
+async function initPosPage() {
+  cat.value = 'all'
+  search.value = ''
+  await state.fetchDollarRate()
+  if (!state.itemsCacheBootstrapped) {
+    await state.bootstrapItemsCache()
+  }
+  const pageState = state.getCategoryItemsPageState('all')
+  if (!pageState?.ids?.length) {
+    await state.loadItemsPage({ categoryId: 'all', reset: true })
+  }
+}
+
 // Enable horizontal scrolling with mouse wheel on categories container
 onMounted(async () => {
-  await state.fetchDollarRate()
-  await state.fetchUserItems({ force: true })
-  await loadCategories()
+  await initPosPage()
   await loadDraftFromQuery()
-  // Set initial document direction
   document.documentElement.setAttribute('dir', state.dir)
-  
+
   if (categoriesContainerRef.value) {
     const handleWheel = (e) => {
-      // Only scroll horizontally if there's horizontal overflow
       if (categoriesContainerRef.value.scrollWidth > categoriesContainerRef.value.clientWidth) {
         e.preventDefault()
         categoriesContainerRef.value.scrollLeft += e.deltaY
       }
     }
-    
+
     categoriesContainerRef.value.addEventListener('wheel', handleWheel, { passive: false })
-    
-    // Store the handler for cleanup
     categoriesContainerRef.value._wheelHandler = handleWheel
   }
 })
 
 onActivated(async () => {
   await state.fetchDollarRate()
-  await state.fetchUserItems({ force: true })
-  await loadCategories()
   await loadDraftFromQuery()
 })
 
@@ -250,13 +248,12 @@ watch(() => route.query.draftId, async () => {
   await loadDraftFromQuery()
 })
 
-// Watch for language changes to update document direction and reload categories
-watch(() => state.lang, async () => {
+watch(() => state.lang, () => {
   document.documentElement.setAttribute('dir', state.dir)
-  await loadCategories()
 })
 
 onUnmounted(() => {
+  if (searchTimer) clearTimeout(searchTimer)
   if (categoriesContainerRef.value && categoriesContainerRef.value._wheelHandler) {
     categoriesContainerRef.value.removeEventListener('wheel', categoriesContainerRef.value._wheelHandler)
   }
@@ -484,6 +481,12 @@ onUnmounted(() => {
 
 .items-wrapper::-webkit-scrollbar {
   display: none;
+}
+
+.items-sentinel {
+  height: 1px;
+  width: 100%;
+  pointer-events: none;
 }
 
 .items-grid {

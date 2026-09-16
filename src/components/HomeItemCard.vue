@@ -87,8 +87,9 @@
 </template>
 
 <script>
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useState } from '../store/state'
+import { displayCatalogPrice } from '../constants/currency'
 
 export default {
   name: 'HomeItemCard',
@@ -127,16 +128,29 @@ export default {
 
     const displayCategory = computed(() => {
       if (!props.item) return ''
+      if (props.item.categoryNameAr || props.item.categoryNameEn) {
+        return lang.value.lang === 'ar'
+          ? (props.item.categoryNameAr || props.item.categoryNameEn || '')
+          : (props.item.categoryNameEn || props.item.categoryNameAr || '')
+      }
+      const cat = (state.categories || []).find(
+        (c) => String(c.id) === String(props.item.categoryId)
+      )
+      if (!cat) return ''
       return lang.value.lang === 'ar'
-        ? (props.item.categoryNameAr || props.item.categoryNameEn || '')
-        : (props.item.categoryNameEn || props.item.categoryNameAr || '')
+        ? (cat.nameAr || cat.nameEn || '')
+        : (cat.nameEn || cat.nameAr || '')
     })
 
     const formattedPrice = computed(() => {
       if (!props.item) return '0'
-      const sellingPriceDollar = Number(props.item.sellingPriceDollar ?? 0)
-      const exchangeRate = state.exchangeRate
-      const priceValue = state.currency === 'USD' ? sellingPriceDollar : sellingPriceDollar * exchangeRate
+      void state.itemCacheVersion
+      const priceValue = displayCatalogPrice(
+        props.item.sellingPrice,
+        props.item.sellingCurrency,
+        state.currency,
+        state.exchangeRate
+      )
 
       if (!priceValue && priceValue !== 0) return '0'
 
@@ -147,7 +161,7 @@ export default {
         formattedValue = Math.round(priceValue).toLocaleString('en-US')
         currencySymbol = state.lang === 'ar' ? 'ل.ل.' : 'LBP'
       } else {
-        formattedValue = priceValue.toFixed(2)
+        formattedValue = Number(priceValue).toFixed(2)
         currencySymbol = state.lang === 'ar' ? 'دولار' : 'USD'
       }
 
@@ -155,8 +169,10 @@ export default {
     })
 
     const imageSrc = computed(() => {
-      if (!props.item?.image) return null
-      const image = props.item.image
+      // Prefer on-demand cache (lean catalog has no base64 on the item)
+      const cached = state.getItemImage(props.item?.id)
+      const image = cached || props.item?.image
+      if (!image) return null
       if (image.startsWith('data:image')) {
         return image
       }
@@ -166,6 +182,18 @@ export default {
       }
       return image
     })
+
+    // Lazy-load this card's image if the catalog says it has one
+    watch(
+      () => [props.item?.id, props.item?.hasImage, state.itemCacheVersion],
+      ([id, hasImage]) => {
+        if (!id) return
+        if (hasImage === false) return
+        if (state.getItemImage(id)) return
+        state.ensureItemImages([id], { limit: 1 })
+      },
+      { immediate: true }
+    )
 
     const handleClick = () => {
       if (props.clickable) {

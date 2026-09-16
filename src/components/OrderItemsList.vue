@@ -143,6 +143,7 @@
           <v-icon size="36">mdi-cart-outline</v-icon>
         </div>
         <p class="empty-cart-title">{{ $t('emptyCart') }}</p>
+        <p class="empty-cart-hint">{{ $t('emptyCartScanHint') }}</p>
       </div>
     </div>
 
@@ -165,17 +166,28 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { useState } from '../store/state'
+import { translations } from '../i18n/translations'
 import PayReceiptDialog from './PayReceiptDialog.vue'
+import { useHardwareBarcode } from '../composables/useHardwareBarcode'
+import { useBarcodeCart } from '../composables/useBarcodeCart'
+import { CurrencyEnum } from '../constants/enums'
+import {
+  isDollarCurrency,
+  roundForCurrency,
+  uiCurrencyToEnum,
+  enumToUiCurrency,
+  unitPriceInReceiptCurrency
+} from '../constants/currency'
 
 // Receipt structure matching backend ReceiptRequestDTO
 const receipt = reactive({
   total: 0,
-  isReceiptDollar: true,
+  currency: CurrencyEnum.DOLLAR,
   isReceiptDiscountPercent: true,
-  receiptDiscount: 0, // % or amount per receipt currency
-    payWish: 0,
-    isPayWishDollar: true,
-    payDollar: 0,
+  receiptDiscount: 0, // % or amount in receipt currency
+  payWish: 0,
+  isPayWishDollar: true,
+  payDollar: 0,
   payLebanese: 0,
   returnedToUserValue: 0,
   customerName: '',
@@ -195,25 +207,41 @@ const props = defineProps({
 const emit = defineEmits(['place-order', 'save-draft'])
 
 const state = useState()
+const $t = (key) => translations[state.lang]?.[key] || key
 
-// Sync receipt display currency when user changes currency so subtotal/total and buttons re-render in LBP/USD
+function syncCurrencyFromUi(currency) {
+  const newEnum = uiCurrencyToEnum(currency)
+  const wasDollar = isDollarCurrency(receipt.currency)
+  const newIsDollar = isDollarCurrency(newEnum)
+  if (wasDollar !== newIsDollar) {
+    const rate = Number(state.exchangeRate) || 1
+    receipt.receiptItems.forEach((ri) => {
+      if (!ri.isDiscountPercent) {
+        const val = Number(ri.itemDiscount) || 0
+        ri.itemDiscount = roundForCurrency(
+          newIsDollar ? val / rate : val * rate,
+          newEnum
+        )
+      }
+    })
+    if (!receipt.isReceiptDiscountPercent) {
+      const val = Number(receipt.receiptDiscount) || 0
+      receipt.receiptDiscount = roundForCurrency(
+        newIsDollar ? val / rate : val * rate,
+        newEnum
+      )
+    }
+  }
+  receipt.currency = newEnum
+  receipt.receiptItems.forEach((ri) => recalcReceiptItemSubTotal(ri))
+  recalcReceiptTotal()
+}
+
+// Sync receipt currency when user toggles USD/LBP
 watch(
   () => state.currency,
   (currency) => {
-    const newIsDollar = currency === 'USD'
-    if (receipt.isReceiptDollar !== newIsDollar) {
-      receipt.receiptItems.forEach(ri => {
-        if (!ri.isDiscountPercent) {
-          const val = Number(ri.itemDiscount) || 0
-          ri.itemDiscount = newIsDollar ? val / state.exchangeRate : val * state.exchangeRate
-        }
-      })
-      if (!receipt.isReceiptDiscountPercent) {
-        const val = Number(receipt.receiptDiscount) || 0
-        receipt.receiptDiscount = newIsDollar ? val / state.exchangeRate : val * state.exchangeRate
-      }
-    }
-    receipt.isReceiptDollar = newIsDollar
+    syncCurrencyFromUi(currency)
   },
   { immediate: true }
 )
@@ -223,34 +251,37 @@ state.currency
 state.lang
 state.exchangeRate
 
+function getCatalogItem(itemId) {
+  return state.getItem(itemId) || props.items.find((i) => String(i.id) === String(itemId)) || null
+}
+
 function getUnitPrice(itemId) {
-  const item = props.items.find(i => i.id === itemId)
-  return item ? Number(item.sellingPriceDollar ?? 0) : 0
+  const item = getCatalogItem(itemId)
+  if (!item) return 0
+  return unitPriceInReceiptCurrency(
+    item.sellingPrice ?? item.sellingPriceDollar ?? 0,
+    item.sellingCurrency,
+    receipt.currency,
+    state.exchangeRate
+  )
 }
 
-/** Round to 2 decimal places for USD amounts */
-function roundToTwo(val) {
-  return Math.round(Number(val) * 100) / 100
-}
-
-/** Round discount for display/storage: USD = 2 decimals, LBP = integer (no decimals) */
+/** Round discount for display/storage: USD = 2 decimals, LBP = integer */
 function roundDiscountForCurrency(val) {
-  return receipt.isReceiptDollar ? roundToTwo(val) : Math.round(Number(val))
+  return roundForCurrency(val, receipt.currency)
 }
 
 function recalcReceiptItemSubTotal(ri) {
-  const unitPrice = getUnitPrice(ri.itemId) // always USD
-  const rawSub = (ri.quantity || 1) * unitPrice // always USD
-  let discountAmount
+  const unitPrice = getUnitPrice(ri.itemId) // receipt currency
+  const qty = ri.quantity || 1
   if (ri.isDiscountPercent) {
-    discountAmount = (rawSub * (Number(ri.itemDiscount) || 0)) / 100
+    const factor = 1 - (Number(ri.itemDiscount) || 0) / 100
+    ri.subTotal = roundForCurrency(Math.max(0, qty * unitPrice * factor), receipt.currency)
   } else {
-    const entered = Number(ri.itemDiscount) || 0 // discount per unit in receipt currency
-    const perUnitUsd = receipt.isReceiptDollar ? entered : entered / state.exchangeRate
-    discountAmount = perUnitUsd * (ri.quantity || 1) // apply discount to all units
-    discountAmount = Math.min(discountAmount, rawSub)
+    const discount = Number(ri.itemDiscount) || 0
+    const unitAfter = Math.max(0, unitPrice - discount)
+    ri.subTotal = roundForCurrency(qty * unitAfter, receipt.currency)
   }
-  ri.subTotal = roundToTwo(Math.max(0, rawSub - discountAmount)) // always stored in USD; round to 2 decimals
 }
 
 /** Move receipt item so it appears first in the list (top). LTR: move to front; RTL: move to end (before reverse) */
@@ -266,27 +297,30 @@ function moveReceiptItemToFront(ri) {
 }
 
 function recalcReceiptTotal() {
+  receipt.currency = uiCurrencyToEnum(state.currency)
   const rawTotal = receipt.receiptItems.reduce((sum, item) => sum + (Number(item.subTotal) || 0), 0)
-  let receiptDiscountAmount
+  let result
   if (receipt.isReceiptDiscountPercent) {
-    receiptDiscountAmount = (rawTotal * (Number(receipt.receiptDiscount) || 0)) / 100
+    const factor = 1 - (Number(receipt.receiptDiscount) || 0) / 100
+    result = rawTotal * factor
   } else {
     const entered = Number(receipt.receiptDiscount) || 0
-    receiptDiscountAmount = receipt.isReceiptDollar ? entered : entered / state.exchangeRate
-    receiptDiscountAmount = Math.min(receiptDiscountAmount, rawTotal)
+    result = rawTotal - Math.min(entered, rawTotal)
   }
-  receipt.total = roundToTwo(Math.max(0, rawTotal - receiptDiscountAmount)) // always USD; round to 2 decimals
-  receipt.isReceiptDollar = state.currency === 'USD'
+  receipt.total = roundForCurrency(Math.max(0, result), receipt.currency)
 }
 
 /**
  * Add item to cart (receipt). If item already in receiptItems, increment quantity and recalc. Otherwise add new line.
- * @param {Object} item - Catalog item with id, sellingPriceDollar, nameAr, nameEn, etc.
+ * @param {Object} item - Catalog item with id, sellingPrice, sellingCurrency, nameAr, nameEn, etc.
  */
 function addItemToCart(item) {
   if (!item || item.id == null) return
+  // Ensure lean metadata is in the unified cache for later cart renders / barcode hits.
+  if (item.sellingPrice != null || item.sellingPriceDollar != null) {
+    state.addItemCache(item)
+  }
   const existing = receipt.receiptItems.find(ri => ri.itemId === item.id)
-  const unitPrice = Number(item.sellingPriceDollar ?? 0)
   if (existing) {
     existing.quantity = (existing.quantity || 1) + 1
     recalcReceiptItemSubTotal(existing)
@@ -297,7 +331,7 @@ function addItemToCart(item) {
       quantity: 1,
       itemDiscount: 0,
       isDiscountPercent: true,
-      subTotal: unitPrice
+      subTotal: getUnitPrice(item.id)
     }
     if (state.dir === 'rtl') {
       receipt.receiptItems.push(newItem)
@@ -306,6 +340,9 @@ function addItemToCart(item) {
     }
   }
   recalcReceiptTotal()
+  if (item?.id != null && item.hasImage !== false) {
+    state.ensureItemImages([item.id], { limit: 1 })
+  }
 }
 
 function clearReceipt() {
@@ -319,38 +356,46 @@ function clearReceipt() {
   receipt.payLebanese = 0
   receipt.returnedToUserValue = 0
   receipt.customerName = ''
-  receipt.isReceiptDollar = state.currency === 'USD'
+  receipt.currency = uiCurrencyToEnum(state.currency)
   receipt.receiptItems = []
 }
 
 const getItemImage = (itemId) => {
-  const item = props.items.find(i => i.id === itemId)
-  if (!item || !item.image) return null
-  
-  if (item.image.startsWith('data:image')) {
-    return item.image
-  }
-  if (item.image.startsWith('/9j/') || item.image.startsWith('iVBORw0KGgo')) {
-    const prefix = item.image.startsWith('/9j/') ? 'data:image/jpeg;base64,' : 'data:image/png;base64,'
-    return prefix + item.image
-  }
-  return item.image
+  return state.getItemImage(itemId) || null
 }
 
 const getItemName = (item) => {
   return state.lang === 'ar' ? (item.nameAr ?? '') : (item.nameEn ?? '')
 }
 
-// Display list: merge receiptItems with item (props.items) for template
+const { ingestBarcode } = useBarcodeCart({
+  getItems: () => state.items,
+  addItem: addItemToCart,
+  getItemName,
+  $t,
+  findRemote: (code) => state.findItemByBarcodeRemote(code)
+})
+
+function onBarcodeDecoded(code) {
+  ingestBarcode(code)
+}
+
+useHardwareBarcode(onBarcodeDecoded, {
+  enabled: computed(() => !showPayDialog.value)
+})
+
+// Display list: merge receiptItems with cached catalog item
 const orderedCart = computed(() => {
+  void state.itemCacheVersion
   const list = receipt.receiptItems.map(ri => {
-    const catalog = props.items.find(i => i.id === ri.itemId) || {}
+    const catalog = getCatalogItem(ri.itemId) || {}
     const unit = getUnitPrice(ri.itemId)
     return {
       id: ri.itemId,
       nameAr: catalog.nameAr,
       nameEn: catalog.nameEn,
-      sellingPriceDollar: catalog.sellingPriceDollar,
+      sellingPrice: catalog.sellingPrice,
+      sellingCurrency: catalog.sellingCurrency,
       qty: ri.quantity,
       unit,
       discountType: ri.isDiscountPercent ? 'percentage' : 'amount',
@@ -372,11 +417,11 @@ const subtotal = computed(() => {
 const totalDiscount = computed(() => {
   return receipt.receiptItems.reduce((sum, ri) => {
     const unitPrice = getUnitPrice(ri.itemId)
-    const itemSubtotalUsd = (ri.quantity || 0) * unitPrice
-    const discountAmountUsd = ri.isDiscountPercent
-      ? (itemSubtotalUsd * (Number(ri.itemDiscount) || 0)) / 100
-      : Math.min((receipt.isReceiptDollar ? (Number(ri.itemDiscount) || 0) : (Number(ri.itemDiscount) || 0) / state.exchangeRate) * (ri.quantity || 0), itemSubtotalUsd)
-    return sum + discountAmountUsd
+    const lineBefore = (ri.quantity || 0) * unitPrice
+    const discountAmount = ri.isDiscountPercent
+      ? (lineBefore * (Number(ri.itemDiscount) || 0)) / 100
+      : Math.min((Number(ri.itemDiscount) || 0) * (ri.quantity || 0), lineBefore)
+    return sum + discountAmount
   }, 0)
 })
 
@@ -384,7 +429,7 @@ const totalDiscount = computed(() => {
 defineExpose({ addItemToCart, clearReceipt, loadDraft, receipt, draftReceiptId })
 
 const getCurrencySymbol = () => {
-  if (receipt.isReceiptDollar) {
+  if (isDollarCurrency(receipt.currency)) {
     return state.lang === 'ar' ? 'دولار' : 'USD'
   }
   return state.lang === 'ar' ? 'ل.ل.' : 'LBP'
@@ -393,14 +438,14 @@ const getCurrencySymbol = () => {
 const formatPrice = (price) => {
   if (!price && price !== 0) return '0'
   const numPrice = typeof price === 'number' ? price : parseFloat(price)
-  // Stored values are always in USD; multiply by rate only when receipt is not dollar (show LBP)
-  const displayValue = receipt.isReceiptDollar ? numPrice : numPrice * state.exchangeRate
+  // Values are already in receipt currency — do not multiply by rate again
+  const displayValue = numPrice
 
   let formattedValue
   let currencySymbol
 
-  if (receipt.isReceiptDollar) {
-    formattedValue = displayValue.toFixed(2)
+  if (isDollarCurrency(receipt.currency)) {
+    formattedValue = Number(displayValue).toFixed(2)
     currencySymbol = state.lang === 'ar' ? 'دولار' : 'USD'
   } else {
     formattedValue = Math.round(displayValue).toLocaleString('en-US')
@@ -474,8 +519,7 @@ function getDiscountMax(item) {
   if (!item.discountType || item.discountType === 'percentage') {
     return 100
   }
-  const unit = Number(item.unit ?? item.sellingPriceDollar ?? 0) || 0
-  return receipt.isReceiptDollar ? unit : unit * state.exchangeRate
+  return Number(item.unit ?? getUnitPrice(item.id) ?? 0) || 0
 }
 
 const toggleDiscountType = (item) => {
@@ -504,8 +548,7 @@ const updateDiscount = (item, event) => {
 const validateDiscount = (item) => {
   const ri = getReceiptItem(item.id)
   if (!ri) return
-  const unitPrice = getUnitPrice(ri.itemId)
-  const maxPerUnit = receipt.isReceiptDollar ? unitPrice : unitPrice * state.exchangeRate
+  const maxPerUnit = getUnitPrice(ri.itemId)
   if (ri.isDiscountPercent) {
     if (ri.itemDiscount < 0) ri.itemDiscount = 0
     if (ri.itemDiscount > 100) ri.itemDiscount = 100
@@ -558,7 +601,11 @@ function loadDraft({ id, details, items }) {
 
   if (details) {
     receipt.customerName = details.customerName || ''
-    receipt.isReceiptDollar = details.isReceiptDollar !== false
+    const currencyEnum =
+      details.currency != null
+        ? uiCurrencyToEnum(details.currency)
+        : uiCurrencyToEnum(details.isReceiptDollar === false ? 'LBP' : 'USD')
+    receipt.currency = currencyEnum
     receipt.isReceiptDiscountPercent = details.isReceiptDiscountPercent !== false
     receipt.receiptDiscount = Number(details.receiptDiscount) || 0
     receipt.payWish = Number(details.payWish) || 0
@@ -567,11 +614,8 @@ function loadDraft({ id, details, items }) {
     receipt.payLebanese = Number(details.payLebanese) || 0
     receipt.returnedToUserValue = Number(details.returnedToUserValue) || 0
     receipt.total = Number(details.total) || 0
-    if (details.isReceiptDollar !== false) {
-      state.currency = 'USD'
-    } else {
-      state.currency = 'LBP'
-    }
+    state.currency = enumToUiCurrency(currencyEnum)
+    localStorage.setItem('currency', state.currency)
   }
 
   if (items?.length) {
@@ -583,6 +627,7 @@ function loadDraft({ id, details, items }) {
       subTotal: Number(row.subTotal) || 0
     }))
     recalcReceiptTotal()
+    state.ensureItemImages(receipt.receiptItems.map((ri) => ri.itemId))
   }
 }
 </script>
@@ -1033,6 +1078,13 @@ function loadDraft({ id, details, items }) {
   font-size: 1.05rem;
   font-weight: 700;
   color: var(--oil-ink);
+}
+
+.empty-cart-hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--oil-muted);
 }
 
 .order-summary {

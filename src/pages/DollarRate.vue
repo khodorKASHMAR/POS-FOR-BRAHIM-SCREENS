@@ -74,8 +74,9 @@
 <script setup>
 import { computed, getCurrentInstance, onMounted, ref } from 'vue'
 import TopBar from '../components/TopBar.vue'
-import DollarRateService from '../services/DollarRateService'
+import CurrencyRateService from '../services/CurrencyRateService'
 import { useState } from '../store/state'
+import { CurrencyEnum } from '../constants/enums'
 
 const instance = getCurrentInstance()
 const state = useState()
@@ -108,10 +109,11 @@ const handleSave = async () => {
 
   saving.value = true
   try {
-    const response = await DollarRateService.updateDollarRate({
-      dollarRate: Number(rateInput.value)
+    const response = await CurrencyRateService.updateRate({
+      currency: CurrencyEnum.LBP,
+      rate: Number(rateInput.value)
     })
-    const savedRate = Number(response?.data?.data?.dollarRate) || Number(rateInput.value)
+    const savedRate = Number(response?.data?.data?.rate) || Number(rateInput.value)
     state.exchangeRate = savedRate
     rateInput.value = savedRate
     localStorage.setItem('exchangeRate', savedRate.toString())

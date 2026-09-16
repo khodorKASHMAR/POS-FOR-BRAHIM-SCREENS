@@ -1,12 +1,16 @@
 import PosAxios from './index.js'
+import { CurrencyEnum } from '../constants/enums.js'
+import { uiCurrencyToEnum } from '../constants/currency.js'
 
 function buildReceiptPayload(receipt) {
+  const currency =
+    receipt.currency != null ? Number(receipt.currency) : uiCurrencyToEnum(receipt.isReceiptDollar === false ? 'LBP' : 'USD')
   return {
     total: receipt.total,
     customerName: receipt.customerName || '',
     isReceiptDiscountPercent: receipt.isReceiptDiscountPercent ?? false,
     receiptDiscount: receipt.receiptDiscount ?? 0,
-    isReceiptDollar: receipt.isReceiptDollar ?? true,
+    currency: Number.isFinite(currency) ? currency : CurrencyEnum.DOLLAR,
     payWish: Number(receipt.payWish) ?? 0,
     isPayWishDollar: receipt.isPayWishDollar ?? true,
     payDollar: Number(receipt.payDollar) ?? 0,

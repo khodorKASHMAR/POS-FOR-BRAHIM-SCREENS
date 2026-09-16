@@ -31,23 +31,23 @@
       <div class="categories-container" ref="categoriesContainerRef">
         <div
           class="category-item"
-          :class="{ 'active': cat === 'All' }"
-          @click="cat = 'All'"
+          :class="{ 'active': cat === 'all' }"
+          @click="cat = 'all'"
         >
           <div class="category-content">
             <div class="category-name">{{ $t('allMenu') }}</div>
-            <div class="category-count">{{ getCategoryItemCount('All') }} {{ $t('items') }}</div>
+            <div class="category-count">{{ totalItemCount }} {{ $t('items') }}</div>
           </div>
         </div>
         <div
-          v-for="category in otherCategories"
-          :key="category.value"
+          v-for="category in categories"
+          :key="category.id"
           class="category-item category-item-with-actions"
           :class="[
-            { 'active': cat === category.value },
+            { 'active': String(cat) === String(category.id) },
             lang.dir === 'rtl' ? 'category-card-rtl' : 'category-card-ltr'
           ]"
-          @click="cat = category.value"
+          @click="cat = category.id"
         >
           <div class="category-card-grid">
             <div class="category-name-cell">
@@ -75,7 +75,7 @@
               </v-tooltip>
             </div>
             <div class="category-count-cell">
-              <span class="category-count">{{ getCategoryItemCount(category.value) }} {{ $t('items') }}</span>
+              <span class="category-count">{{ category.itemCount || 0 }} {{ $t('items') }}</span>
             </div>
             <div class="category-delete-cell" @click.stop>
               <v-tooltip
@@ -129,6 +129,8 @@
             @delete="handleDeleteItem(i)"
           />
         </div>
+        <div ref="scrollSentinelRef" class="items-scroll-sentinel" aria-hidden="true" />
+        <div v-if="itemsLoading" class="items-loading">{{ $t('loading') }}</div>
       </div>
     </div>
 
@@ -171,7 +173,6 @@
               <div class="dialog-field-group">
                 <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
                   <span>{{ $t('nameEn') }}</span>
-                  <span class="dialog-label-required">*</span>
                 </div>
                 <v-text-field
                   v-model="categoryForm.nameEn"
@@ -179,7 +180,6 @@
                   :placeholder="$t('placeholderNameEn')"
                   variant="outlined"
                   density="compact"
-                  :rules="[requiredRule]"
                   class="dialog-field"
                 />
               </div>
@@ -241,7 +241,6 @@
                 <div class="dialog-field-group">
                   <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
                     <span>{{ $t('nameEn') }}</span>
-                    <span class="dialog-label-required">*</span>
                   </div>
                   <v-text-field
                     v-model="itemForm.nameEn"
@@ -249,7 +248,6 @@
                     :placeholder="$t('placeholderNameEn')"
                     variant="outlined"
                     density="compact"
-                    :rules="[requiredRule]"
                     class="dialog-field"
                   />
                 </div>
@@ -269,8 +267,6 @@
                     :items="categorySelectOptions"
                     item-title="name"
                     item-value="id"
-                    :loading="categorySelectLoading"
-                    :disabled="!!selectedCategory"
                     :required="true"
                     :hide-details="false"
                     :error-message="categorySelectError"
@@ -301,13 +297,7 @@
                   />
                   <div class="barcode-icons-container" :class="lang.dir === 'rtl' ? 'barcode-icons-rtl' : 'barcode-icons-ltr'">
                     <div class="group action-tooltip-wrapper">
-                      <button type="button" class="action-btn">
-                        <v-icon size="small" class="action-icon">mdi-qrcode</v-icon>
-                      </button>
-                      <div class="action-tooltip">{{ $t('scanQr') }}</div>
-                    </div>
-                    <div class="group action-tooltip-wrapper">
-                      <button type="button" class="action-btn">
+                      <button type="button" class="action-btn" @click="openBarcodeListenDialog">
                         <v-icon size="small" class="action-icon">mdi-barcode-scan</v-icon>
                       </button>
                       <div class="action-tooltip">{{ $t('scanBarcode') }}</div>
@@ -331,14 +321,14 @@
                 <div class="price-blocks">
                   <div class="price-block">
                     <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
-                      <span>{{ $t('buyingDollarRate') }}</span>
+                      <span>{{ $t('buyingRate') }}</span>
                       <span class="dialog-label-required">*</span>
                     </div>
                     <v-text-field
-                      v-model.number="itemForm.buyingDollarRate"
+                      v-model.number="itemForm.buyingRate"
                       type="number"
                       persistent-placeholder
-                      :placeholder="$t('placeholderBuyingDollarRate')"
+                      :placeholder="$t('placeholderBuyingRate')"
                       variant="outlined"
                       density="compact"
                       :rules="[requiredRule]"
@@ -355,7 +345,7 @@
                         <input
                           :value="getBuyingPriceDisplayValue()"
                           type="number"
-                          :step="itemForm.buyingPriceUnit === 'USD' ? 0.01 : 1"
+                          :step="isBuyingDollar ? 0.01 : 1"
                           :placeholder="$t('placeholderBuyingPrice')"
                           :class="['price-input-field', { 'price-input-error': buyingPriceError }]"
                           @input="onBuyingPriceInput($event.target.value)"
@@ -366,8 +356,8 @@
                           {{ $t('priceMustBeGreaterThanZero') }}
                         </div>
                       </div>
-                      <button type="button" class="price-unit-btn" @click="toggleBuyingPriceUnit">
-                        {{ itemForm.buyingPriceUnit === 'USD' ? '$' : 'LBP' }}
+                      <button type="button" class="price-unit-btn" @click="toggleBuyingCurrency">
+                        {{ isBuyingDollar ? '$' : 'LBP' }}
                       </button>
                     </div>
                   </div>
@@ -381,7 +371,7 @@
                         <input
                           :value="getSellingPriceDisplayValue()"
                           type="number"
-                          :step="itemForm.sellingPriceUnit === 'USD' ? 0.01 : 1"
+                          :step="isSellingDollar ? 0.01 : 1"
                           :placeholder="$t('placeholderSellingPrice')"
                           :class="['price-input-field', { 'price-input-error': sellingPriceError }]"
                           @input="onSellingPriceInput($event.target.value)"
@@ -392,8 +382,8 @@
                           {{ $t('priceMustBeGreaterThanZero') }}
                         </div>
                       </div>
-                      <button type="button" class="price-unit-btn" @click="toggleSellingPriceUnit">
-                        {{ itemForm.sellingPriceUnit === 'USD' ? '$' : 'LBP' }}
+                      <button type="button" class="price-unit-btn" @click="toggleSellingCurrency">
+                        {{ isSellingDollar ? '$' : 'LBP' }}
                       </button>
                     </div>
                   </div>
@@ -466,6 +456,11 @@
       </v-form>
     </v-dialog>
 
+    <HardwareBarcodeListenDialog
+      v-model="barcodeListenDialog"
+      @scanned="applyScannedBarcode"
+    />
+
     <!-- Image Preview Modal -->
     <v-dialog v-model="imagePreviewDialog" max-width="90vw" content-class="image-preview-modal">
       <div class="image-preview-wrapper">
@@ -507,6 +502,10 @@ import HomeItemCard from '../components/HomeItemCard.vue'
 import TopBar from '../components/TopBar.vue'
 import ImageCropper from '../components/ImageCropper.vue'
 import PosAutocomplete from '../components/PosAutocomplete.vue'
+import HardwareBarcodeListenDialog from '../components/HardwareBarcodeListenDialog.vue'
+import { useInfiniteScroll } from '../composables/useInfiniteScroll'
+import { CurrencyEnum } from '../constants/enums'
+import { displayCatalogPrice, isDollarCurrency, roundForCurrency } from '../constants/currency'
 
 export default {
   name: 'AddItems',
@@ -514,7 +513,8 @@ export default {
     HomeItemCard,
     TopBar,
     ImageCropper,
-    PosAutocomplete
+    PosAutocomplete,
+    HardwareBarcodeListenDialog
   },
   setup() {
     const instance = getCurrentInstance()
@@ -526,67 +526,39 @@ export default {
       dir: state.dir
     }))
 
-    // Data
-    const cat = ref('All')
+    const cat = ref('all')
     const search = ref('')
     const categoriesContainerRef = ref(null)
+    const scrollSentinelRef = ref(null)
     const categoryDialog = ref(false)
     const itemDialog = ref(false)
+    const barcodeListenDialog = ref(false)
     const barcodeFieldDisabled = ref(false)
     const editingCategory = ref(null)
     const editingItem = ref(null)
-    const selectedCategory = ref(null)
-    const items = computed(() => state.items)
-    const categories = ref([])
-    const categoriesLoading = ref(false)
+    const categories = computed(() => state.categories)
+    const totalItemCount = computed(() => state.totalItemCount)
+    const categorySearch = ref('')
 
-    const loadCategories = async () => {
-      if (categoriesLoading.value) return
-      categoriesLoading.value = true
-      try {
-        const response = await CategoryService.getAllCategories()
-        const data = response?.data?.data || []
-        const mapped = data.map(cat => ({
-          id: cat.id,
-          value: lang.value.lang === 'ar' ? cat.nameAr : cat.nameEn,
-          nameAr: cat.nameAr || '',
-          nameEn: cat.nameEn || ''
-        }))
-        // Same order in both directions; "All" stays first via container dir (row-reverse in RTL)
-        categories.value = mapped
-      } catch (error) {
-        console.error('Error loading categories:', error)
-      } finally {
-        categoriesLoading.value = false
-      }
-    }
-
-    const otherCategories = computed(() => categories.value)
-
-    const getCategoryKey = (item) => {
-      if (lang.value.lang === 'ar') {
-        return item.categoryNameAr || item.categoryNameEn || ''
-      }
-      return item.categoryNameEn || item.categoryNameAr || ''
-    }
+    const emptyItemForm = () => ({
+      nameAr: '',
+      nameEn: '',
+      buyingPrice: 0,
+      buyingCurrency: CurrencyEnum.DOLLAR,
+      buyingRate: null,
+      sellingPrice: 0,
+      sellingCurrency: CurrencyEnum.DOLLAR,
+      barcode: '',
+      categoryId: null,
+      image: null
+    })
 
     const categoryForm = ref({
       nameAr: '',
       nameEn: ''
     })
 
-    const itemForm = ref({
-      nameAr: '',
-      nameEn: '',
-      buyingPriceDollar: 0,
-      sellingPriceDollar: 0,
-      buyingDollarRate: null,
-      buyingPriceUnit: 'USD',
-      sellingPriceUnit: 'USD',
-      barcode: '',
-      categoryId: null,
-      image: null
-    })
+    const itemForm = ref(emptyItemForm())
     const categoryFormRef = ref(null)
     const itemFormRef = ref(null)
 
@@ -597,8 +569,8 @@ export default {
     const imagePreviewDialog = ref(false)
     const buyingPriceError = ref(false)
     const sellingPriceError = ref(false)
-    
-    // Image cropper refs
+    const categorySelectError = ref('')
+
     const cropperDialog = ref(false)
     const imageToCrop = ref(null)
     const viewportWidth = ref(0)
@@ -610,76 +582,76 @@ export default {
       viewportWidth.value >= 1700 ? '900px' : '600px'
     ))
 
-    // Computed
-    const categoriesForSelect = computed(() => {
-      return categories.value.map(category => ({
-        id: category.id,
-        name: lang.value.lang === 'ar' ? category.nameAr : category.nameEn
-      }))
-    })
-
-    const categorySelectOptions = ref([])
-    const categorySelectLoading = ref(false)
-    const categorySelectError = ref('')
-    let categorySelectTimer = null
-
-    const syncCategorySelectOptions = (list = categoriesForSelect.value) => {
-      categorySelectOptions.value = list
-    }
-
-    const fetchCategorySelectOptions = async (query = '') => {
-      categorySelectLoading.value = true
-      try {
-        const res = await CategoryService.searchCategories(query)
-        const data = res?.data?.data || []
-        categorySelectOptions.value = data.map((category) => ({
+    const categorySelectOptions = computed(() => {
+      const q = (categorySearch.value || '').trim().toLowerCase()
+      return (state.categories || [])
+        .map((category) => ({
           id: category.id,
           name: lang.value.lang === 'ar' ? category.nameAr : category.nameEn
         }))
-      } catch {
-        categorySelectOptions.value = []
-      } finally {
-        categorySelectLoading.value = false
-      }
-    }
+        .filter((c) => !q || (c.name || '').toLowerCase().includes(q))
+    })
 
     const onCategorySelectSearch = (query) => {
-      clearTimeout(categorySelectTimer)
-      categorySelectTimer = setTimeout(() => fetchCategorySelectOptions(query), 220)
+      categorySearch.value = query || ''
     }
 
-    watch(categoriesForSelect, (list) => {
-      if (!categorySelectOptions.value.length) syncCategorySelectOptions(list)
-    }, { immediate: true })
+    const isSearching = computed(() => !!(search.value || '').trim())
+    const pageState = computed(() => state.getCategoryItemsPageState(cat.value))
+    const itemsLoading = computed(() => {
+      if (isSearching.value) return !!state.searchLoading
+      return !!pageState.value?.loading
+    })
 
-    // Methods
-    const name = i => lang.value.lang === 'ar' ? i.nameAr : i.nameEn
-    const price = i => {
-      const sellingPriceDollar = Number(i.sellingPriceDollar ?? 0)
-      const rate = state.exchangeRate || 15000
-      return state.currency === 'USD' ? sellingPriceDollar : sellingPriceDollar * rate
+    const filtered = computed(() => {
+      void state.itemCacheVersion
+      if (isSearching.value) return state.searchResults || []
+      return state.getCategoryItemsPageItems(cat.value)
+    })
+
+    const canLoadMore = computed(() => {
+      if (isSearching.value) return false
+      const p = pageState.value
+      if (!p || p.loading) return false
+      if (p.page < 0) return true
+      return p.page + 1 < p.totalPages
+    })
+
+    const loadMoreItems = () => {
+      if (!canLoadMore.value) return
+      return state.loadItemsPage({ categoryId: cat.value, reset: false })
     }
 
-    const getCategoryName = (item) => {
-      if (!item) return ''
-      return lang.value.lang === 'ar'
-        ? (item.categoryNameAr || item.categoryNameEn || '')
-        : (item.categoryNameEn || item.categoryNameAr || '')
-    }
+    useInfiniteScroll(scrollSentinelRef, loadMoreItems, canLoadMore)
 
-    const getCategoryItemCount = (categoryValue) => {
-      if (categoryValue === 'All') return items.value.length
-      return items.value.filter(i => getCategoryKey(i) === categoryValue).length
-    }
+    let searchTimer = null
+    watch(search, (q) => {
+      clearTimeout(searchTimer)
+      searchTimer = setTimeout(() => {
+        const trimmed = (q || '').trim()
+        if (!trimmed) {
+          state.searchResults = []
+          return
+        }
+        state.searchItems({ query: trimmed, categoryId: cat.value })
+      }, 300)
+    })
 
-    const filtered = computed(() => items.value.filter(i => {
-      const query = search.value.toLowerCase()
-      const n = name(i).toLowerCase()
-      const cAr = (i.categoryNameAr || '').toLowerCase()
-      const cEn = (i.categoryNameEn || '').toLowerCase()
-      const matchesSearch = !query || n.includes(query) || cAr.includes(query) || cEn.includes(query)
-      return (cat.value === 'All' || getCategoryKey(i) === cat.value) && matchesSearch
-    }))
+    watch(cat, async (categoryId) => {
+      search.value = ''
+      state.searchResults = []
+      await state.loadItemsPage({ categoryId, reset: true })
+    })
+
+    const isBuyingDollar = computed(() => isDollarCurrency(itemForm.value.buyingCurrency))
+    const isSellingDollar = computed(() => isDollarCurrency(itemForm.value.sellingCurrency))
+
+    const price = (i) => displayCatalogPrice(
+      i?.sellingPrice,
+      i?.sellingCurrency,
+      state.currency,
+      state.exchangeRate
+    )
 
     const requiredRule = (value) => {
       if (value === null || value === undefined) return $t('fieldRequired')
@@ -695,116 +667,101 @@ export default {
       return true
     }
 
-    /** Round to 2 decimal places for USD amounts */
-    const roundToTwo = (val) => {
-      return Math.round(Number(val) * 100) / 100
-    }
-
-    /** Round price for display/storage: USD = 2 decimals, LBP = integer (no decimals) */
-    const roundPriceForCurrency = (val, isDollar) => {
-      return isDollar ? roundToTwo(val) : Math.round(Number(val))
-    }
-
     function getBuyingPriceDisplayValue() {
-      const rate = itemForm.value.buyingDollarRate || 1
-      const value = itemForm.value.buyingPriceUnit === 'USD'
-        ? itemForm.value.buyingPriceDollar
-        : itemForm.value.buyingPriceDollar * rate
-      // Format: USD = 2 decimals (always rounded), LBP = no decimals (integer)
+      const value = itemForm.value.buyingPrice
       if (value == null || value === '') return value
-      return roundPriceForCurrency(value, itemForm.value.buyingPriceUnit === 'USD')
+      return roundForCurrency(value, itemForm.value.buyingCurrency)
     }
 
     function getSellingPriceDisplayValue() {
-      const rate = itemForm.value.buyingDollarRate || 1
-      const value = itemForm.value.sellingPriceUnit === 'USD'
-        ? itemForm.value.sellingPriceDollar
-        : itemForm.value.sellingPriceDollar * rate
-      // Format: USD = 2 decimals (always rounded), LBP = no decimals (integer)
+      const value = itemForm.value.sellingPrice
       if (value == null || value === '') return value
-      return roundPriceForCurrency(value, itemForm.value.sellingPriceUnit === 'USD')
+      return roundForCurrency(value, itemForm.value.sellingCurrency)
     }
 
     const onBuyingPriceInput = (val) => {
-      // Clear error when user starts typing
       buyingPriceError.value = false
-      
       const value = parseFloat(val)
       if (isNaN(value)) {
-        itemForm.value.buyingPriceDollar = 0
+        itemForm.value.buyingPrice = 0
         return
       }
-      const rate = itemForm.value.buyingDollarRate || 1
-      itemForm.value.buyingPriceDollar = itemForm.value.buyingPriceUnit === 'USD' ? value : value / rate
+      itemForm.value.buyingPrice = value
     }
 
     const validateBuyingPrice = () => {
       const displayValue = getBuyingPriceDisplayValue()
-      const validationResult = pricePositiveRule(displayValue)
-      
-      if (validationResult !== true) {
+      if (pricePositiveRule(displayValue) !== true) {
         buyingPriceError.value = true
         return false
       }
-      
       buyingPriceError.value = false
-      
-      if (itemForm.value.buyingPriceDollar == null || isNaN(itemForm.value.buyingPriceDollar)) {
-        itemForm.value.buyingPriceDollar = 0
+      if (itemForm.value.buyingPrice == null || isNaN(itemForm.value.buyingPrice)) {
+        itemForm.value.buyingPrice = 0
         return true
       }
-      const rate = itemForm.value.buyingDollarRate || 1
-      const currentDisplayValue = itemForm.value.buyingPriceUnit === 'USD'
-        ? itemForm.value.buyingPriceDollar
-        : itemForm.value.buyingPriceDollar * rate
-      const roundedDisplay = roundPriceForCurrency(currentDisplayValue, itemForm.value.buyingPriceUnit === 'USD')
-      itemForm.value.buyingPriceDollar = itemForm.value.buyingPriceUnit === 'USD' ? roundedDisplay : roundedDisplay / rate
+      itemForm.value.buyingPrice = roundForCurrency(itemForm.value.buyingPrice, itemForm.value.buyingCurrency)
       return true
     }
 
     const onSellingPriceInput = (val) => {
-      // Clear error when user starts typing
       sellingPriceError.value = false
-      
       const value = parseFloat(val)
       if (isNaN(value)) {
-        itemForm.value.sellingPriceDollar = 0
+        itemForm.value.sellingPrice = 0
         return
       }
-      const rate = itemForm.value.buyingDollarRate || 1
-      itemForm.value.sellingPriceDollar = itemForm.value.sellingPriceUnit === 'USD' ? value : value / rate
+      itemForm.value.sellingPrice = value
     }
 
     const validateSellingPrice = () => {
       const displayValue = getSellingPriceDisplayValue()
-      const validationResult = pricePositiveRule(displayValue)
-      
-      if (validationResult !== true) {
+      if (pricePositiveRule(displayValue) !== true) {
         sellingPriceError.value = true
         return false
       }
-      
       sellingPriceError.value = false
-      
-      if (itemForm.value.sellingPriceDollar == null || isNaN(itemForm.value.sellingPriceDollar)) {
-        itemForm.value.sellingPriceDollar = 0
+      if (itemForm.value.sellingPrice == null || isNaN(itemForm.value.sellingPrice)) {
+        itemForm.value.sellingPrice = 0
         return true
       }
-      const rate = itemForm.value.buyingDollarRate || 1
-      const currentDisplayValue = itemForm.value.sellingPriceUnit === 'USD'
-        ? itemForm.value.sellingPriceDollar
-        : itemForm.value.sellingPriceDollar * rate
-      const roundedDisplay = roundPriceForCurrency(currentDisplayValue, itemForm.value.sellingPriceUnit === 'USD')
-      itemForm.value.sellingPriceDollar = itemForm.value.sellingPriceUnit === 'USD' ? roundedDisplay : roundedDisplay / rate
+      itemForm.value.sellingPrice = roundForCurrency(itemForm.value.sellingPrice, itemForm.value.sellingCurrency)
       return true
     }
 
-    const toggleBuyingPriceUnit = () => {
-      itemForm.value.buyingPriceUnit = itemForm.value.buyingPriceUnit === 'USD' ? 'LBP' : 'USD'
+    const convertAmountCurrency = (amount, from, to, rate) => {
+      const n = Number(amount) || 0
+      const r = Number(rate) > 0 ? Number(rate) : 1
+      if (from === to) return roundForCurrency(n, to)
+      if (from === CurrencyEnum.DOLLAR && to === CurrencyEnum.LBP) {
+        return roundForCurrency(n * r, CurrencyEnum.LBP)
+      }
+      if (from === CurrencyEnum.LBP && to === CurrencyEnum.DOLLAR) {
+        return roundForCurrency(n / r, CurrencyEnum.DOLLAR)
+      }
+      return roundForCurrency(n, to)
     }
 
-    const toggleSellingPriceUnit = () => {
-      itemForm.value.sellingPriceUnit = itemForm.value.sellingPriceUnit === 'USD' ? 'LBP' : 'USD'
+    const toggleBuyingCurrency = () => {
+      const rate = itemForm.value.buyingRate || state.exchangeRate || 1
+      const from = itemForm.value.buyingCurrency
+      const to = from === CurrencyEnum.DOLLAR ? CurrencyEnum.LBP : CurrencyEnum.DOLLAR
+      itemForm.value.buyingPrice = convertAmountCurrency(itemForm.value.buyingPrice, from, to, rate)
+      itemForm.value.buyingCurrency = to
+    }
+
+    const toggleSellingCurrency = () => {
+      const rate = itemForm.value.buyingRate || state.exchangeRate || 1
+      const from = itemForm.value.sellingCurrency
+      const to = from === CurrencyEnum.DOLLAR ? CurrencyEnum.LBP : CurrencyEnum.DOLLAR
+      itemForm.value.sellingPrice = convertAmountCurrency(itemForm.value.sellingPrice, from, to, rate)
+      itemForm.value.sellingCurrency = to
+    }
+
+    const resolveCurrency = (value, legacyIsDollar) => {
+      if (value != null && value !== '') return Number(value)
+      if (legacyIsDollar === false) return CurrencyEnum.LBP
+      return CurrencyEnum.DOLLAR
     }
 
     const handleEditItem = async (item) => {
@@ -812,9 +769,9 @@ export default {
         const response = await ItemService.getItemById(item.id)
         const fullItem = response?.data?.data
         if (fullItem) {
-          openItemDialog(null, fullItem)
+          openItemDialog(fullItem)
         } else {
-          openItemDialog(null, item)
+          openItemDialog(item)
         }
       } catch (err) {
         $notification(err?.response?.data?.message || $t('errorLoadingItem'), 'error')
@@ -826,15 +783,12 @@ export default {
     }
 
     const handleDeleteCategory = (category) => {
-      const catId = category.id ?? category.value
-      deleteCategory(catId)
+      deleteCategory(category.id)
     }
 
     const handleDeleteItem = (item) => {
       deleteItem(item.id)
     }
-
-
 
     const triggerItemImagePick = () => {
       itemImageInputRef.value?.click()
@@ -844,36 +798,30 @@ export default {
       const input = e?.target
       const file = input?.files?.[0]
       if (!file) return
-      
-      // Clean up previous blob URL if exists
+
       if (imageToCrop.value?.startsWith?.('blob:')) {
         URL.revokeObjectURL(imageToCrop.value)
       }
-      
+
       try {
-        // Open cropper dialog with the selected image
         imageToCrop.value = URL.createObjectURL(file)
         cropperDialog.value = true
       } catch (err) {
         console.error('Error loading image for cropping:', err)
       }
-      
-      // Reset file input
+
       if (input) input.value = ''
     }
 
     const onCropComplete = (croppedBlob) => {
-      // Clean up previous preview URL if exists
       if (itemImagePreview.value?.startsWith?.('blob:')) {
         URL.revokeObjectURL(itemImagePreview.value)
       }
-      
-      // Store the cropped blob and create preview
+
       itemImageFile.value = croppedBlob
       itemImagePreview.value = URL.createObjectURL(croppedBlob)
       imageError.value = false
-      
-      // Clean up cropper state
+
       if (imageToCrop.value?.startsWith?.('blob:')) {
         URL.revokeObjectURL(imageToCrop.value)
       }
@@ -882,7 +830,6 @@ export default {
     }
 
     const onCropCancel = () => {
-      // Clean up cropper state
       if (imageToCrop.value?.startsWith?.('blob:')) {
         URL.revokeObjectURL(imageToCrop.value)
       }
@@ -914,6 +861,17 @@ export default {
       } catch (err) {
         $notification(err?.response?.data?.message || $t('errorGeneratingBarcode'), 'error')
       }
+    }
+
+    const openBarcodeListenDialog = () => {
+      barcodeListenDialog.value = true
+    }
+
+    const applyScannedBarcode = (code) => {
+      if (!code) return
+      itemForm.value.barcode = code
+      barcodeFieldDisabled.value = true
+      $notification($t('barcodeCaptured'), 'success')
     }
 
     const openImagePreview = () => {
@@ -958,8 +916,8 @@ export default {
 
         let response
         if (editingCategory.value) {
-          const catId = Number(editingCategory.value.id ?? editingCategory.value.value)
-          if (!Number.isFinite(catId)) {
+          const catId = editingCategory.value.id
+          if (catId == null) {
             $notification($t('errorSavingCategory'), 'error')
             return
           }
@@ -970,8 +928,7 @@ export default {
 
         if (response?.data?.success) {
           const wasEdit = !!editingCategory.value
-          await state.fetchUserItems({ force: true })
-          await loadCategories()
+          await state.loadCategories({ force: true })
           closeCategoryDialog()
           $notification(wasEdit ? $t('categoryUpdated') : $t('categoryCreated'), 'success')
         } else {
@@ -987,8 +944,10 @@ export default {
         try {
           const response = await CategoryService.deleteCategory(categoryId)
           if (response?.data?.success) {
-            await state.fetchUserItems({ force: true })
-            await loadCategories()
+            await state.loadCategories({ force: true })
+            if (String(cat.value) === String(categoryId)) {
+              cat.value = 'all'
+            }
             $notification($t('categoryDeleted'), 'success')
           } else {
             $notification($t('categoryDeleteFailed'), 'error')
@@ -999,28 +958,24 @@ export default {
       }
     }
 
-    const openItemDialog = (category = null, item = null) => {
+    const openItemDialog = (item = null) => {
       barcodeFieldDisabled.value = false
-      selectedCategory.value = category
       editingItem.value = item
+      categorySearch.value = ''
+      const rate = state.exchangeRate ?? 15000
       if (item) {
-        const rate = state.exchangeRate ?? 15000
-          itemForm.value = {
-            nameAr: item.nameAr ?? '',
-            nameEn: item.nameEn ?? '',
-            buyingPriceDollar: Number(item.buyingPrice ?? 0),
-            sellingPriceDollar: Number(item.sellingPrice ?? 0),
-            buyingDollarRate: Number(item.buyingDollarRate ?? rate),
-            buyingPriceUnit: item.isBuyingPriceDollar ? 'USD' : 'LBP',
-            sellingPriceUnit: item.isSellingPriceDollar ? 'USD' : 'LBP',
-            barcode: item.barcode ?? '',
-            categoryId: item.categoryId ?? null,
-            image: item.image ?? null
-          }
-          const categoryKey = getCategoryKey(item)
-          const foundCategory = categories.value.find(c => c.value === categoryKey)
-          if (foundCategory) itemForm.value.categoryId = foundCategory.id
-        
+        itemForm.value = {
+          nameAr: item.nameAr ?? '',
+          nameEn: item.nameEn ?? '',
+          buyingPrice: Number(item.buyingPrice ?? 0),
+          buyingCurrency: resolveCurrency(item.buyingCurrency, item.isBuyingPriceDollar),
+          buyingRate: Number(item.buyingRate ?? item.buyingDollarRate ?? rate),
+          sellingPrice: Number(item.sellingPrice ?? 0),
+          sellingCurrency: resolveCurrency(item.sellingCurrency, item.isSellingPriceDollar),
+          barcode: item.barcode ?? '',
+          categoryId: item.categoryId ?? null,
+          image: item.image ?? null
+        }
         itemImagePreview.value = item.image
           ? (item.image.startsWith('data:') ? item.image : `data:image/jpeg;base64,${item.image}`)
           : null
@@ -1028,51 +983,31 @@ export default {
         imageError.value = false
         if (itemImageInputRef.value) itemImageInputRef.value.value = ''
       } else {
-        const rate = state.exchangeRate ?? 15000
-        const unit = state.currency === 'USD' ? 'USD' : 'LBP'
+        const currency = state.currency === 'LBP' ? CurrencyEnum.LBP : CurrencyEnum.DOLLAR
         itemForm.value = {
-          nameAr: '',
-          nameEn: '',
-          buyingPriceDollar: 0,
-          sellingPriceDollar: 0,
-          buyingDollarRate: rate,
-          buyingPriceUnit: unit,
-          sellingPriceUnit: unit,
-          barcode: '',
-          categoryId: category ? category.id : null,
-          image: null
+          ...emptyItemForm(),
+          buyingRate: rate,
+          buyingCurrency: currency,
+          sellingCurrency: currency
         }
         itemImagePreview.value = null
         itemImageFile.value = null
         imageError.value = false
-        buyingPriceError.value = false
-        sellingPriceError.value = false
         if (itemImageInputRef.value) itemImageInputRef.value.value = ''
       }
       buyingPriceError.value = false
       sellingPriceError.value = false
       categorySelectError.value = ''
       itemDialog.value = true
-      fetchCategorySelectOptions('')
     }
 
     const closeItemDialog = () => {
       itemDialog.value = false
+      barcodeListenDialog.value = false
       editingItem.value = null
-      selectedCategory.value = null
       categorySelectError.value = ''
-      itemForm.value = {
-        nameAr: '',
-        nameEn: '',
-        buyingPriceDollar: 0,
-        sellingPriceDollar: 0,
-        buyingDollarRate: null,
-        buyingPriceUnit: 'USD',
-        sellingPriceUnit: 'USD',
-        barcode: '',
-        categoryId: null,
-        image: null
-      }
+      categorySearch.value = ''
+      itemForm.value = emptyItemForm()
       itemImagePreview.value = null
       itemImageFile.value = null
       imageError.value = false
@@ -1087,7 +1022,6 @@ export default {
 
       categorySelectError.value = itemForm.value.categoryId ? '' : ($t('category') + ' *')
 
-      // Validate price fields
       const buyingPriceValid = validateBuyingPrice()
       const sellingPriceValid = validateSellingPrice()
 
@@ -1098,16 +1032,18 @@ export default {
         const payload = {
           nameAr: itemForm.value.nameAr,
           nameEn: itemForm.value.nameEn,
-          buyingPrice: itemForm.value.buyingPriceDollar,
-          sellingPrice: itemForm.value.sellingPriceDollar,
-          isBuyingPriceDollar: itemForm.value.buyingPriceUnit === 'USD',
-          isSellingPriceDollar: itemForm.value.sellingPriceUnit === 'USD',
-          buyingDollarRate: itemForm.value.buyingDollarRate,
           barcode: itemForm.value.barcode,
-          categoryId: itemForm.value.categoryId
+          categoryId: itemForm.value.categoryId,
+          buyingPrice: itemForm.value.buyingPrice,
+          buyingCurrency: itemForm.value.buyingCurrency,
+          buyingRate: itemForm.value.buyingRate,
+          sellingPrice: itemForm.value.sellingPrice,
+          sellingCurrency: itemForm.value.sellingCurrency
         }
 
         const imageFile = itemImageFile.value || null
+        const previousId = editingItem.value?.id
+        const previousCategoryId = editingItem.value?.categoryId
         let response
         if (editingItem.value) {
           response = await ItemService.updateItem(editingItem.value.id, payload, imageFile)
@@ -1117,8 +1053,22 @@ export default {
 
         if (response?.data?.success) {
           const wasEdit = !!editingItem.value
-          await state.fetchUserItems({ force: true })
-          await loadCategories()
+          const data = response.data.data
+          if (wasEdit && previousId && data?.id && String(previousId) !== String(data.id)) {
+            state.removeItemFromCache(previousId)
+          }
+          state.addItemCache(data)
+          if (data?.id && data?.image) state.addItemImageCache(data.id, data.image)
+          else if (data?.id && imageFile) state.invalidateItemImageCache(data.id)
+
+          const newCategoryId = data?.categoryId ?? itemForm.value.categoryId
+          if (!wasEdit) {
+            state.adjustCategoryCount(newCategoryId, +1)
+          } else if (String(previousCategoryId ?? '') !== String(newCategoryId ?? '')) {
+            state.adjustCategoryCount(previousCategoryId, -1)
+            state.adjustCategoryCount(newCategoryId, +1)
+          }
+
           closeItemDialog()
           $notification(wasEdit ? $t('itemUpdated') : $t('itemCreated'), 'success')
         } else {
@@ -1132,10 +1082,12 @@ export default {
     const deleteItem = async (itemId) => {
       if (confirm('Are you sure you want to delete this item?')) {
         try {
+          const cached = state.getItem(itemId)
+          const categoryId = cached?.categoryId
           const response = await ItemService.deleteItem(itemId)
           if (response?.data?.success) {
-            await state.fetchUserItems({ force: true })
-            await loadCategories()
+            state.removeItemFromCache(itemId)
+            state.adjustCategoryCount(categoryId, -1)
             $notification($t('itemDeleted'), 'success')
           } else {
             $notification($t('itemDeleteFailed'), 'error')
@@ -1146,11 +1098,19 @@ export default {
       }
     }
 
-    // Load data on mount
-    onMounted(async () => {
+    const initAddItemsPage = async () => {
       await state.fetchDollarRate()
-      await state.fetchUserItems()
-      await loadCategories()
+      if (!state.itemsCacheBootstrapped) {
+        await state.bootstrapItemsCache()
+      }
+      const pageState = state.getCategoryItemsPageState(cat.value || 'all')
+      if (!pageState?.ids?.length) {
+        await state.loadItemsPage({ categoryId: cat.value || 'all', reset: true })
+      }
+    }
+
+    onMounted(async () => {
+      await initAddItemsPage()
       document.documentElement.setAttribute('dir', lang.value.dir)
       updateViewportWidth()
       if (typeof window !== 'undefined') {
@@ -1168,18 +1128,16 @@ export default {
       }
     })
 
-    watch(() => lang.value.lang, async () => {
+    watch(() => lang.value.lang, () => {
       document.documentElement.setAttribute('dir', lang.value.dir)
-      await loadCategories()
     })
 
     onActivated(async () => {
       await state.fetchDollarRate()
-      await state.fetchUserItems()
-      await loadCategories()
     })
 
     onUnmounted(() => {
+      clearTimeout(searchTimer)
       if (typeof window !== 'undefined') {
         window.removeEventListener('resize', updateViewportWidth)
       }
@@ -1190,23 +1148,23 @@ export default {
 
     return {
       lang,
-      categoriesForSelect,
       categorySelectOptions,
-      categorySelectLoading,
       categorySelectError,
       onCategorySelectSearch,
-      items,
       cat,
       search,
       categoriesContainerRef,
-      otherCategories,
+      scrollSentinelRef,
+      categories,
+      totalItemCount,
       filtered,
+      itemsLoading,
       categoryDialog,
       itemDialog,
+      barcodeListenDialog,
       barcodeFieldDisabled,
       editingCategory,
       editingItem,
-      selectedCategory,
       categoryForm,
       itemForm,
       categoryFormRef,
@@ -1221,14 +1179,14 @@ export default {
       validateSellingPrice,
       buyingPriceError,
       sellingPriceError,
-      toggleBuyingPriceUnit,
-      toggleSellingPriceUnit,
+      isBuyingDollar,
+      isSellingDollar,
+      toggleBuyingCurrency,
+      toggleSellingCurrency,
       handleEditItem,
       handleDeleteItem,
       handleEditCategory,
       handleDeleteCategory,
-      getCategoryItemCount,
-      getCategoryName,
       price,
       openCategoryDialog,
       closeCategoryDialog,
@@ -1244,6 +1202,8 @@ export default {
       onItemImageFileChange,
       removeItemImage,
       handleGenerateBarcode,
+      openBarcodeListenDialog,
+      applyScannedBarcode,
       imageError,
       imagePreviewDialog,
       openImagePreview,
@@ -2527,6 +2487,18 @@ export default {
 :deep(.cropper-dialog-content) {
   border-radius: 15px !important;
   overflow: hidden;
+}
+
+.items-scroll-sentinel {
+  width: 100%;
+  height: 1px;
+}
+
+.items-loading {
+  text-align: center;
+  padding: 0.75rem;
+  color: var(--oil-muted);
+  font-size: 0.9rem;
 }
 </style>
 

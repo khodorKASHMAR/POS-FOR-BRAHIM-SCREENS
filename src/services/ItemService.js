@@ -16,14 +16,42 @@ function buildItemSearchBody(query) {
 }
 
 export default {
-  getUserItems() {
-    return PosAxios.get('/item/user-items')
+  /**
+   * Paged lean catalog. Optional categoryId + query.
+   * @param {{ categoryId?: string|null, query?: string, page?: number, size?: number }} [params]
+   */
+  getUserItems(params = {}) {
+    const page = params.page ?? 0
+    const size = params.size ?? 50
+    const query = {}
+    if (params.categoryId != null && params.categoryId !== '' && params.categoryId !== 'all') {
+      query.categoryId = params.categoryId
+    }
+    if (params.query) query.query = params.query
+    return PosAxios.get('/item/user-items', {
+      params: { ...query, page, size, sort: 'id,asc' }
+    })
+  },
+
+  getItemByBarcode(barcode) {
+    return PosAxios.get(`/item/barcode/${encodeURIComponent(barcode)}`)
   },
 
   /**
-   * Dynamic item search. Empty query returns all items.
-   * @param {string} query
-   * @param {{ page?: number, size?: number }} [params]
+   * Batch-load base64 images for item ids.
+   * @param {string[]} ids
+   */
+  getItemImages(ids = []) {
+    return PosAxios.post('/item/images', ids)
+  },
+
+  getItemImage(itemId) {
+    return PosAxios.get(`/item/${itemId}/image`)
+  },
+
+  /**
+   * Dynamic item search (full DTO). Empty query returns all items.
+   * Prefer getUserItems for catalog grids.
    */
   searchItems(query = '', params = {}) {
     const page = params.page ?? 0
@@ -31,18 +59,10 @@ export default {
     return PosAxios.post(`/item/search?page=${page}&size=${size}&sort=id,asc`, buildItemSearchBody(query))
   },
 
-  /**
-   * Get full item by ID (AddItemResponseDTO with buyingPrice, sellingPrice, categoryId, image, etc.).
-   */
   getItemById(itemId) {
     return PosAxios.get(`/item/${itemId}`)
   },
 
-  /**
-   * Create item with optional image file (multipart).
-   * @param {Object} payload - item fields (nameAr, nameEn, buyingPriceDollar, etc.) without image
-   * @param {File|null} imageFile - optional image file
-   */
   createItem(payload, imageFile = null) {
     const formData = new FormData()
     formData.append('item', new Blob([JSON.stringify(payload)], { type: 'application/json' }))
@@ -52,12 +72,6 @@ export default {
     })
   },
 
-  /**
-   * Update item with optional image file (multipart).
-   * @param {number} itemId
-   * @param {Object} payload - item fields without image
-   * @param {File|null} imageFile - optional new image file; if omitted, existing image is kept
-   */
   updateItem(itemId, payload, imageFile = null) {
     const formData = new FormData()
     formData.append('item', new Blob([JSON.stringify(payload)], { type: 'application/json' }))
@@ -71,10 +85,6 @@ export default {
     return PosAxios.delete(`/item/${itemId}`)
   },
 
-  /**
-   * Generate a unique barcode (for new or existing items; assign in form).
-   * @returns {Promise<{ data: { data: { barcode: string } } }>}
-   */
   generateBarcode() {
     return PosAxios.post('/item/barcode/generate')
   }

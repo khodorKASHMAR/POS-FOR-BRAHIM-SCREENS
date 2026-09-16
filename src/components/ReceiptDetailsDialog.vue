@@ -36,6 +36,18 @@
         </v-btn>
       </div>
 
+      <div v-if="!loading && details && !isDraftMode" class="receipt-dialog-actions no-print">
+        <v-btn
+          color="primary"
+          variant="tonal"
+          size="small"
+          prepend-icon="mdi-printer-outline"
+          @click="emit('preview', props.receiptId)"
+        >
+          {{ $t('previewReceipt') }}
+        </v-btn>
+      </div>
+
       <div v-if="loading" class="receipt-dialog-loading">
         <div class="skeleton-block">
           <div v-for="n in 5" :key="n" class="skeleton-row">
@@ -66,7 +78,7 @@
             <div class="detail-tile detail-tile--rate">
               <span class="detail-tile-icon"><v-icon size="18">mdi-swap-horizontal</v-icon></span>
               <span class="detail-tile-label">{{ $t('dollarRate') }}</span>
-              <span class="detail-tile-value numeric">{{ formatDollarRate(details.dollarRate) }}</span>
+              <span class="detail-tile-value numeric">{{ formatDollarRate(details.currencyRate ?? details.dollarRate) }}</span>
             </div>
           </div>
         </div>
@@ -147,6 +159,7 @@
 import { computed, getCurrentInstance, onMounted, onUnmounted, ref, watch } from 'vue'
 import ReceiptService from '../services/ReceiptService'
 import { useState } from '../store/state'
+import { isDollarReceipt, receiptCurrencyRate } from '../constants/currency'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -154,7 +167,7 @@ const props = defineProps({
   isDraft: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'preview'])
 
 const instance = getCurrentInstance()
 const $t = (key) => instance?.appContext?.config?.globalProperties?.$t?.(key) ?? key
@@ -176,7 +189,7 @@ const isDraftMode = computed(() =>
 const paymentBreakdown = computed(() => {
   const d = details.value
   if (!d) return null
-  const rate = Number(d.dollarRate) || state.exchangeRate || 1
+  const rate = receiptCurrencyRate(d, state.exchangeRate)
   const wish = Number(d.payWish) || 0
   const usd = Number(d.payDollar) || 0
   const lbp = Number(d.payLebanese) || 0
@@ -251,16 +264,15 @@ function formatPayWish(receipt) {
 
 function formatTotal(receipt) {
   const num = Number(receipt.total) || 0
-  const rate = Number(receipt.dollarRate) || state.exchangeRate
-  if (receipt.isReceiptDollar !== false) return formatUsd(num)
-  return formatLbp(num * rate)
+  if (isDollarReceipt(receipt)) return formatUsd(num)
+  return formatLbp(num)
 }
 
 function formatDiscount(receipt) {
   const val = Number(receipt.receiptDiscount) || 0
   if (!val) return '—'
   if (receipt.isReceiptDiscountPercent) return `${val}%`
-  if (receipt.isReceiptDollar) return formatUsd(val)
+  if (isDollarReceipt(receipt)) return formatUsd(val)
   return formatLbp(val)
 }
 
@@ -328,6 +340,12 @@ watch(
   background: linear-gradient(135deg, #0f4f58, #156570 35%, #197783 65%, #32d8ee);
   color: #fff;
   overflow: hidden;
+}
+
+.receipt-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.65rem 1.1rem 0;
 }
 
 .header-pattern {

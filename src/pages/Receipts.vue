@@ -264,7 +264,7 @@
                             </span>
                             <span
                               class="currency-chip"
-                              :class="receipt.isReceiptDollar !== false ? 'currency-chip--usd' : 'currency-chip--lbp'"
+                              :class="isDollarReceipt(receipt) ? 'currency-chip--usd' : 'currency-chip--lbp'"
                             >
                               {{ currencyLabel(receipt) }}
                             </span>
@@ -332,6 +332,14 @@
                       >
                         <v-icon size="16">mdi-cart-outline</v-icon>
                         {{ $t('receiptItems') }}
+                      </button>
+                      <button
+                        type="button"
+                        class="footer-action-btn footer-action-btn--print"
+                        @click="openPreview(receipt.receiptId)"
+                      >
+                        <v-icon size="16">mdi-printer-outline</v-icon>
+                        {{ $t('previewReceipt') }}
                       </button>
                     </div>
                   </div>
@@ -412,8 +420,10 @@
       v-model="detailsOpen"
       :receipt-id="selectedReceiptId"
       :is-draft="isDraftsMode"
+      @preview="onDetailsPreview"
     />
     <ReceiptItemsDialog v-model="itemsOpen" :receipt-id="selectedReceiptId" />
+    <ReceiptPrintPreviewDialog v-model="previewOpen" :receipt-id="selectedReceiptId" />
   </div>
 </template>
 
@@ -425,8 +435,10 @@ import PosDateInput from '../components/PosDateInput.vue'
 import PosTimeInput from '../components/PosTimeInput.vue'
 import ReceiptDetailsDialog from '../components/ReceiptDetailsDialog.vue'
 import ReceiptItemsDialog from '../components/ReceiptItemsDialog.vue'
+import ReceiptPrintPreviewDialog from '../components/ReceiptPrintPreviewDialog.vue'
 import ReceiptService from '../services/ReceiptService'
 import { useState } from '../store/state'
+import { isDollarReceipt } from '../constants/currency'
 
 const props = defineProps({
   mode: {
@@ -448,6 +460,7 @@ const loading = ref(false)
 const receipts = ref([])
 const detailsOpen = ref(false)
 const itemsOpen = ref(false)
+const previewOpen = ref(false)
 const selectedReceiptId = ref(null)
 const filtersCollapsed = ref(true)
 const quickSearch = ref('')
@@ -569,9 +582,8 @@ function formatLbp(value) {
 
 function formatTotal(receipt) {
   const num = Number(receipt.total) || 0
-  const rate = Number(receipt.dollarRate) || state.exchangeRate
-  if (receipt.isReceiptDollar !== false) return formatUsd(num)
-  return formatLbp(num * rate)
+  if (isDollarReceipt(receipt)) return formatUsd(num)
+  return formatLbp(num)
 }
 
 function formatPayWish(receipt) {
@@ -585,7 +597,7 @@ function formatDiscount(receipt) {
   const val = Number(receipt.receiptDiscount) || 0
   if (!val) return '—'
   if (receipt.isReceiptDiscountPercent) return `${val}%`
-  if (receipt.isReceiptDollar !== false) return formatUsd(val)
+  if (isDollarReceipt(receipt)) return formatUsd(val)
   return formatLbp(val)
 }
 
@@ -597,7 +609,7 @@ function hasPaymentInfo(receipt) {
 }
 
 function currencyLabel(receipt) {
-  if (receipt.isReceiptDollar !== false) return state.lang === 'ar' ? 'دولار' : 'USD'
+  if (isDollarReceipt(receipt)) return state.lang === 'ar' ? 'دولار' : 'USD'
   return state.lang === 'ar' ? 'ل.ل.' : 'LBP'
 }
 
@@ -706,6 +718,16 @@ function openDetails(receiptId) {
 function openItems(receiptId) {
   selectedReceiptId.value = receiptId
   itemsOpen.value = true
+}
+
+function openPreview(receiptId) {
+  selectedReceiptId.value = receiptId
+  previewOpen.value = true
+}
+
+function onDetailsPreview(receiptId) {
+  detailsOpen.value = false
+  openPreview(receiptId)
 }
 
 watch(() => props.mode, () => {
@@ -1539,6 +1561,7 @@ onUnmounted(() => {
 
 .result-card-footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 0.35rem;
@@ -1570,6 +1593,11 @@ onUnmounted(() => {
 .footer-action-btn--items:hover {
   background: rgba(44, 140, 242, 0.08);
   color: #2c8cf2;
+}
+
+.footer-action-btn--print:hover {
+  background: rgba(15, 79, 88, 0.1);
+  color: #0f4f58;
 }
 
 .result-card-footer--draft {

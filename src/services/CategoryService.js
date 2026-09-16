@@ -15,17 +15,13 @@ function buildNameSearchBody(query) {
 }
 
 export default {
-  getAllCategories() {
-    return PosAxios.post('/category/search', {
-      criteriaList: [],
-      operator: 'AND'
-    })
+  getUserCategories() {
+    return PosAxios.get('/category/user-categories')
   },
 
   /**
-   * Dynamic category search. Empty query returns all categories.
-   * @param {string} query
-   * @param {{ page?: number, size?: number }} [params]
+   * Dynamic category search (used by Dashboard filters).
+   * Catalog pages filter cached categories client-side instead.
    */
   searchCategories(query = '', params = {}) {
     const page = params.page ?? 0

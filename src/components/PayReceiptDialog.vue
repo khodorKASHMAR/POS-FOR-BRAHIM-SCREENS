@@ -8,19 +8,21 @@
     content-class="pay-receipt-dialog-overlay"
     @update:model-value="$emit('update:modelValue', $event)"
   >
-    <div class="pay-receipt-dialog elevation-4">
+    <div class="pay-receipt-dialog elevation-4" :dir="state.dir">
       <div class="pay-dialog-header">
-        <div class="pay-dialog-title">{{ $t('payReceipt') }}</div>
         <v-btn
           icon
           variant="text"
           size="small"
           class="pay-dialog-close-btn"
-          :aria-label="$t('cancel')"
+          :class="{ 'pay-dialog-close-btn--ghost': isMobile }"
+          :aria-label="$t('back')"
           @click="closeDialog"
         >
-          <v-icon>mdi-close</v-icon>
+          <v-icon :size="isMobile ? 28 : 24">{{ payCloseIcon }}</v-icon>
         </v-btn>
+        <div class="pay-dialog-title">{{ $t('payReceipt') }}</div>
+        <span class="pay-dialog-header-spacer" aria-hidden="true" />
       </div>
 
       <!-- Total -->
@@ -120,15 +122,15 @@
       <!-- Split hints -->
       <div class="rate-hint">
         <v-icon size="16" class="rate-hint-icon">mdi-information-outline</v-icon>
-        <span>{{ formatSplitHint(hintExact) }}</span>
+        <span class="rate-hint-text">{{ formatSplitHint(hintExact) }}</span>
       </div>
       <div class="rate-hint">
         <v-icon size="16" class="rate-hint-icon">mdi-information-outline</v-icon>
-        <span>{{ formatSplitHint(hintMultiple5) }}</span>
+        <span class="rate-hint-text">{{ formatSplitHint(hintMultiple5) }}</span>
       </div>
       <div class="rate-hint">
         <v-icon size="16" class="rate-hint-icon">mdi-information-outline</v-icon>
-        <span>{{ formatSplitHint(hintMultiple10) }}</span>
+        <span class="rate-hint-text">{{ formatSplitHint(hintMultiple10) }}</span>
       </div>
 
       <!-- Actions -->
@@ -157,6 +159,13 @@
 <script setup>
 import { computed, getCurrentInstance, inject, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useState } from '../store/state'
+import { useIsMobile } from '../composables/useIsMobile'
+import { useMobileOverlayBack, useNavArrowIcon } from '../composables/useMobileBackStack'
+import {
+  isDollarCurrency,
+  roundForCurrency,
+  uiCurrencyToEnum
+} from '../constants/currency'
 
 const props = defineProps({
   modelValue: {
@@ -220,48 +229,60 @@ function roundToTwo(val) {
   return Math.round(Number(val) * 100) / 100
 }
 
+function receiptCurrency() {
+  return props.receipt.currency != null
+    ? Number(props.receipt.currency)
+    : uiCurrencyToEnum(state.currency)
+}
+
 function roundDiscountForCurrency(val) {
-  return props.receipt.isReceiptDollar ? roundToTwo(val) : Math.round(Number(val))
+  return roundForCurrency(val, receiptCurrency())
 }
 
 function recalcReceiptTotal() {
+  const currency = uiCurrencyToEnum(state.currency)
+  props.receipt.currency = currency
   const rawTotal = props.receipt.receiptItems.reduce(
     (sum, item) => sum + (Number(item.subTotal) || 0),
     0
   )
-  let receiptDiscountAmount
+  let result
   if (props.receipt.isReceiptDiscountPercent) {
-    receiptDiscountAmount = (rawTotal * (Number(props.receipt.receiptDiscount) || 0)) / 100
+    const factor = 1 - (Number(props.receipt.receiptDiscount) || 0) / 100
+    result = rawTotal * factor
   } else {
     const entered = Number(props.receipt.receiptDiscount) || 0
-    receiptDiscountAmount = props.receipt.isReceiptDollar
-      ? entered
-      : entered / state.exchangeRate
-    receiptDiscountAmount = Math.min(receiptDiscountAmount, rawTotal)
+    result = rawTotal - Math.min(entered, rawTotal)
   }
-  props.receipt.total = roundToTwo(Math.max(0, rawTotal - receiptDiscountAmount))
-  props.receipt.isReceiptDollar = state.currency === 'USD'
+  props.receipt.total = roundForCurrency(Math.max(0, result), currency)
   syncPaymentToReceipt()
 }
 
-const totalLbp = computed(() =>
-  Math.round((Number(props.receipt.total) || 0) * state.exchangeRate)
-)
+const totalLbp = computed(() => {
+  const total = Number(props.receipt.total) || 0
+  if (isDollarCurrency(receiptCurrency())) {
+    return Math.round(total * state.exchangeRate)
+  }
+  return Math.round(total)
+})
 
 function payWishToLbp() {
   const val = Number(payWishInput.value) || 0
-  return payWishIsDollar.value ? val * state.exchangeRate : val
+  // Match backend ReceiptPaymentValidator: round each leg to integer LBP before summing
+  return payWishIsDollar.value
+    ? Math.round(val * state.exchangeRate)
+    : Math.round(val)
 }
 
 const paidLbp = computed(() => {
   const wish = payWishToLbp()
-  const dollar = (Number(payDollarInput.value) || 0) * state.exchangeRate
-  const lebanese = Number(payLebaneseInput.value) || 0
+  const dollar = Math.round((Number(payDollarInput.value) || 0) * state.exchangeRate)
+  const lebanese = Math.round(Number(payLebaneseInput.value) || 0)
   return wish + dollar + lebanese
 })
 
-const overpaidLbp = computed(() => Math.max(0, Math.round(paidLbp.value - totalLbp.value)))
-const underpaidLbp = computed(() => Math.max(0, Math.round(totalLbp.value - paidLbp.value)))
+const overpaidLbp = computed(() => Math.max(0, paidLbp.value - totalLbp.value))
+const underpaidLbp = computed(() => Math.max(0, totalLbp.value - paidLbp.value))
 const isOverpaid = computed(() => overpaidLbp.value > 0)
 
 const hintBaseLbp = computed(() => (isOverpaid.value ? overpaidLbp.value : underpaidLbp.value))
@@ -323,13 +344,14 @@ function formatSplitHint({ dollars, lbp }) {
   const lbpLabel = state.lang === 'ar' ? 'ل.ل.' : 'LBP'
   const prefix = isOverpaid.value ? $t('youShouldReturn') : $t('remainingIs')
   if (state.lang === 'ar') {
-    return `${prefix} ${dollars} ${dollarLabel} و ${lbpFormatted} ${lbpLabel}`
+    // Isolate numeric segments so Arabic RTL doesn't scramble amounts
+    return `${prefix} \u2066${dollars}\u2069 ${dollarLabel} و \u2066${lbpFormatted}\u2069 ${lbpLabel}`
   }
   return `${prefix} ${dollars} ${dollarLabel} and ${lbpFormatted} ${lbpLabel}`
 }
 
 const getCurrencySymbol = () => {
-  if (props.receipt.isReceiptDollar) {
+  if (isDollarCurrency(receiptCurrency())) {
     return state.lang === 'ar' ? 'دولار' : 'USD'
   }
   return state.lang === 'ar' ? 'ل.ل.' : 'LBP'
@@ -338,13 +360,14 @@ const getCurrencySymbol = () => {
 const formatPrice = (price) => {
   if (!price && price !== 0) return '0'
   const numPrice = typeof price === 'number' ? price : parseFloat(price)
-  const displayValue = props.receipt.isReceiptDollar ? numPrice : numPrice * state.exchangeRate
+  // Already in receipt currency
+  const displayValue = numPrice
 
   let formattedValue
   let currencySymbol
 
-  if (props.receipt.isReceiptDollar) {
-    formattedValue = displayValue.toFixed(2)
+  if (isDollarCurrency(receiptCurrency())) {
+    formattedValue = Number(displayValue).toFixed(2)
     currencySymbol = state.lang === 'ar' ? 'دولار' : 'USD'
   } else {
     formattedValue = Math.round(displayValue).toLocaleString('en-US')
@@ -359,14 +382,14 @@ const formatPrice = (price) => {
 
 function validatePayment() {
   const total = totalLbp.value
-  const paid = Math.round(paidLbp.value)
+  const paid = paidLbp.value
   const returned = overpaidLbp.value
 
   if (paid < total) {
     return $t('receiptPaymentInvalid')
   }
 
-  if (Math.abs(paid - returned - total) > 1) {
+  if (paid - returned !== total) {
     return $t('receiptPaymentInvalid')
   }
 
@@ -392,14 +415,18 @@ function closeDialog() {
   emit('update:modelValue', false)
 }
 
+const isMobile = useIsMobile()
+const navArrowIcon = useNavArrowIcon()
+const payCloseIcon = computed(() => (isMobile.value ? navArrowIcon.value : 'mdi-close'))
+useMobileOverlayBack(() => props.modelValue, closeDialog)
+
 const rawTotalBeforeReceiptDiscount = computed(() =>
   props.receipt.receiptItems.reduce((sum, item) => sum + (Number(item.subTotal) || 0), 0)
 )
 
 function getReceiptDiscountMax() {
   if (props.receipt.isReceiptDiscountPercent) return 100
-  const raw = rawTotalBeforeReceiptDiscount.value
-  return props.receipt.isReceiptDollar ? raw : raw * state.exchangeRate
+  return rawTotalBeforeReceiptDiscount.value
 }
 
 function clampReceiptDiscountValue(value) {
@@ -451,14 +478,14 @@ const updateReceiptDiscount = (event) => {
 }
 
 .pay-dialog-header {
-  display: grid;
-  grid-template-columns: 2.5rem 1fr 2.5rem;
+  display: flex;
   align-items: center;
+  gap: 0.35rem;
   min-height: 2.25rem;
 }
 
 .pay-dialog-title {
-  grid-column: 2;
+  flex: 1;
   font-size: 1.25rem;
   font-weight: 700;
   color: #1a1a1a;
@@ -466,15 +493,28 @@ const updateReceiptDiscount = (event) => {
   line-height: 1.2;
 }
 
-.pay-dialog-close-btn {
-  grid-column: 3;
-  justify-self: end;
-  color: #666;
+.pay-dialog-close-btn,
+.pay-dialog-header-spacer {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
 }
 
-.pay-dialog-close-btn:hover {
-  color: #1a1a1a;
-  background-color: rgba(0, 0, 0, 0.05);
+.pay-dialog-close-btn {
+  color: #666;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pay-dialog-close-btn--ghost {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.pay-dialog-close-btn--ghost:hover,
+.pay-dialog-close-btn--ghost:focus {
+  background: rgba(25, 119, 131, 0.08) !important;
 }
 
 .order-summary {
@@ -497,17 +537,21 @@ const updateReceiptDiscount = (event) => {
   font-size: 1.125rem;
 }
 
-.summary-label,
+.summary-label {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #ffffff;
+  text-align: start;
+}
+
 .summary-value {
   font-size: 1.125rem;
   font-weight: 600;
   color: #ffffff;
-}
-
-.summary-value {
   font-variant-numeric: tabular-nums;
   direction: ltr;
   unicode-bidi: isolate;
+  text-align: end;
 }
 
 .total-discount-section {
@@ -543,6 +587,7 @@ const updateReceiptDiscount = (event) => {
   color: #1a1a1a;
   font-weight: 700;
   white-space: nowrap;
+  text-align: start;
 }
 
 .discount-toggle-btn {
@@ -570,6 +615,8 @@ const updateReceiptDiscount = (event) => {
   border: 1px solid transparent;
   appearance: textfield;
   -moz-appearance: textfield;
+  direction: ltr;
+  unicode-bidi: isolate;
 }
 
 .discount-input::-webkit-outer-spin-button,
@@ -604,11 +651,12 @@ const updateReceiptDiscount = (event) => {
   font-size: 0.72rem;
   font-weight: 600;
   color: rgba(0, 0, 0, 0.55);
-  text-align: center;
+  text-align: start;
 }
 
 .payment-input-wrap {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 0.35rem;
   border-radius: 12px;
@@ -681,6 +729,8 @@ const updateReceiptDiscount = (event) => {
   color: #1a1a1a;
   appearance: textfield;
   -moz-appearance: textfield;
+  direction: ltr;
+  unicode-bidi: isolate;
 }
 
 .payment-input::-webkit-outer-spin-button,
@@ -692,7 +742,7 @@ const updateReceiptDiscount = (event) => {
 .rate-hint {
   display: flex;
   align-items: flex-start;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.4rem;
   padding: 0.55rem 0.75rem;
   border-radius: 10px;
@@ -707,6 +757,13 @@ const updateReceiptDiscount = (event) => {
   color: #2c8cf2;
   flex-shrink: 0;
   margin-top: 1px;
+}
+
+.rate-hint-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: start;
+  unicode-bidi: plaintext;
 }
 
 .pay-dialog-actions {
@@ -791,8 +848,10 @@ const updateReceiptDiscount = (event) => {
   margin: 12px !important;
 }
 
-.pay-receipt-dialog-overlay .v-overlay__content {
+.pay-receipt-dialog-overlay .v-overlay__content,
+.v-overlay__content.pay-receipt-dialog-overlay {
   border-radius: 16px !important;
   overflow: hidden !important;
+  max-width: 100% !important;
 }
 </style>
