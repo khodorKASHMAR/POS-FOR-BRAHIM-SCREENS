@@ -11,17 +11,18 @@ import {
   getCachedItemImage,
   hasCachedItemImage,
   setCachedItemImage,
+  setCachedItemImages,
   invalidateCachedItemImage,
   getInflightImage,
   setInflightImage,
   findCachedItemByBarcode,
   listCachedItems,
-  hydrateFromRecords,
-  clearItemCache
+  clearItemCache,
+  updateCachedItemImageTime
 } from '../utils/itemCache'
 import {
-  loadItemsCacheFromDb,
-  isItemsCacheEmpty,
+  loadCategoriesFromDb,
+  loadItemRecordsPage,
   updateItemsCacheMeta,
   queuePersistItem,
   persistItemsBulk,
@@ -31,7 +32,9 @@ import {
   persistCategoryItemsPageState,
   removeItemFromDb,
   removeCategoryFromDb,
-  removeImageFromDb
+  removeImageFromDb,
+  readPersistedImages,
+  updateImageCachedAtTime as updateDiskImageCachedAtTime
 } from '../utils/itemsCacheDb'
 import {
   connectItemChangesWebSocket,
@@ -39,6 +42,7 @@ import {
 } from '../composables/useItemChangesWebSocket'
 
 const PAGE_SIZE = 50
+
 
 function categoryItemsPageKey(categoryId) {
   if (categoryId == null || categoryId === '' || categoryId === 'all') return 'all'
@@ -65,6 +69,12 @@ function emptyCategoryItemsPage() {
 }
 
 let itemsCacheBootstrapPromise = null
+let dollarRateRequest = null
+
+/** Ids waiting to be resolved on the next frame, so viewport cards share one IndexedDB read. */
+const queuedImageIds = new Set()
+const imageEnsureResolvers = []
+let imageEnsureFrame = 0
 
 export const useState = defineStore('ui', {
   state: () => {
@@ -112,14 +122,49 @@ export const useState = defineStore('ui', {
       localStorage.setItem('currency', this.currency)
     },
     async fetchDollarRate() {
-      try {
-        const response = await CurrencyRateService.getRate(CurrencyEnum.LBP)
-        const rate = Number(response?.data?.data?.rate) || 15000
-        this.exchangeRate = rate
-        localStorage.setItem('exchangeRate', rate.toString())
-      } catch (error) {
-        console.error('Error loading currency rate:', error)
+      if (!dollarRateRequest) {
+        dollarRateRequest = (async () => {
+          try {
+            const response = await CurrencyRateService.getRate(CurrencyEnum.LBP)
+            const rate = Number(response?.data?.data?.rate) || 15000
+            this.exchangeRate = rate
+            localStorage.setItem('exchangeRate', rate.toString())
+          } catch (error) {
+            console.error('Error loading currency rate:', error)
+          } finally {
+            dollarRateRequest = null
+          }
+        })()
       }
+      return dollarRateRequest
+    },
+
+    async bootstrapItemsCache() {
+      if (this.itemsCacheBootstrapped) return
+      if (itemsCacheBootstrapPromise) return itemsCacheBootstrapPromise
+
+      itemsCacheBootstrapPromise = this.runItemsCacheBootstrap()
+      try {
+        await itemsCacheBootstrapPromise
+      } finally {
+        itemsCacheBootstrapPromise = null
+      }
+    },
+    async runItemsCacheBootstrap() {
+      const categories = await loadCategoriesFromDb()
+      if (categories.length) {
+        this.categories = categories.map((c) => ({
+          id: c.id,
+          nameAr: c.nameAr || '',
+          nameEn: c.nameEn || '',
+          itemCount: Number(c.itemCount) || 0
+        }))
+        this.categoriesLoaded = true
+        this.itemCacheVersion += 1
+      }
+
+      this.itemsCacheBootstrapped = true
+      connectItemChangesWebSocket((event) => this.applyItemChangeEvent(event))
     },
 
     getItem(itemId) {
@@ -153,65 +198,6 @@ export const useState = defineStore('ui', {
       this.itemCacheVersion += 1
     },
 
-    async bootstrapItemsCache() {
-      if (this.itemsCacheBootstrapped) return
-      if (itemsCacheBootstrapPromise) return itemsCacheBootstrapPromise
-
-      itemsCacheBootstrapPromise = this.runItemsCacheBootstrap()
-      try {
-        await itemsCacheBootstrapPromise
-      } finally {
-        itemsCacheBootstrapPromise = null
-      }
-    },
-
-    async runItemsCacheBootstrap() {
-      if (this.itemsCacheBootstrapped) return
-
-      const disk = await loadItemsCacheFromDb()
-      if (disk?.items?.length) {
-        hydrateFromRecords(
-          disk.items,
-          (disk.images || []).map((row) => ({ id: row.id, image: row.image }))
-        )
-      }
-      if (disk?.categories?.length) {
-        this.categories = disk.categories.map((c) => ({
-          id: c.id,
-          nameAr: c.nameAr || '',
-          nameEn: c.nameEn || '',
-          itemCount: Number(c.itemCount) || 0
-        }))
-        this.categoriesLoaded = true
-      }
-      if (disk?.categoryItemsPages) {
-        for (const [key, page] of Object.entries(disk.categoryItemsPages)) {
-          this.categoryItemsPages[key] = {
-            ids: [...(page.ids || [])],
-            page: page.page ?? -1,
-            totalPages: page.totalPages ?? 1,
-            totalItems: page.totalItems ?? 0,
-            loading: false
-          }
-        }
-      }
-      this.itemCacheVersion += 1
-
-      const empty = await isItemsCacheEmpty()
-      if (empty) {
-        await this.loadCategories()
-        await this.loadItemsPage({ categoryId: 'all', reset: true })
-        await updateItemsCacheMeta({
-          cacheReady: true,
-          lastSyncAt: new Date().toISOString()
-        })
-      } else if (disk?.meta?.lastSyncAt) {
-        await this.syncItemChangesSince(disk.meta.lastSyncAt)
-      }
-
-      this.itemsCacheBootstrapped = true
-      connectItemChangesWebSocket((event) => this.applyItemChangeEvent(event))
-    },
 
     applyItemChanges(data) {
       if (!data) return
@@ -370,8 +356,11 @@ export const useState = defineStore('ui', {
       removeCategoryFromDb(categoryId)
     },
 
-    /** Category change / scroll: load next 50 lean items, then fetch their images. */
-    async loadItemsPage({ categoryId = 'all', reset = false } = {}) {
+    /**
+     * Read the next 50 saved items from IndexedDB.
+     * Mount uses reset so the screen starts at the first page. Load more appends the next page.
+     */
+    async loadItemsPageFromDb({ categoryId = 'all', reset = false } = {}) {
       const key = categoryItemsPageKey(categoryId)
       let page = this.categoryItemsPages[key]
       if (!page) {
@@ -379,51 +368,37 @@ export const useState = defineStore('ui', {
         this.categoryItemsPages[key] = page
       }
       if (page.loading) return
-      if (!reset && page.page + 1 >= page.totalPages && page.page >= 0) return
-
-      if (reset) Object.assign(page, emptyCategoryItemsPage())
+      if (reset) {
+        page.ids = []
+        page.page = -1
+        page.totalPages = 1
+        page.totalItems = 0
+      }
+      if (!reset && page.page >= 0 && page.page + 1 >= page.totalPages) return
 
       const nextPage = page.page + 1
       page.loading = true
       try {
-        const response = await ItemService.getUserItems({
-          categoryId: key === 'all' ? null : key,
-          page: nextPage,
-          size: PAGE_SIZE
+        const rows = await loadItemRecordsPage({
+          offset: nextPage * PAGE_SIZE,
+          limit: PAGE_SIZE,
+          categoryId: key === 'all' ? null : key
         })
-        const rows = response?.data?.data || []
-        const pagination = response?.data?.pagination || {}
-        const newIds = []
-        const leanBatch = []
-        for (const row of rows) {
-          const lean = toLeanItem(row)
-          if (!lean) continue
-          setCachedItem(lean.id, lean)
-          leanBatch.push(lean)
-          newIds.push(String(lean.id))
-        }
         const seen = new Set(page.ids.map(String))
-        for (const id of newIds) {
-          if (!seen.has(id)) {
-            page.ids.push(id)
-            seen.add(id)
-          }
+        for (const row of rows) {
+          if (row?.id == null) continue
+          setCachedItem(row.id, row)
+          const id = String(row.id)
+          if (seen.has(id)) continue
+          page.ids.push(id)
+          seen.add(id)
         }
-        page.page = pagination.currentPage != null ? pagination.currentPage : nextPage
-        page.totalPages = pagination.totalPages != null ? pagination.totalPages : nextPage + 1
-        page.totalItems = pagination.totalItems != null ? pagination.totalItems : page.ids.length
+        page.page = nextPage
+        page.totalItems = page.ids.length
+        page.totalPages = rows.length < PAGE_SIZE ? nextPage + 1 : nextPage + 2
         this.itemCacheVersion += 1
-        persistItemsBulk(leanBatch)
-        persistCategoryItemsPageState(key, {
-          ids: page.ids,
-          page: page.page,
-          totalPages: page.totalPages,
-          totalItems: page.totalItems
-        })
-        updateItemsCacheMeta({ lastSyncAt: new Date().toISOString(), cacheReady: true })
-        await this.ensureItemImages(newIds)
       } catch (error) {
-        console.error('Error loading items page:', error)
+        console.error('Error loading items page from IndexedDB:', error)
       } finally {
         page.loading = false
       }
@@ -533,7 +508,19 @@ export const useState = defineStore('ui', {
     },
 
     /**
-     * Load missing images via POST /item/images ({ id, image } only).
+     * Mark receipt/draft item images as recently used (RAM LRU + disk cachedAt).
+     */
+    async updateImageCachedAtTime(itemIds = []) {
+      for (const raw of itemIds) {
+        if (raw == null) continue
+        updateCachedItemImageTime(raw)
+      }
+      await updateDiskImageCachedAtTime(itemIds)
+    },
+
+    /**
+     * Fill RAM for ids that are not cached yet.
+     * Calls in the same frame share one IndexedDB read. The network is used only for ids missing on disk.
      */
     async ensureItemImages(ids = []) {
       const unique = []
@@ -555,42 +542,96 @@ export const useState = defineStore('ui', {
       })
       if (!missing.length) return
 
-      const toFetch = []
       const waiters = []
+      let queued = false
       for (const id of missing) {
         const pending = getInflightImage(id)
-        if (pending) waiters.push(pending)
-        else toFetch.push(id)
+        if (pending) {
+          waiters.push(pending)
+          continue
+        }
+        if (!queuedImageIds.has(id)) queuedImageIds.add(id)
+        queued = true
       }
-
-      if (toFetch.length) {
-        const batchPromise = ItemService.getItemImages(toFetch)
-          .then((response) => {
-            const rows = response?.data?.data || []
-            const found = new Set()
-            for (const row of rows) {
-              if (row?.id == null) continue
-              found.add(String(row.id))
-              setCachedItemImage(row.id, row.image || null)
-              queuePersistImage(row.id, row.image || null)
-            }
-            for (const id of toFetch) {
-              if (!found.has(String(id))) {
-                setCachedItemImage(id, null)
-                queuePersistImage(id, null)
-              }
-            }
-            this.itemCacheVersion += 1
-          })
-          .catch((error) => {
-            console.error('Error loading item images:', error)
-          })
-
-        for (const id of toFetch) setInflightImage(id, batchPromise)
-        waiters.push(batchPromise)
+      if (queued) {
+        waiters.push(new Promise((resolve) => imageEnsureResolvers.push(resolve)))
+        this.scheduleImageEnsureFlush()
       }
 
       await Promise.all(waiters)
+    },
+
+    scheduleImageEnsureFlush() {
+      if (imageEnsureFrame) return
+      const run = () => {
+        imageEnsureFrame = 0
+        const ids = [...queuedImageIds]
+        queuedImageIds.clear()
+        const resolvers = imageEnsureResolvers.splice(0)
+        if (!ids.length) {
+          resolvers.forEach((resolve) => resolve())
+          return
+        }
+        const batchPromise = this.loadMissingItemImages(ids)
+        for (const id of ids) setInflightImage(id, batchPromise)
+        batchPromise.finally(() => resolvers.forEach((resolve) => resolve()))
+      }
+      if (typeof requestAnimationFrame === 'function') {
+        imageEnsureFrame = requestAnimationFrame(run)
+      } else {
+        imageEnsureFrame = setTimeout(run, 16)
+      }
+    },
+
+    async loadMissingItemImages(ids) {
+      let changed = false
+      let disk = new Map()
+      try {
+        disk = await readPersistedImages(ids)
+      } catch (error) {
+        console.error('Error reading cached item images:', error)
+      }
+
+      const toFetch = []
+      const fromDisk = []
+      for (const id of ids) {
+        if (!disk.has(id)) {
+          toFetch.push(id)
+          continue
+        }
+        fromDisk.push({ id, image: disk.get(id).image || null })
+      }
+      if (fromDisk.length) {
+        setCachedItemImages(fromDisk)
+        changed = true
+      }
+
+      if (toFetch.length) {
+        try {
+          const response = await ItemService.getItemImages(toFetch)
+          const rows = response?.data?.data || []
+          const found = new Set()
+          const fetched = []
+          for (const row of rows) {
+            if (row?.id == null) continue
+            const id = String(row.id)
+            found.add(id)
+            fetched.push({ id, image: row.image || null })
+            queuePersistImage(id, row.image || null)
+          }
+          for (const id of toFetch) {
+            if (found.has(id)) continue
+            fetched.push({ id, image: null })
+            queuePersistImage(id, null)
+          }
+          if (fetched.length) setCachedItemImages(fetched)
+          changed = true
+        } catch (error) {
+          console.error('Error loading item images:', error)
+        }
+      }
+
+      if (changed) this.itemCacheVersion += 1
     }
   }
 })

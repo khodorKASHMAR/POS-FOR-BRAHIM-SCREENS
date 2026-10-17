@@ -101,17 +101,9 @@ const gridItems = computed(() => {
   return state.getCategoryItemsPageItems(cat.value)
 })
 
-watch(
-  gridItems,
-  (list) => {
-    state.ensureItemImages(list)
-  },
-  { immediate: true }
-)
-
 useInfiniteScroll(
   sentinelRef,
-  () => state.loadItemsPage({ categoryId: cat.value }),
+  () => state.loadItemsPageFromDb({ categoryId: cat.value }),
   () => {
     const p = state.getCategoryItemsPageState(cat.value)
     return p && !p.loading && p.page + 1 < p.totalPages && !search.value.trim()
@@ -121,7 +113,7 @@ useInfiniteScroll(
 function selectCategory(categoryId) {
   cat.value = categoryId
   search.value = ''
-  state.loadItemsPage({ categoryId: cat.value, reset: true })
+  state.loadItemsPageFromDb({ categoryId: cat.value, reset: true })
 }
 
 watch(search, (q) => {
@@ -210,20 +202,14 @@ async function loadDraftFromQuery() {
 async function initPosPage() {
   cat.value = 'all'
   search.value = ''
-  await state.fetchDollarRate()
   if (!state.itemsCacheBootstrapped) {
     await state.bootstrapItemsCache()
   }
-  const pageState = state.getCategoryItemsPageState('all')
-  if (!pageState?.ids?.length) {
-    await state.loadItemsPage({ categoryId: 'all', reset: true })
-  }
+  await state.loadItemsPageFromDb({ categoryId: 'all', reset: true })
 }
 
 // Enable horizontal scrolling with mouse wheel on categories container
-onMounted(async () => {
-  await initPosPage()
-  await loadDraftFromQuery()
+onMounted(() => {
   document.documentElement.setAttribute('dir', state.dir)
 
   if (categoriesContainerRef.value) {
@@ -237,10 +223,14 @@ onMounted(async () => {
     categoriesContainerRef.value.addEventListener('wheel', handleWheel, { passive: false })
     categoriesContainerRef.value._wheelHandler = handleWheel
   }
+
+  void (async () => {
+    await initPosPage()
+    await loadDraftFromQuery()
+  })()
 })
 
 onActivated(async () => {
-  await state.fetchDollarRate()
   await loadDraftFromQuery()
 })
 

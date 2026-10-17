@@ -495,7 +495,7 @@
 
 <script>
 import { useState } from '../store/state'
-import { computed, ref, onMounted, onUnmounted, onActivated, watch, getCurrentInstance } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch, getCurrentInstance } from 'vue'
 import CategoryService from '../services/CategoryService'
 import ItemService from '../services/ItemService'
 import HomeItemCard from '../components/HomeItemCard.vue'
@@ -603,11 +603,13 @@ export default {
       return !!pageState.value?.loading
     })
 
-    const filtered = computed(() => {
+    const loadedItems = computed(() => {
       void state.itemCacheVersion
       if (isSearching.value) return state.searchResults || []
       return state.getCategoryItemsPageItems(cat.value)
     })
+
+    const filtered = computed(() => loadedItems.value)
 
     const canLoadMore = computed(() => {
       if (isSearching.value) return false
@@ -619,7 +621,7 @@ export default {
 
     const loadMoreItems = () => {
       if (!canLoadMore.value) return
-      return state.loadItemsPage({ categoryId: cat.value, reset: false })
+      return state.loadItemsPageFromDb({ categoryId: cat.value, reset: false })
     }
 
     useInfiniteScroll(scrollSentinelRef, loadMoreItems, canLoadMore)
@@ -640,7 +642,7 @@ export default {
     watch(cat, async (categoryId) => {
       search.value = ''
       state.searchResults = []
-      await state.loadItemsPage({ categoryId, reset: true })
+      await state.loadItemsPageFromDb({ categoryId, reset: true })
     })
 
     const isBuyingDollar = computed(() => isDollarCurrency(itemForm.value.buyingCurrency))
@@ -1099,18 +1101,13 @@ export default {
     }
 
     const initAddItemsPage = async () => {
-      await state.fetchDollarRate()
       if (!state.itemsCacheBootstrapped) {
         await state.bootstrapItemsCache()
       }
-      const pageState = state.getCategoryItemsPageState(cat.value || 'all')
-      if (!pageState?.ids?.length) {
-        await state.loadItemsPage({ categoryId: cat.value || 'all', reset: true })
-      }
+      await state.loadItemsPageFromDb({ categoryId: cat.value || 'all', reset: true })
     }
 
-    onMounted(async () => {
-      await initAddItemsPage()
+    onMounted(() => {
       document.documentElement.setAttribute('dir', lang.value.dir)
       updateViewportWidth()
       if (typeof window !== 'undefined') {
@@ -1126,14 +1123,11 @@ export default {
         categoriesContainerRef.value.addEventListener('wheel', handleWheel, { passive: false })
         categoriesContainerRef.value._wheelHandler = handleWheel
       }
+      void initAddItemsPage()
     })
 
     watch(() => lang.value.lang, () => {
       document.documentElement.setAttribute('dir', lang.value.dir)
-    })
-
-    onActivated(async () => {
-      await state.fetchDollarRate()
     })
 
     onUnmounted(() => {
@@ -1227,9 +1221,10 @@ export default {
   --oil-surface: #ffffff;
   --oil-panel: linear-gradient(180deg, #eaf5f6 0%, #f5f9fa 45%, #eef4f5 100%);
   background: var(--oil-panel);
-  min-height: 100vh;
-  overflow-y: auto;
-  overflow-x: hidden;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   scrollbar-width: none;
   -ms-overflow-style: none;
   position: relative;
@@ -1251,6 +1246,10 @@ export default {
   z-index: 1;
 }
 
+.page-background > :first-child {
+  flex-shrink: 0;
+}
+
 .page-background::-webkit-scrollbar {
   display: none;
 }
@@ -1259,7 +1258,9 @@ export default {
   padding: 0.75rem 1rem 1.25rem;
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 4rem);
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .add-items-header {
@@ -1269,6 +1270,7 @@ export default {
   margin: 0.65rem 0.15rem 0.85rem;
   gap: 1rem;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .add-items-header-rtl {
@@ -1755,6 +1757,7 @@ export default {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
 }
 
 /* Categories — z-index so tooltips stack above search */

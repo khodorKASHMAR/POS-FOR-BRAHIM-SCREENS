@@ -30,9 +30,6 @@ onMounted(() => {
   if (instance?.proxy) {
     instance.proxy.$notification = open
   }
-  if (localStorage.getItem('token')) {
-    ui.bootstrapItemsCache()
-  }
 })
 </script>
 

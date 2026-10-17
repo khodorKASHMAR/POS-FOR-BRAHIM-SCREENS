@@ -465,7 +465,7 @@
 
 <script>
 import { useState } from '../../store/state'
-import { computed, ref, onMounted, onUnmounted, onActivated, watch, getCurrentInstance } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch, getCurrentInstance } from 'vue'
 import CategoryService from '../../services/CategoryService'
 import ItemService from '../../services/ItemService'
 import HomeItemCard from '../../components/HomeItemCard.vue'
@@ -583,23 +583,40 @@ export default {
       return !!pageState.value?.loading
     })
 
-    const filtered = computed(() => {
+    const RENDER_PAGE = 50
+    const visibleCount = ref(RENDER_PAGE)
+
+    const loadedItems = computed(() => {
       void state.itemCacheVersion
       if (isSearching.value) return state.searchResults || []
       return state.getCategoryItemsPageItems(cat.value)
     })
 
+    const filtered = computed(() => {
+      if (isSearching.value) return loadedItems.value
+      return loadedItems.value.slice(0, visibleCount.value)
+    })
+
     const canLoadMore = computed(() => {
       if (isSearching.value) return false
+      if (visibleCount.value < loadedItems.value.length) return true
       const p = pageState.value
       if (!p || p.loading) return false
       if (p.page < 0) return true
       return p.page + 1 < p.totalPages
     })
 
-    const loadMoreItems = () => {
+    const loadMoreItems = async () => {
       if (!canLoadMore.value) return
-      return state.loadItemsPage({ categoryId: cat.value, reset: false })
+      if (visibleCount.value < loadedItems.value.length) {
+        visibleCount.value = Math.min(visibleCount.value + RENDER_PAGE, loadedItems.value.length)
+        return
+      }
+      const before = loadedItems.value.length
+      await state.loadItemsPageFromDb({ categoryId: cat.value, reset: false })
+      if (loadedItems.value.length > before) {
+        visibleCount.value = Math.min(visibleCount.value + RENDER_PAGE, loadedItems.value.length)
+      }
     }
 
     useInfiniteScroll(scrollSentinelRef, loadMoreItems, canLoadMore)
@@ -618,9 +635,10 @@ export default {
     })
 
     watch(cat, async (categoryId) => {
+      visibleCount.value = RENDER_PAGE
       search.value = ''
       state.searchResults = []
-      await state.loadItemsPage({ categoryId, reset: true })
+      await state.loadItemsPageFromDb({ categoryId, reset: true })
     })
 
     const isBuyingDollar = computed(() => isDollarCurrency(itemForm.value.buyingCurrency))
@@ -1088,18 +1106,13 @@ export default {
     }
 
     const initAddItemsPage = async () => {
-      await state.fetchDollarRate()
       if (!state.itemsCacheBootstrapped) {
         await state.bootstrapItemsCache()
       }
-      const pageState = state.getCategoryItemsPageState(cat.value || 'all')
-      if (!pageState?.ids?.length) {
-        await state.loadItemsPage({ categoryId: cat.value || 'all', reset: true })
-      }
+      await state.loadItemsPageFromDb({ categoryId: cat.value || 'all', reset: true })
     }
 
-    onMounted(async () => {
-      await initAddItemsPage()
+    onMounted(() => {
       updateViewportWidth()
       if (typeof window !== 'undefined') {
         window.addEventListener('resize', updateViewportWidth)
@@ -1114,10 +1127,7 @@ export default {
         categoriesContainerRef.value.addEventListener('wheel', handleWheel, { passive: false })
         categoriesContainerRef.value._wheelHandler = handleWheel
       }
-    })
-
-    onActivated(async () => {
-      await state.fetchDollarRate()
+      void initAddItemsPage()
     })
 
     onUnmounted(() => {

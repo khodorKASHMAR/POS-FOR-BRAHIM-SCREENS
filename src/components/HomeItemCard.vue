@@ -1,5 +1,6 @@
 <template>
   <v-card
+    ref="rootEl"
     class="item-card"
     :class="{ 'cursor-pointer': clickable, 'hoverable': clickable, 'with-actions': showActions }"
     :ripple="clickable"
@@ -87,9 +88,11 @@
 </template>
 
 <script>
-import { computed, watch } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useState } from '../store/state'
 import { displayCatalogPrice } from '../constants/currency'
+import { updateCachedItemImageTime } from '../utils/itemCache'
+import { nearestScrollParent } from '../composables/useInfiniteScroll'
 
 export default {
   name: 'HomeItemCard',
@@ -168,6 +171,10 @@ export default {
       return `${formattedValue} ${currencySymbol}`
     })
 
+    const rootEl = ref(null)
+    const nearViewport = ref(false)
+    let viewportObserver = null
+
     const imageSrc = computed(() => {
       // Prefer on-demand cache (lean catalog has no base64 on the item)
       const cached = state.getItemImage(props.item?.id)
@@ -183,17 +190,43 @@ export default {
       return image
     })
 
-    // Lazy-load this card's image if the catalog says it has one
+    // Only cards near the viewport ask for an image. Off-screen cards stay quiet
+    // after RAM eviction so a full cache does not refetch the whole grid.
     watch(
-      () => [props.item?.id, props.item?.hasImage, state.itemCacheVersion],
-      ([id, hasImage]) => {
-        if (!id) return
-        if (hasImage === false) return
-        if (state.getItemImage(id)) return
-        state.ensureItemImages([id], { limit: 1 })
-      },
-      { immediate: true }
+      () => [props.item?.id, props.item?.hasImage, nearViewport.value, state.itemCacheVersion],
+      () => {
+        const id = props.item?.id
+        if (!id || !nearViewport.value) return
+        if (props.item?.hasImage === false) return
+        if (state.getItemImage(id)) {
+          updateCachedItemImageTime(id)
+          return
+        }
+        state.ensureItemImages([id])
+      }
     )
+
+    onMounted(() => {
+      const el = rootEl.value?.$el || rootEl.value
+      if (!el || typeof IntersectionObserver === 'undefined') {
+        nearViewport.value = true
+        return
+      }
+      viewportObserver = new IntersectionObserver(
+        ([entry]) => {
+          nearViewport.value = !!entry?.isIntersecting
+        },
+        { root: nearestScrollParent(el), rootMargin: '400px 0px', threshold: 0 }
+      )
+      viewportObserver.observe(el)
+    })
+
+    onBeforeUnmount(() => {
+      if (viewportObserver) {
+        viewportObserver.disconnect()
+        viewportObserver = null
+      }
+    })
 
     const handleClick = () => {
       if (props.clickable) {
@@ -215,6 +248,7 @@ export default {
       displayCategory,
       formattedPrice,
       imageSrc,
+      rootEl,
       handleClick,
       handleEdit,
       handleDelete
@@ -382,13 +416,10 @@ export default {
   font-size: 0.78rem;
   font-weight: 700;
   color: var(--oil-ink);
-  line-height: 1.2;
+  line-height: 1.25;
   margin: 0;
-  display: -webkit-box;
-  line-clamp: 1;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .item-name.text-left {

@@ -1,7 +1,18 @@
 import { onBeforeUnmount, watch } from 'vue'
 
+/** Closest ancestor that actually scrolls, so margins apply inside panels like Add Items. */
+export function nearestScrollParent(el) {
+  let node = el?.parentElement || null
+  while (node && node !== document.documentElement) {
+    const overflowY = window.getComputedStyle(node).overflowY
+    if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') return node
+    node = node.parentElement
+  }
+  return null
+}
+
 /**
- * Observe a sentinel element; call loadMore when it intersects the viewport.
+ * Observe a sentinel element; call loadMore when it nears the scroll container.
  * @param {import('vue').Ref<Element|null>} sentinelRef
  * @param {() => void|Promise<void>} loadMore
  * @param {import('vue').Ref<boolean>|(() => boolean)} [canLoadMore]
@@ -29,7 +40,7 @@ export function useInfiniteScroll(sentinelRef, loadMore, canLoadMore = () => tru
           Promise.resolve(loadMore()).catch(() => {})
         }
       },
-      { root: null, rootMargin: '200px', threshold: 0 }
+      { root: nearestScrollParent(el), rootMargin: '400px 0px', threshold: 0 }
     )
     observer.observe(el)
   }

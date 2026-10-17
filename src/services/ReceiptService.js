@@ -1,6 +1,7 @@
 import PosAxios from './index.js'
 import { CurrencyEnum } from '../constants/enums.js'
 import { uiCurrencyToEnum } from '../constants/currency.js'
+import { useState } from '../store/state.js'
 
 function buildReceiptPayload(receipt) {
   const currency =
@@ -26,25 +27,41 @@ function buildReceiptPayload(receipt) {
   }
 }
 
+function updateReceiptItemImageCachedAtTime(receipt) {
+  const ids = (receipt?.receiptItems || []).map((ri) => ri?.itemId).filter((id) => id != null)
+  useState()
+    .updateImageCachedAtTime(ids)
+    .catch((e) => console.error('[ReceiptService] updateImageCachedAtTime failed', e))
+}
+
 /**
  * Save a receipt (ReceiptRequestDTO).
  */
 export function saveReceipt(receipt) {
-  return PosAxios.post('/receipt', buildReceiptPayload(receipt))
+  return PosAxios.post('/receipt', buildReceiptPayload(receipt)).then((response) => {
+    updateReceiptItemImageCachedAtTime(receipt)
+    return response
+  })
 }
 
 /**
  * Save a draft receipt without payment validation.
  */
 export function saveDraft(receipt) {
-  return PosAxios.post('/draft', buildReceiptPayload(receipt))
+  return PosAxios.post('/draft', buildReceiptPayload(receipt)).then((response) => {
+    updateReceiptItemImageCachedAtTime(receipt)
+    return response
+  })
 }
 
 /**
  * Update an existing draft.
  */
 export function updateDraft(receiptId, receipt) {
-  return PosAxios.put(`/draft/${receiptId}`, buildReceiptPayload(receipt))
+  return PosAxios.put(`/draft/${receiptId}`, buildReceiptPayload(receipt)).then((response) => {
+    updateReceiptItemImageCachedAtTime(receipt)
+    return response
+  })
 }
 
 /**

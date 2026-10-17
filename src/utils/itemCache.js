@@ -32,19 +32,6 @@ function touchImage(id) {
   imageOrder.set(key, true)
 }
 
-function evictImagesIfNeeded() {
-  while (
-    (imageOrder.size > MAX_IMAGE_ENTRIES || totalImageChars > MAX_IMAGE_CHARS) &&
-    imageOrder.size > 0
-  ) {
-    const oldestKey = imageOrder.keys().next().value
-    imageOrder.delete(oldestKey)
-    const prev = images.get(oldestKey)
-    if (prev) totalImageChars -= prev.size || 0
-    images.delete(oldestKey)
-    if (onImageEvicted) onImageEvicted(oldestKey)
-  }
-}
 
 export function getCachedItem(id) {
   if (id == null) return undefined
@@ -65,12 +52,11 @@ export function removeCachedItem(id) {
   invalidateCachedItemImage(id)
 }
 
-/** @returns {string|null|undefined} undefined = not loaded yet */
+/** @returns {string|null|undefined} undefined = not loaded yet. Does not update LRU. */
 export function getCachedItemImage(id) {
   if (id == null) return undefined
   const entry = images.get(keyOf(id))
   if (!entry) return undefined
-  touchImage(id)
   return entry.image
 }
 
@@ -79,8 +65,13 @@ export function hasCachedItemImage(id) {
   return images.has(keyOf(id))
 }
 
-export function setCachedItemImage(id, image) {
-  if (id == null) return
+/** Mark an in-memory image as recently used (RAM LRU), if present. */
+export function updateCachedItemImageTime(id) {
+  if (id == null || !images.has(keyOf(id))) return
+  touchImage(id)
+}
+
+function putCachedItemImage(id, image) {
   const key = keyOf(id)
   const prev = images.get(key)
   if (prev) totalImageChars -= prev.size || 0
@@ -90,7 +81,35 @@ export function setCachedItemImage(id, image) {
   totalImageChars += size
   imageOrder.delete(key)
   imageOrder.set(key, true)
+}
+
+export function setCachedItemImage(id, image) {
+  if (id == null) return
+  putCachedItemImage(id, image)
   evictImagesIfNeeded()
+}
+
+/** Insert many images, then evict once. Avoids a re-render and an eviction pass per image. */
+export function setCachedItemImages(rows = []) {
+  for (const row of rows) {
+    if (row?.id == null) continue
+    putCachedItemImage(row.id, row.image)
+  }
+  evictImagesIfNeeded()
+}
+
+function evictImagesIfNeeded() {
+  while (
+    (imageOrder.size > MAX_IMAGE_ENTRIES || totalImageChars > MAX_IMAGE_CHARS) &&
+    imageOrder.size > 0
+  ) {
+    const oldestKey = imageOrder.keys().next().value
+    imageOrder.delete(oldestKey)
+    const prev = images.get(oldestKey)
+    if (prev) totalImageChars -= prev.size || 0
+    images.delete(oldestKey)
+    if (onImageEvicted) onImageEvicted(oldestKey)
+  }
 }
 
 export function invalidateCachedItemImage(id) {

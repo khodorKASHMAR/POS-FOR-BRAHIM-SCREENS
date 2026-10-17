@@ -94,11 +94,9 @@ import { ref, reactive, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import LoginService from '../services/LoginService.js'
 import { useUserStore } from '../store/user'
-import { useState } from '../store/state'
 
 const router = useRouter()
 const userStore = useUserStore()
-const state = useState()
 const notify = inject('$notification')
 
 const login = reactive({
@@ -135,7 +133,6 @@ async function submitLogin() {
   loading.value = true
   try {
     await LoginService.login(login.userName, login.password)
-    await state.bootstrapItemsCache()
     notify('Login successful!', 'success', 1000)
     router.push(userStore.firstAllowedPath || '/')
   } catch (error) {
