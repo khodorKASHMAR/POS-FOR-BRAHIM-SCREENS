@@ -15,7 +15,6 @@
           >
             <div class="category-content">
               <div class="category-name">{{ $t('allMenu') }}</div>
-              <div class="category-count">{{ state.totalItemCount }} {{ $t('items') }}</div>
             </div>
           </div>
           <div
@@ -27,7 +26,6 @@
           >
             <div class="category-content">
               <div class="category-name">{{ state.lang === 'ar' ? category.nameAr : category.nameEn }}</div>
-              <div class="category-count">{{ category.itemCount }} {{ $t('items') }}</div>
             </div>
           </div>
         </div>
@@ -48,7 +46,8 @@
 
         <!-- Items Grid -->
         <div class="items-wrapper">
-          <div class="items-grid" :class="{ 'items-grid-rtl': state.dir === 'rtl' }">
+          <div ref="topSentinelRef" class="items-sentinel" aria-hidden="true" />
+          <div ref="gridRef" class="items-grid" :class="{ 'items-grid-rtl': state.dir === 'rtl' }">
             <HomeItemCard
               v-for="i in gridItems"
               :key="i.id"
@@ -56,7 +55,10 @@
               @click="addItemToCart(i)"
             />
           </div>
-          <div v-if="!search.trim()" ref="sentinelRef" class="items-sentinel" aria-hidden="true" />
+          <div ref="sentinelRef" class="items-sentinel" aria-hidden="true" />
+          <div v-if="itemsLoading" class="items-loading">
+            <v-progress-circular indeterminate size="28" color="primary" />
+          </div>
         </div>
       </div>
     </div>
@@ -65,16 +67,17 @@
     <div class="right-panel">
       <OrderItemsList
         ref="orderListRef"
-        :items="state.items"
         @place-order="handlePlaceOrder"
         @save-draft="handleSaveDraft"
       />
     </div>
+
+    <ThermalReceiptPrinter ref="thermalPrinterRef" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted, onActivated, inject } from 'vue'
+import { ref, watch, onMounted, onUnmounted, onActivated, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useState } from '../store/state'
 import { translations } from '../i18n/translations'
@@ -83,7 +86,10 @@ import ReceiptService from '../services/ReceiptService'
 import HomeItemCard from '../components/HomeItemCard.vue'
 import OrderItemsList from '../components/OrderItemsList.vue'
 import TopBar from '../components/TopBar.vue'
-import { useInfiniteScroll } from '../composables/useInfiniteScroll'
+import ThermalReceiptPrinter from '../components/print/ThermalReceiptPrinter.vue'
+import { PRINTER_NOT_CONNECTED } from '../print/thermalPrinter'
+import { keepScrollAnchor, useInfiniteScroll } from '../composables/useInfiniteScroll'
+import { useItemsPager } from '../composables/useItemsPager'
 
 const state = useState()
 const route = useRoute()
@@ -94,38 +100,44 @@ const cat = ref('all')
 const search = ref('')
 const categoriesContainerRef = ref(null)
 const sentinelRef = ref(null)
+const topSentinelRef = ref(null)
+const gridRef = ref(null)
 let searchTimer = null
+let skipSearchWatch = false
+const {
+  items: gridItems,
+  loading: itemsLoading,
+  hasMore,
+  hasPrevious,
+  reload,
+  loadMore,
+  loadPrevious
+} = useItemsPager({ applyChange: (mutate) => keepScrollAnchor(gridRef.value, mutate) })
 
-const gridItems = computed(() => {
-  if (search.value.trim()) return state.searchResults
-  return state.getCategoryItemsPageItems(cat.value)
-})
+useInfiniteScroll(sentinelRef, loadMore, () => hasMore.value && !itemsLoading.value)
+useInfiniteScroll(topSentinelRef, loadPrevious, () => hasPrevious.value && !itemsLoading.value)
 
-useInfiniteScroll(
-  sentinelRef,
-  () => state.loadItemsPageFromDb({ categoryId: cat.value }),
-  () => {
-    const p = state.getCategoryItemsPageState(cat.value)
-    return p && !p.loading && p.page + 1 < p.totalPages && !search.value.trim()
-  }
-)
-
-function selectCategory(categoryId) {
-  cat.value = categoryId
-  search.value = ''
-  state.loadItemsPageFromDb({ categoryId: cat.value, reset: true })
+function reloadItems() {
+  return reload({ categoryId: cat.value, query: search.value })
 }
 
-watch(search, (q) => {
+function selectCategory(categoryId) {
   if (searchTimer) clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => {
-    const query = (q || '').trim()
-    if (!query) {
-      state.searchItems({ query: '', categoryId: cat.value })
-      return
-    }
-    state.searchItems({ query, categoryId: cat.value })
-  }, 300)
+  cat.value = categoryId
+  if (search.value) {
+    skipSearchWatch = true
+    search.value = ''
+  }
+  reloadItems()
+}
+
+watch(search, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  if (skipSearchWatch) {
+    skipSearchWatch = false
+    return
+  }
+  searchTimer = setTimeout(reloadItems, 300)
 })
 
 function addItemToCart(item) {
@@ -133,13 +145,28 @@ function addItemToCart(item) {
 }
 
 const $notification = inject('$notification')
+const thermalPrinterRef = ref(null)
+
+async function printSavedReceipt(receiptId) {
+  try {
+    await thermalPrinterRef.value?.printReceipt(receiptId)
+  } catch (err) {
+    console.error('Failed to print receipt:', err)
+    if (typeof $notification === 'function') {
+      const key = err?.code === PRINTER_NOT_CONNECTED ? 'printerNotConnected' : 'receiptPrintFailed'
+      $notification($t(key), 'error', 5000)
+    }
+  }
+}
 
 const handlePlaceOrder = async (orderData) => {
   if (!orderData?.receipt) return
   const receipt = orderData.receipt
   try {
-    await ReceiptService.saveReceipt(receipt)
+    const response = await ReceiptService.saveReceipt(receipt)
     orderListRef.value?.clearReceipt()
+    const savedId = response?.data?.data?.id
+    if (savedId) void printSavedReceipt(savedId)
     if (typeof $notification === 'function') {
       $notification(isDollarCurrency(receipt.currency) ? $t('receiptSavedUsd') : $t('receiptSavedLbp'), 'success', 3000)
     }
@@ -202,10 +229,7 @@ async function loadDraftFromQuery() {
 async function initPosPage() {
   cat.value = 'all'
   search.value = ''
-  if (!state.itemsCacheBootstrapped) {
-    await state.bootstrapItemsCache()
-  }
-  await state.loadItemsPageFromDb({ categoryId: 'all', reset: true })
+  await Promise.all([state.loadCategories(), reloadItems()])
 }
 
 // Enable horizontal scrolling with mouse wheel on categories container
@@ -462,6 +486,7 @@ onUnmounted(() => {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-anchor: none;
   scrollbar-width: none;
   -ms-overflow-style: none;
   border-radius: 16px;
@@ -477,6 +502,12 @@ onUnmounted(() => {
   height: 1px;
   width: 100%;
   pointer-events: none;
+}
+
+.items-loading {
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem 0 1.25rem;
 }
 
 .items-grid {

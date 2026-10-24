@@ -64,7 +64,7 @@
             <v-icon size="16">mdi-account-group-outline</v-icon>
             <span>{{ $t('details') }}</span>
           </div>
-          <div class="detail-tiles">
+          <div class="detail-tiles" :class="{ 'detail-tiles--two': !isDollarReceipt(details) }">
             <div class="detail-tile">
               <span class="detail-tile-icon"><v-icon size="18">mdi-account</v-icon></span>
               <span class="detail-tile-label">{{ $t('customerName') }}</span>
@@ -75,7 +75,7 @@
               <span class="detail-tile-label">{{ $t('employeeName') }}</span>
               <span class="detail-tile-value">{{ details.employeeName || '—' }}</span>
             </div>
-            <div class="detail-tile detail-tile--rate">
+            <div v-if="isDollarReceipt(details)" class="detail-tile detail-tile--rate">
               <span class="detail-tile-icon"><v-icon size="18">mdi-swap-horizontal</v-icon></span>
               <span class="detail-tile-label">{{ $t('dollarRate') }}</span>
               <span class="detail-tile-value numeric">{{ formatDollarRate(details.currencyRate ?? details.dollarRate) }}</span>
@@ -335,6 +335,8 @@ watch(
   position: relative;
   display: flex;
   align-items: flex-start;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
   justify-content: space-between;
   padding: 1.2rem 1.25rem;
   background: linear-gradient(135deg, #0f4f58, #156570 35%, #197783 65%, #32d8ee);
@@ -478,6 +480,8 @@ watch(
 }
 
 .receipt-dialog-body {
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
   position: relative;
   padding: 1.1rem 1.2rem 1.3rem;
   background: #fff;
@@ -528,6 +532,10 @@ watch(
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.55rem;
+}
+
+.detail-tiles--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .detail-tile {

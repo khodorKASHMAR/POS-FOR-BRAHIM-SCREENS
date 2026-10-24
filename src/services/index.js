@@ -1,5 +1,4 @@
 import axios from 'axios'
-import { disconnectItemChangesWebSocket } from '../composables/useItemChangesWebSocket'
 
 // Create axios instance with base configuration
 const PosAxios = axios.create({
@@ -33,7 +32,6 @@ PosAxios.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      disconnectItemChangesWebSocket()
       localStorage.removeItem('token')
       localStorage.removeItem('user')
       // Only redirect if not already on login page

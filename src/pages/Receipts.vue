@@ -1103,9 +1103,15 @@ onUnmounted(() => {
 .filter-field :deep(.v-field) {
   border: 1px solid transparent;
   border-radius: 10px;
+  overflow: hidden;
   background:
     linear-gradient(#ffffff, #ffffff) padding-box,
     linear-gradient(135deg, rgba(34, 147, 161, 0.45), rgba(50, 216, 238, 0.45)) border-box;
+}
+
+.filter-field :deep(.v-field__field),
+.filter-field :deep(.v-field__overlay) {
+  border-radius: 9px;
 }
 
 .filter-field :deep(.v-field__outline) {

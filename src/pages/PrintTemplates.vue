@@ -124,7 +124,7 @@
 
         <section class="pt-preview-panel">
           <div class="panel-title">{{ $t('livePreview') }}</div>
-          <div class="preview-stage">
+          <div ref="previewStageRef" class="preview-stage">
             <ReceiptTemplateRenderer
               :template="draft"
               :details="sample.details"
@@ -133,6 +133,43 @@
             />
           </div>
           <p class="preview-hint">{{ $t('printPreviewHint') }}</p>
+
+          <div class="printer-card">
+            <div class="panel-title">{{ $t('thermalPrinter') }}</div>
+            <p class="printer-status">{{ printerStatusText }}</p>
+            <div class="printer-actions">
+              <v-btn
+                size="small"
+                color="primary"
+                variant="flat"
+                prepend-icon="mdi-usb"
+                :disabled="!usbSupported || printerBusy"
+                @click="pairPrinter"
+              >
+                {{ $t('connectUsbPrinter') }}
+              </v-btn>
+              <v-btn
+                size="small"
+                color="primary"
+                variant="outlined"
+                prepend-icon="mdi-printer"
+                :loading="testPrinting"
+                :disabled="!pairedPrinter || printerBusy"
+                @click="testPrint"
+              >
+                {{ $t('testPrint') }}
+              </v-btn>
+              <v-btn
+                size="small"
+                color="error"
+                variant="text"
+                :disabled="!pairedPrinter || printerBusy"
+                @click="unpairPrinter"
+              >
+                {{ $t('forgetPrinter') }}
+              </v-btn>
+            </div>
+          </div>
         </section>
       </div>
     </div>
@@ -140,7 +177,7 @@
 </template>
 
 <script setup>
-import { getCurrentInstance, onMounted, reactive, ref } from 'vue'
+import { computed, getCurrentInstance, onMounted, reactive, ref } from 'vue'
 import TopBar from '../components/TopBar.vue'
 import ReceiptTemplateRenderer from '../components/print/ReceiptTemplateRenderer.vue'
 import PrintTemplateService from '../services/PrintTemplateService'
@@ -150,6 +187,14 @@ import {
   createSampleReceiptData
 } from '../print/defaultReceiptTemplate'
 import { useState } from '../store/state'
+import {
+  connectPrinter,
+  forgetPrinter,
+  getPairedPrinter,
+  isUsbSupported,
+  PRINTER_NOT_CONNECTED
+} from '../print/thermalPrinter'
+import { printReceiptElement } from '../print/thermalReceipt'
 
 const TEMPLATE_CODE = 'RECEIPT_80'
 
@@ -234,6 +279,54 @@ async function save() {
   } finally {
     saving.value = false
   }
+}
+
+const previewStageRef = ref(null)
+const usbSupported = isUsbSupported()
+const pairedPrinter = ref(getPairedPrinter())
+const pairing = ref(false)
+const testPrinting = ref(false)
+const printerBusy = computed(() => pairing.value || testPrinting.value)
+
+const printerStatusText = computed(() => {
+  if (!usbSupported) return $t('printerUnsupportedBrowser')
+  if (pairedPrinter.value) return `${$t('printerPaired')}: ${pairedPrinter.value.label}`
+  return $t('printerNotPaired')
+})
+
+async function pairPrinter() {
+  pairing.value = true
+  error.value = ''
+  successMsg.value = ''
+  try {
+    pairedPrinter.value = await connectPrinter()
+  } catch (e) {
+    console.error(e)
+    // NotFoundError means the user closed the device picker without choosing.
+    if (e?.name !== 'NotFoundError') error.value = $t('printerConnectFailed')
+  } finally {
+    pairing.value = false
+  }
+}
+
+async function testPrint() {
+  testPrinting.value = true
+  error.value = ''
+  successMsg.value = ''
+  try {
+    await printReceiptElement(previewStageRef.value?.querySelector('.thermal-receipt'))
+    successMsg.value = $t('testPrintSent')
+  } catch (e) {
+    console.error(e)
+    error.value = $t(e?.code === PRINTER_NOT_CONNECTED ? 'printerNotConnected' : 'receiptPrintFailed')
+  } finally {
+    testPrinting.value = false
+  }
+}
+
+async function unpairPrinter() {
+  await forgetPrinter()
+  pairedPrinter.value = null
 }
 
 onMounted(load)
@@ -400,5 +493,23 @@ onMounted(load)
   font-size: 0.8rem;
   color: #678086;
   text-align: center;
+}
+
+.printer-card {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(15, 79, 88, 0.1);
+}
+
+.printer-status {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: #4d6066;
+}
+
+.printer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 </style>

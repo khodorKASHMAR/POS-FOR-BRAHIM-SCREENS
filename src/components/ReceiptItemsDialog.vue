@@ -253,8 +253,7 @@ function resolveImage(image) {
 }
 
 function resolveRowImage(row) {
-  void state.itemImageVersion
-  return resolveImage(row?.image) || resolveImage(state.getItemImage(row?.itemId))
+  return resolveImage(row?.image)
 }
 
 function openImage(row) {
@@ -334,7 +333,6 @@ async function loadItems() {
     const response = await ReceiptService.getReceiptItems(props.receiptId)
     const data = response?.data?.data || {}
     items.value = (data.items || []).map(normalizeItemRow)
-    await state.ensureItemImages(items.value.map((row) => row.itemId))
     receiptCurrency.value =
       data.currency != null
         ? uiCurrencyToEnum(data.currency)

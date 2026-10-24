@@ -36,7 +36,6 @@
         >
           <div class="category-content">
             <div class="category-name">{{ $t('allMenu') }}</div>
-            <div class="category-count">{{ totalItemCount }} {{ $t('items') }}</div>
           </div>
         </div>
         <div
@@ -73,9 +72,6 @@
                   </button>
                 </template>
               </v-tooltip>
-            </div>
-            <div class="category-count-cell">
-              <span class="category-count">{{ category.itemCount || 0 }} {{ $t('items') }}</span>
             </div>
             <div class="category-delete-cell" @click.stop>
               <v-tooltip
@@ -118,7 +114,8 @@
 
       <!-- Items Grid -->
       <div class="items-wrapper" :dir="lang.dir">
-        <div class="items-grid" :class="{ 'items-grid-rtl': lang.dir === 'rtl' }">
+        <div ref="topSentinelRef" class="items-scroll-sentinel" aria-hidden="true" />
+        <div ref="gridRef" class="items-grid" :class="{ 'items-grid-rtl': lang.dir === 'rtl' }">
           <HomeItemCard
             v-for="i in filtered"
             :key="i.id"
@@ -393,7 +390,6 @@
               <section class="aid-block aid-block--fill aid-block--photo">
                 <div class="aid-block-label">
                   <span>{{ $t('image') }}</span>
-                  <span class="dialog-label-required">*</span>
                 </div>
                 <input
                   ref="itemImageInputRef"
@@ -404,7 +400,7 @@
                 />
                 <div
                   class="image-upload-zone"
-                  :class="{ 'has-image': !!itemImagePreview, 'image-error': imageError }"
+                  :class="{ 'has-image': !!itemImagePreview }"
                   @click="triggerItemImagePick"
                 >
                   <template v-if="itemImagePreview">
@@ -435,9 +431,9 @@
                   </template>
                   <template v-else>
                     <div class="image-upload-icon">
-                      <v-icon size="large" :color="imageError ? 'error' : 'primary'">mdi-camera</v-icon>
+                      <v-icon size="large" color="primary">mdi-camera</v-icon>
                     </div>
-                    <span class="image-upload-text">{{ imageError ? $t('fieldRequired') : $t('placeholderChoosePhoto') }}</span>
+                    <span class="image-upload-text">{{ $t('placeholderChoosePhoto') }}</span>
                   </template>
                 </div>
               </section>
@@ -503,7 +499,8 @@ import TopBar from '../components/TopBar.vue'
 import ImageCropper from '../components/ImageCropper.vue'
 import PosAutocomplete from '../components/PosAutocomplete.vue'
 import HardwareBarcodeListenDialog from '../components/HardwareBarcodeListenDialog.vue'
-import { useInfiniteScroll } from '../composables/useInfiniteScroll'
+import { keepScrollAnchor, useInfiniteScroll } from '../composables/useInfiniteScroll'
+import { useItemsPager } from '../composables/useItemsPager'
 import { CurrencyEnum } from '../constants/enums'
 import { displayCatalogPrice, isDollarCurrency, roundForCurrency } from '../constants/currency'
 
@@ -530,6 +527,8 @@ export default {
     const search = ref('')
     const categoriesContainerRef = ref(null)
     const scrollSentinelRef = ref(null)
+    const topSentinelRef = ref(null)
+    const gridRef = ref(null)
     const categoryDialog = ref(false)
     const itemDialog = ref(false)
     const barcodeListenDialog = ref(false)
@@ -537,7 +536,6 @@ export default {
     const editingCategory = ref(null)
     const editingItem = ref(null)
     const categories = computed(() => state.categories)
-    const totalItemCount = computed(() => state.totalItemCount)
     const categorySearch = ref('')
 
     const emptyItemForm = () => ({
@@ -565,7 +563,6 @@ export default {
     const itemImagePreview = ref(null)
     const itemImageFile = ref(null)
     const itemImageInputRef = ref(null)
-    const imageError = ref(false)
     const imagePreviewDialog = ref(false)
     const buyingPriceError = ref(false)
     const sellingPriceError = ref(false)
@@ -596,53 +593,41 @@ export default {
       categorySearch.value = query || ''
     }
 
-    const isSearching = computed(() => !!(search.value || '').trim())
-    const pageState = computed(() => state.getCategoryItemsPageState(cat.value))
-    const itemsLoading = computed(() => {
-      if (isSearching.value) return !!state.searchLoading
-      return !!pageState.value?.loading
-    })
+    const {
+      items: filtered,
+      loading: itemsLoading,
+      hasMore,
+      hasPrevious,
+      reload,
+      loadMore,
+      loadPrevious,
+      upsertItem,
+      removeItem
+    } = useItemsPager({ applyChange: (mutate) => keepScrollAnchor(gridRef.value, mutate) })
 
-    const loadedItems = computed(() => {
-      void state.itemCacheVersion
-      if (isSearching.value) return state.searchResults || []
-      return state.getCategoryItemsPageItems(cat.value)
-    })
+    const reloadItems = () => reload({ categoryId: cat.value, query: search.value })
 
-    const filtered = computed(() => loadedItems.value)
-
-    const canLoadMore = computed(() => {
-      if (isSearching.value) return false
-      const p = pageState.value
-      if (!p || p.loading) return false
-      if (p.page < 0) return true
-      return p.page + 1 < p.totalPages
-    })
-
-    const loadMoreItems = () => {
-      if (!canLoadMore.value) return
-      return state.loadItemsPageFromDb({ categoryId: cat.value, reset: false })
-    }
-
-    useInfiniteScroll(scrollSentinelRef, loadMoreItems, canLoadMore)
+    useInfiniteScroll(scrollSentinelRef, loadMore, () => hasMore.value && !itemsLoading.value)
+    useInfiniteScroll(topSentinelRef, loadPrevious, () => hasPrevious.value && !itemsLoading.value)
 
     let searchTimer = null
-    watch(search, (q) => {
+    let skipSearchWatch = false
+    watch(search, () => {
       clearTimeout(searchTimer)
-      searchTimer = setTimeout(() => {
-        const trimmed = (q || '').trim()
-        if (!trimmed) {
-          state.searchResults = []
-          return
-        }
-        state.searchItems({ query: trimmed, categoryId: cat.value })
-      }, 300)
+      if (skipSearchWatch) {
+        skipSearchWatch = false
+        return
+      }
+      searchTimer = setTimeout(reloadItems, 300)
     })
 
-    watch(cat, async (categoryId) => {
-      search.value = ''
-      state.searchResults = []
-      await state.loadItemsPageFromDb({ categoryId, reset: true })
+    watch(cat, () => {
+      clearTimeout(searchTimer)
+      if (search.value) {
+        skipSearchWatch = true
+        search.value = ''
+      }
+      reloadItems()
     })
 
     const isBuyingDollar = computed(() => isDollarCurrency(itemForm.value.buyingCurrency))
@@ -822,7 +807,6 @@ export default {
 
       itemImageFile.value = croppedBlob
       itemImagePreview.value = URL.createObjectURL(croppedBlob)
-      imageError.value = false
 
       if (imageToCrop.value?.startsWith?.('blob:')) {
         URL.revokeObjectURL(imageToCrop.value)
@@ -846,7 +830,6 @@ export default {
       itemForm.value.image = null
       itemImagePreview.value = null
       itemImageFile.value = null
-      imageError.value = true
       const input = itemImageInputRef.value
       if (input) input.value = ''
     }
@@ -930,7 +913,7 @@ export default {
 
         if (response?.data?.success) {
           const wasEdit = !!editingCategory.value
-          await state.loadCategories({ force: true })
+          await state.loadCategories()
           closeCategoryDialog()
           $notification(wasEdit ? $t('categoryUpdated') : $t('categoryCreated'), 'success')
         } else {
@@ -946,7 +929,7 @@ export default {
         try {
           const response = await CategoryService.deleteCategory(categoryId)
           if (response?.data?.success) {
-            await state.loadCategories({ force: true })
+            await state.loadCategories()
             if (String(cat.value) === String(categoryId)) {
               cat.value = 'all'
             }
@@ -982,7 +965,6 @@ export default {
           ? (item.image.startsWith('data:') ? item.image : `data:image/jpeg;base64,${item.image}`)
           : null
         itemImageFile.value = null
-        imageError.value = false
         if (itemImageInputRef.value) itemImageInputRef.value.value = ''
       } else {
         const currency = state.currency === 'LBP' ? CurrencyEnum.LBP : CurrencyEnum.DOLLAR
@@ -994,7 +976,6 @@ export default {
         }
         itemImagePreview.value = null
         itemImageFile.value = null
-        imageError.value = false
         if (itemImageInputRef.value) itemImageInputRef.value.value = ''
       }
       buyingPriceError.value = false
@@ -1012,23 +993,19 @@ export default {
       itemForm.value = emptyItemForm()
       itemImagePreview.value = null
       itemImageFile.value = null
-      imageError.value = false
       buyingPriceError.value = false
       sellingPriceError.value = false
       if (itemImageInputRef.value) itemImageInputRef.value.value = ''
     }
 
     const saveItem = async () => {
-      const hasImage = !!itemImageFile.value || !!itemImagePreview.value
-      imageError.value = !editingItem.value && !hasImage
-
       categorySelectError.value = itemForm.value.categoryId ? '' : ($t('category') + ' *')
 
       const buyingPriceValid = validateBuyingPrice()
       const sellingPriceValid = validateSellingPrice()
 
       const { valid } = await itemFormRef.value?.validate() ?? { valid: false }
-      if (!valid || imageError.value || !buyingPriceValid || !sellingPriceValid || categorySelectError.value) return
+      if (!valid || !buyingPriceValid || !sellingPriceValid || categorySelectError.value) return
 
       try {
         const payload = {
@@ -1045,7 +1022,6 @@ export default {
 
         const imageFile = itemImageFile.value || null
         const previousId = editingItem.value?.id
-        const previousCategoryId = editingItem.value?.categoryId
         let response
         if (editingItem.value) {
           response = await ItemService.updateItem(editingItem.value.id, payload, imageFile)
@@ -1056,19 +1032,14 @@ export default {
         if (response?.data?.success) {
           const wasEdit = !!editingItem.value
           const data = response.data.data
-          if (wasEdit && previousId && data?.id && String(previousId) !== String(data.id)) {
-            state.removeItemFromCache(previousId)
-          }
-          state.addItemCache(data)
-          if (data?.id && data?.image) state.addItemImageCache(data.id, data.image)
-          else if (data?.id && imageFile) state.invalidateItemImageCache(data.id)
-
-          const newCategoryId = data?.categoryId ?? itemForm.value.categoryId
-          if (!wasEdit) {
-            state.adjustCategoryCount(newCategoryId, +1)
-          } else if (String(previousCategoryId ?? '') !== String(newCategoryId ?? '')) {
-            state.adjustCategoryCount(previousCategoryId, -1)
-            state.adjustCategoryCount(newCategoryId, +1)
+          if (data?.id) {
+            const inSelectedCategory = cat.value === 'all' || String(data.categoryId) === String(cat.value)
+            if (inSelectedCategory) {
+              upsertItem(data, previousId)
+            } else {
+              if (previousId) removeItem(previousId)
+              removeItem(data.id)
+            }
           }
 
           closeItemDialog()
@@ -1084,12 +1055,9 @@ export default {
     const deleteItem = async (itemId) => {
       if (confirm('Are you sure you want to delete this item?')) {
         try {
-          const cached = state.getItem(itemId)
-          const categoryId = cached?.categoryId
           const response = await ItemService.deleteItem(itemId)
           if (response?.data?.success) {
-            state.removeItemFromCache(itemId)
-            state.adjustCategoryCount(categoryId, -1)
+            removeItem(itemId)
             $notification($t('itemDeleted'), 'success')
           } else {
             $notification($t('itemDeleteFailed'), 'error')
@@ -1100,12 +1068,7 @@ export default {
       }
     }
 
-    const initAddItemsPage = async () => {
-      if (!state.itemsCacheBootstrapped) {
-        await state.bootstrapItemsCache()
-      }
-      await state.loadItemsPageFromDb({ categoryId: cat.value || 'all', reset: true })
-    }
+    const initAddItemsPage = () => Promise.all([state.loadCategories(), reloadItems()])
 
     onMounted(() => {
       document.documentElement.setAttribute('dir', lang.value.dir)
@@ -1149,8 +1112,9 @@ export default {
       search,
       categoriesContainerRef,
       scrollSentinelRef,
+      topSentinelRef,
+      gridRef,
       categories,
-      totalItemCount,
       filtered,
       itemsLoading,
       categoryDialog,
@@ -1198,7 +1162,6 @@ export default {
       handleGenerateBarcode,
       openBarcodeListenDialog,
       applyScannedBarcode,
-      imageError,
       imagePreviewDialog,
       openImagePreview,
       cropperDialog,
@@ -1844,8 +1807,8 @@ export default {
 
 .category-card-grid {
   display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: auto auto;
+  grid-template-columns: 1fr auto auto;
+  grid-template-rows: auto;
   gap: 0.2rem 0.25rem;
   align-items: center;
   width: 100%;
@@ -1856,11 +1819,6 @@ export default {
 }
 
 .category-name-cell {
-  display: flex;
-  align-items: center;
-}
-
-.category-count-cell {
   display: flex;
   align-items: center;
 }
@@ -1999,6 +1957,7 @@ export default {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-anchor: none;
   scrollbar-width: none;
   -ms-overflow-style: none;
   border-radius: 16px;
@@ -2334,15 +2293,6 @@ export default {
   background: transparent;
 }
 
-.image-upload-zone.image-error {
-  border-color: #dc2626;
-  border-style: dashed;
-}
-
-.image-upload-zone.image-error:hover {
-  border-color: #dc2626;
-}
-
 .image-upload-icon {
   display: flex;
   align-items: center;
@@ -2357,27 +2307,11 @@ export default {
   color: #2293a1;
 }
 
-.image-upload-zone.image-error .image-upload-icon :deep(.v-icon) {
-  background: linear-gradient(135deg, #dc2626, #f87171);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
-
 .image-upload-text {
   font-size: 0.9375rem;
   font-weight: 600;
   color: #334155;
   text-align: center;
-}
-
-.image-upload-zone.image-error .image-upload-text {
-  background: linear-gradient(135deg, #dc2626, #f87171);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
 }
 
 .image-upload-preview {

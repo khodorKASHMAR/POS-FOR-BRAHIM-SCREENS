@@ -17,36 +17,24 @@ function buildItemSearchBody(query) {
 
 export default {
   /**
-   * Paged lean catalog. Optional categoryId + query.
+   * Paged catalog (items include their image). Optional categoryId + query.
    * @param {{ categoryId?: string|null, query?: string, page?: number, size?: number }} [params]
    */
   getUserItems(params = {}) {
     const page = params.page ?? 0
-    const size = params.size ?? 50
+    const size = params.size ?? 25
     const query = {}
     if (params.categoryId != null && params.categoryId !== '' && params.categoryId !== 'all') {
       query.categoryId = params.categoryId
     }
     if (params.query) query.query = params.query
     return PosAxios.get('/item/user-items', {
-      params: { ...query, page, size, sort: 'id,asc' }
+      params: { ...query, page, size }
     })
   },
 
   getItemByBarcode(barcode) {
     return PosAxios.get(`/item/barcode/${encodeURIComponent(barcode)}`)
-  },
-
-  /**
-   * Batch-load base64 images for item ids.
-   * @param {string[]} ids
-   */
-  getItemImages(ids = []) {
-    return PosAxios.post('/item/images', ids)
-  },
-
-  getItemImage(itemId) {
-    return PosAxios.get(`/item/${itemId}/image`)
   },
 
   /**

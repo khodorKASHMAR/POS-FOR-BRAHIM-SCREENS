@@ -18,7 +18,7 @@
           <p>{{ $t('waitingForBarcodeReader') }}</p>
         </div>
         <button type="button" class="hbl__close" :aria-label="$t('back')" @click="close">
-          <v-icon size="20">{{ closeIcon }}</v-icon>
+          <v-icon size="20">mdi-close</v-icon>
         </button>
       </header>
 
@@ -48,13 +48,11 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import { useState } from '../store/state'
 import { translations } from '../i18n/translations'
 import { useHardwareBarcode } from '../composables/useHardwareBarcode'
 import { normalizeBarcode } from '../utils/barcode'
-import { useIsMobile } from '../composables/useIsMobile'
-import { useMobileOverlayBack, useNavArrowIcon } from '../composables/useMobileBackStack'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false }
@@ -88,11 +86,6 @@ function submitFromInput() {
 function close() {
   emit('update:modelValue', false)
 }
-
-const isMobile = useIsMobile()
-const navArrowIcon = useNavArrowIcon()
-const closeIcon = computed(() => (isMobile.value ? navArrowIcon.value : 'mdi-close'))
-useMobileOverlayBack(() => props.modelValue, close)
 
 function onModelChange(value) {
   emit('update:modelValue', value)

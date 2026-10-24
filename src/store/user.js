@@ -1,7 +1,6 @@
 
 import { defineStore } from 'pinia'
 import { firstAllowedPath, MENU_LIST } from '../constants/menus'
-import { disconnectItemChangesWebSocket } from '../composables/useItemChangesWebSocket'
 
 function emptyUser() {
   return {
@@ -51,7 +50,6 @@ export const useUserStore = defineStore('user', {
       localStorage.setItem('user', JSON.stringify(this.user))
     },
     logout() {
-      disconnectItemChangesWebSocket()
       localStorage.clear()
       location.reload()
     }

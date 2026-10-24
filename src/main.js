@@ -7,16 +7,10 @@ import * as directives from 'vuetify/directives'
 import 'vuetify/styles'
 import '@mdi/font/css/materialdesignicons.css'
 import './styles/fonts.css'
-import './styles/mobile-app.css'
 
 import App from './App.vue'
 import router from './router'
 import i18nPlugin from './plugins/i18n'
-import { isMobileDevice } from './composables/useIsMobile'
-
-if (typeof document !== 'undefined' && isMobileDevice()) {
-  document.documentElement.classList.add('is-mobile-app')
-}
 
 const vuetify = createVuetify({
   components,

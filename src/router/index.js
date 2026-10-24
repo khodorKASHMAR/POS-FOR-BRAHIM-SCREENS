@@ -8,71 +8,62 @@ import Receipts from '../pages/Receipts.vue'
 import Dashboard from '../pages/Dashboard.vue'
 import LoginPage from '../pages/LoginPage.vue'
 import PrintTemplates from '../pages/PrintTemplates.vue'
-import DollarRateMobile from '../pages/mobile/DollarRateMobile.vue'
-import CashDrawerMobile from '../pages/mobile/CashDrawerMobile.vue'
-import ReceiptsMobile from '../pages/mobile/ReceiptsMobile.vue'
-import UsersMobile from '../pages/mobile/UsersMobile.vue'
-import DashboardMobile from '../pages/mobile/DashboardMobile.vue'
-import AddItemsMobile from '../pages/mobile/AddItemsMobile.vue'
-import LoginMobile from '../pages/mobile/LoginMobile.vue'
-import PosMobile from '../pages/mobile/PosMobile.vue'
-import { createDevicePage } from '../utils/devicePage'
 import { useUserStore } from '../store/user'
 
 const routes = [
   {
     path: '/login',
     name: 'Login',
-    component: createDevicePage(LoginPage, LoginMobile),
+    component: LoginPage,
     meta: { requiresAuth: false }
   },
   {
     path: '/',
     name: 'Pos',
-    component: createDevicePage(Pos, PosMobile),
+    component: Pos,
     meta: { requiresAuth: true, menuCode: 'home' }
   },
   {
     path: '/drafts',
     name: 'Drafts',
-    component: createDevicePage(Receipts, ReceiptsMobile),
+    component: Receipts,
     props: { mode: 'drafts' },
     meta: { requiresAuth: true, menuCode: 'drafts' }
   },
   {
     path: '/receipts',
     name: 'Receipts',
-    component: createDevicePage(Receipts, ReceiptsMobile),
+    component: Receipts,
     meta: { requiresAuth: true, menuCode: 'receipts' }
   },
   {
     path: '/cash-drawer',
     name: 'CashDrawer',
-    component: createDevicePage(CashDrawer, CashDrawerMobile),
+    component: CashDrawer,
     meta: { requiresAuth: true, menuCode: 'cash-drawer' }
   },
   {
     path: '/dashboard',
     name: 'Dashboard',
-    component: createDevicePage(Dashboard, DashboardMobile),
+    component: Dashboard,
     meta: { requiresAuth: true, menuCode: 'dashboard' }
   },
   {
     path: '/add-items',
     name: 'AddItems',
-    component: createDevicePage(AddItems, AddItemsMobile),
+    component: AddItems,
     meta: { requiresAuth: true, menuCode: 'add-items' }
   },
   {
     path: '/users',
     name: 'Users',
-    component: createDevicePage(Users, UsersMobile),
+    component: Users,
     meta: { requiresAuth: true, menuCode: 'users' }
   },
   {
     path: '/currency-rate',
     name: 'CurrencyRate',
-    component: createDevicePage(DollarRate, DollarRateMobile),
+    component: DollarRate,
     meta: { requiresAuth: true, menuCode: 'currency-rate' }
   },
   {
@@ -89,9 +80,15 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
-  const isAuthenticated = !!localStorage.getItem('token')
+  let isAuthenticated = !!localStorage.getItem('token')
   const u = useUserStore()
   const fallback = u.firstAllowedPath || '/'
+
+  if (isAuthenticated && !u.user?.menus?.length) {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    isAuthenticated = false
+  }
 
   if (to.meta.requiresAuth && !isAuthenticated) {
     next('/login')

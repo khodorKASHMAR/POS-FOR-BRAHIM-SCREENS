@@ -18,13 +18,14 @@
             variant="flat"
             size="small"
             prepend-icon="mdi-printer"
+            :loading="printing"
             :disabled="loading || !template"
             @click="print"
           >
             {{ $t('printReceipt') }}
           </v-btn>
           <v-btn icon variant="text" size="small" :aria-label="$t('back')" @click="close">
-            <v-icon>{{ closeIcon }}</v-icon>
+            <v-icon>mdi-close</v-icon>
           </v-btn>
         </div>
       </div>
@@ -44,14 +45,13 @@
 </template>
 
 <script setup>
-import { computed, getCurrentInstance, nextTick, ref, watch } from 'vue'
+import { getCurrentInstance, nextTick, ref, watch } from 'vue'
 import ReceiptTemplateRenderer from './print/ReceiptTemplateRenderer.vue'
-import PrintTemplateService from '../services/PrintTemplateService'
-import ReceiptService from '../services/ReceiptService'
 import { createDefaultReceiptTemplate } from '../print/defaultReceiptTemplate'
+import { loadReceiptPrintData } from '../print/receiptPrintData'
+import { printReceiptElement } from '../print/thermalReceipt'
+import { connectPrinter, getPairedPrinter, PRINTER_NOT_CONNECTED } from '../print/thermalPrinter'
 import { useState } from '../store/state'
-import { useIsMobile } from '../composables/useIsMobile'
-import { useMobileOverlayBack, useNavArrowIcon } from '../composables/useMobileBackStack'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -62,9 +62,12 @@ const emit = defineEmits(['update:modelValue'])
 
 const instance = getCurrentInstance()
 const $t = (key) => instance?.appContext?.config?.globalProperties?.$t?.(key) ?? key
+const $notification = (msg, status, delay) =>
+  instance?.appContext?.config?.globalProperties?.$notification?.(msg, status, delay)
 const state = useState()
 
 const loading = ref(false)
+const printing = ref(false)
 const error = ref('')
 const template = ref(null)
 const details = ref(null)
@@ -76,26 +79,6 @@ function close() {
   emit('update:modelValue', false)
 }
 
-const isMobile = useIsMobile()
-const navArrowIcon = useNavArrowIcon()
-const closeIcon = computed(() => (isMobile.value ? navArrowIcon.value : 'mdi-close'))
-useMobileOverlayBack(() => props.modelValue, close)
-
-function normalizeItemRow(raw) {
-  const nested = raw?.item || {}
-  return {
-    itemId: nested.id ?? raw.itemId,
-    itemNameAr: nested.nameAr ?? raw.itemNameAr,
-    itemNameEn: nested.nameEn ?? raw.itemNameEn,
-    sellingPrice: nested.sellingPrice ?? nested.sellingPriceDollar ?? raw.sellingPrice ?? raw.sellingPriceDollar,
-    sellingCurrency: nested.sellingCurrency ?? raw.sellingCurrency ?? 0,
-    quantity: raw.quantity,
-    itemDiscount: raw.itemDiscount,
-    isDiscountPercent: raw.isDiscountPercent,
-    subTotal: raw.subTotal
-  }
-}
-
 async function load() {
   if (!props.receiptId) return
   loading.value = true
@@ -104,28 +87,11 @@ async function load() {
   items.value = []
   itemsSubtotal.value = 0
   try {
-    const [tplRes, detailsRes, itemsRes] = await Promise.all([
-      PrintTemplateService.getPrintTemplate('RECEIPT_80').catch(() => null),
-      ReceiptService.getReceiptDetails(props.receiptId),
-      ReceiptService.getReceiptItems(props.receiptId)
-    ])
-
-    const tpl = tplRes?.data?.data
-    template.value = tpl
-      ? {
-          code: tpl.code,
-          paperWidthMm: tpl.paperWidthMm || 80,
-          blocks: tpl.blocks || []
-        }
-      : createDefaultReceiptTemplate()
-
-    details.value = detailsRes?.data?.data || null
-    const itemsData = itemsRes?.data?.data || {}
-    items.value = (itemsData.items || []).map(normalizeItemRow)
-    const subtotalFromApi = Number(itemsData.itemsSubtotal)
-    itemsSubtotal.value = Number.isFinite(subtotalFromApi) && subtotalFromApi > 0
-      ? subtotalFromApi
-      : items.value.reduce((sum, row) => sum + (Number(row.subTotal) || 0), 0)
+    const data = await loadReceiptPrintData(props.receiptId)
+    template.value = data.template
+    details.value = data.details
+    items.value = data.items
+    itemsSubtotal.value = data.itemsSubtotal
   } catch (e) {
     console.error(e)
     error.value = $t('printTemplateLoadFailed')
@@ -136,87 +102,20 @@ async function load() {
 }
 
 async function print() {
-  await nextTick()
-  const node = printRoot.value
-  if (!node) {
-    window.print()
-    return
-  }
-
-  const iframe = document.createElement('iframe')
-  iframe.setAttribute('aria-hidden', 'true')
-  iframe.style.position = 'fixed'
-  iframe.style.right = '0'
-  iframe.style.bottom = '0'
-  iframe.style.width = '0'
-  iframe.style.height = '0'
-  iframe.style.border = '0'
-  document.body.appendChild(iframe)
-
-  const doc = iframe.contentDocument || iframe.contentWindow?.document
-  if (!doc) {
-    document.body.removeChild(iframe)
-    window.print()
-    return
-  }
-
-  const widthMm = template.value?.paperWidthMm || 80
-  doc.open()
-  doc.write(`<!DOCTYPE html><html><head><title>Receipt</title>
-    <style>
-      @page { size: ${widthMm}mm auto; margin: 0; }
-      html, body { margin: 0; padding: 0; background: #fff; }
-      body { display: flex; justify-content: center; }
-      .thermal-receipt { border: none !important; }
-    </style>
-  </head><body></body></html>`)
-  doc.close()
-
-  const clone = node.cloneNode(true)
-  doc.body.appendChild(clone)
-
-  // Copy computed styles from scoped Vue CSS by inlining link to current stylesheets is hard;
-  // duplicate essential thermal styles for the iframe print.
-  const style = doc.createElement('style')
-  style.textContent = `
-    .thermal-receipt {
-      box-sizing: border-box;
-      width: ${widthMm}mm;
-      max-width: 100%;
-      margin: 0 auto;
-      padding: 10px 8px 14px;
-      background: #fff;
-      color: #111;
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 12px;
-      line-height: 1.35;
+  printing.value = true
+  try {
+    // Pairing needs this click, so connect here when no printer was paired in this browser yet.
+    if (!getPairedPrinter()) await connectPrinter()
+    await nextTick()
+    await printReceiptElement(printRoot.value?.firstElementChild)
+  } catch (e) {
+    console.error('Failed to print receipt:', e)
+    if (e?.name !== 'NotFoundError') {
+      $notification($t(e?.code === PRINTER_NOT_CONNECTED ? 'printerNotConnected' : 'receiptPrintFailed'), 'error', 5000)
     }
-    .block { margin-bottom: 8px; }
-    .block-header { text-align: center; padding-bottom: 6px; border-bottom: 1px dashed #333; }
-    .shop-name { font-size: 15px; font-weight: 700; text-transform: uppercase; }
-    .shop-line { margin-top: 2px; font-size: 11px; word-break: break-word; }
-    .meta-row, .totals-row, .pay-row { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 2px; }
-    .pay-row--muted { opacity: 0.75; font-size: 11px; }
-    .items-head, .item-main { display: grid; grid-template-columns: 1fr 36px 72px; gap: 4px; }
-    .items-head { border-bottom: 1px solid #333; padding-bottom: 3px; margin-bottom: 4px; font-weight: 700; font-size: 11px; }
-    .col-qty, .col-amt { text-align: end; }
-    .item-row { margin-bottom: 5px; }
-    .item-disc { font-size: 10px; opacity: 0.8; }
-    .totals-row--grand { margin-top: 4px; padding-top: 4px; border-top: 1px dashed #333; font-weight: 700; font-size: 13px; }
-    .block-payment { border-top: 1px dashed #999; padding-top: 6px; }
-    .custom-text, .footer-text { text-align: center; margin: 0; white-space: pre-wrap; }
-    .dashed { border-top: 1px dashed #333; margin-bottom: 6px; }
-  `
-  doc.head.appendChild(style)
-
-  const win = iframe.contentWindow
-  setTimeout(() => {
-    win?.focus()
-    win?.print()
-    setTimeout(() => {
-      document.body.removeChild(iframe)
-    }, 500)
-  }, 50)
+  } finally {
+    printing.value = false
+  }
 }
 
 watch(

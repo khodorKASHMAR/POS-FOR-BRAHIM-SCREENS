@@ -15,11 +15,10 @@
           variant="text"
           size="small"
           class="pay-dialog-close-btn"
-          :class="{ 'pay-dialog-close-btn--ghost': isMobile }"
           :aria-label="$t('back')"
           @click="closeDialog"
         >
-          <v-icon :size="isMobile ? 28 : 24">{{ payCloseIcon }}</v-icon>
+          <v-icon size="24">mdi-close</v-icon>
         </v-btn>
         <div class="pay-dialog-title">{{ $t('payReceipt') }}</div>
         <span class="pay-dialog-header-spacer" aria-hidden="true" />
@@ -159,8 +158,6 @@
 <script setup>
 import { computed, getCurrentInstance, inject, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useState } from '../store/state'
-import { useIsMobile } from '../composables/useIsMobile'
-import { useMobileOverlayBack, useNavArrowIcon } from '../composables/useMobileBackStack'
 import {
   isDollarCurrency,
   roundForCurrency,
@@ -415,11 +412,6 @@ function closeDialog() {
   emit('update:modelValue', false)
 }
 
-const isMobile = useIsMobile()
-const navArrowIcon = useNavArrowIcon()
-const payCloseIcon = computed(() => (isMobile.value ? navArrowIcon.value : 'mdi-close'))
-useMobileOverlayBack(() => props.modelValue, closeDialog)
-
 const rawTotalBeforeReceiptDiscount = computed(() =>
   props.receipt.receiptItems.reduce((sum, item) => sum + (Number(item.subTotal) || 0), 0)
 )
@@ -505,16 +497,6 @@ const updateReceiptDiscount = (event) => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-}
-
-.pay-dialog-close-btn--ghost {
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.pay-dialog-close-btn--ghost:hover,
-.pay-dialog-close-btn--ghost:focus {
-  background: rgba(25, 119, 131, 0.08) !important;
 }
 
 .order-summary {

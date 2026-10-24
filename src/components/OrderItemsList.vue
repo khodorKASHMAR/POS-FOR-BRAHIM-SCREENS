@@ -196,13 +196,8 @@ const receipt = reactive({
 
 const showPayDialog = ref(false)
 const draftReceiptId = ref(null)
-
-const props = defineProps({
-  items: {
-    type: Array,
-    default: () => []
-  }
-})
+/** Catalog rows (name, price, image) for items currently in the cart, keyed by item id. */
+const cartCatalog = reactive({})
 
 const emit = defineEmits(['place-order', 'save-draft'])
 
@@ -252,7 +247,7 @@ state.lang
 state.exchangeRate
 
 function getCatalogItem(itemId) {
-  return state.getItem(itemId) || props.items.find((i) => String(i.id) === String(itemId)) || null
+  return cartCatalog[String(itemId)] || null
 }
 
 function getUnitPrice(itemId) {
@@ -316,10 +311,7 @@ function recalcReceiptTotal() {
  */
 function addItemToCart(item) {
   if (!item || item.id == null) return
-  // Ensure lean metadata is in the unified cache for later cart renders / barcode hits.
-  if (item.sellingPrice != null || item.sellingPriceDollar != null) {
-    state.addItemCache(item)
-  }
+  cartCatalog[String(item.id)] = item
   const existing = receipt.receiptItems.find(ri => ri.itemId === item.id)
   if (existing) {
     existing.quantity = (existing.quantity || 1) + 1
@@ -340,9 +332,6 @@ function addItemToCart(item) {
     }
   }
   recalcReceiptTotal()
-  if (item?.id != null && item.hasImage !== false) {
-    state.ensureItemImages([item.id], { limit: 1 })
-  }
 }
 
 function clearReceipt() {
@@ -358,10 +347,11 @@ function clearReceipt() {
   receipt.customerName = ''
   receipt.currency = uiCurrencyToEnum(state.currency)
   receipt.receiptItems = []
+  Object.keys(cartCatalog).forEach((key) => delete cartCatalog[key])
 }
 
 const getItemImage = (itemId) => {
-  return state.getItemImage(itemId) || null
+  return getCatalogItem(itemId)?.image || null
 }
 
 const getItemName = (item) => {
@@ -369,11 +359,9 @@ const getItemName = (item) => {
 }
 
 const { ingestBarcode } = useBarcodeCart({
-  getItems: () => state.items,
   addItem: addItemToCart,
   getItemName,
-  $t,
-  findRemote: (code) => state.findItemByBarcodeRemote(code)
+  $t
 })
 
 function onBarcodeDecoded(code) {
@@ -386,7 +374,6 @@ useHardwareBarcode(onBarcodeDecoded, {
 
 // Display list: merge receiptItems with cached catalog item
 const orderedCart = computed(() => {
-  void state.itemCacheVersion
   const list = receipt.receiptItems.map(ri => {
     const catalog = getCatalogItem(ri.itemId) || {}
     const unit = getUnitPrice(ri.itemId)
@@ -619,6 +606,9 @@ function loadDraft({ id, details, items }) {
   }
 
   if (items?.length) {
+    items.forEach((row) => {
+      if (row.item?.id != null) cartCatalog[String(row.item.id)] = row.item
+    })
     receipt.receiptItems = items.map((row) => ({
       itemId: row.item?.id ?? row.itemId,
       quantity: row.quantity,
@@ -627,7 +617,6 @@ function loadDraft({ id, details, items }) {
       subTotal: Number(row.subTotal) || 0
     }))
     recalcReceiptTotal()
-    state.ensureItemImages(receipt.receiptItems.map((ri) => ri.itemId))
   }
 }
 </script>

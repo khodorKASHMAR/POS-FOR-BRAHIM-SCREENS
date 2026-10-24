@@ -1,16 +1,24 @@
 import { inject } from 'vue'
-import { findItemByBarcode, normalizeBarcode } from '../utils/barcode'
+import ItemService from '../services/ItemService'
+import { normalizeBarcode } from '../utils/barcode'
+
+async function findItemByBarcode(code) {
+  try {
+    const response = await ItemService.getItemByBarcode(code)
+    return response?.data?.data
+  } catch {
+    return null
+  }
+}
 
 /**
  * @param {{
- *   getItems: () => any[],
  *   addItem: (item: any) => void,
  *   getItemName: (item: any) => string,
- *   $t: (key: string) => string,
- *   findRemote?: (barcode: string) => Promise<any|null>
+ *   $t: (key: string) => string
  * }} options
  */
-export function useBarcodeCart({ getItems, addItem, getItemName, $t, findRemote }) {
+export function useBarcodeCart({ addItem, getItemName, $t }) {
   const $notification = inject('$notification')
   let lastCode = ''
   let lastAt = 0
@@ -18,21 +26,19 @@ export function useBarcodeCart({ getItems, addItem, getItemName, $t, findRemote 
 
   async function ingestBarcode(rawCode, { silent } = {}) {
     const code = normalizeBarcode(rawCode)
-    if (!code) return null
+    if (!code || inflight) return null
 
     const now = Date.now()
     if (code === lastCode && now - lastAt < 900) return null
     lastCode = code
     lastAt = now
 
-    let item = findItemByBarcode(getItems(), code)
-    if (!item && typeof findRemote === 'function' && !inflight) {
-      inflight = true
-      try {
-        item = await findRemote(code)
-      } finally {
-        inflight = false
-      }
+    inflight = true
+    let item
+    try {
+      item = await findItemByBarcode(code)
+    } finally {
+      inflight = false
     }
 
     if (!item) {
