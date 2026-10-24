@@ -193,6 +193,26 @@
                 </button>
               </div>
             </div>
+            <div class="page-size-control" role="group" :aria-label="$t('Show')">
+              <span class="page-size-label">
+                <v-icon size="15">mdi-format-list-numbered</v-icon>
+                {{ $t('Show') }}
+              </span>
+              <div class="page-size-segments">
+                <button
+                  v-for="opt in pageSizeOptions"
+                  :key="opt"
+                  type="button"
+                  class="page-size-option"
+                  :class="{ active: pagination.itemsPerPage === opt }"
+                  :aria-pressed="pagination.itemsPerPage === opt"
+                  :disabled="loading"
+                  @click="selectPageSize(opt)"
+                >
+                  {{ opt }}
+                </button>
+              </div>
+            </div>
           </div>
 
           <div class="results-body">
@@ -336,10 +356,17 @@
                       <button
                         type="button"
                         class="footer-action-btn footer-action-btn--print"
-                        @click="openPreview(receipt.receiptId)"
+                        :disabled="printingId === receipt.receiptId"
+                        @click="printReceipt(receipt.receiptId)"
                       >
-                        <v-icon size="16">mdi-printer-outline</v-icon>
-                        {{ $t('previewReceipt') }}
+                        <v-progress-circular
+                          v-if="printingId === receipt.receiptId"
+                          indeterminate
+                          size="14"
+                          width="2"
+                        />
+                        <v-icon v-else size="16">mdi-printer-outline</v-icon>
+                        {{ $t('printReceipt') }}
                       </button>
                     </div>
                   </div>
@@ -348,35 +375,6 @@
             </div>
 
             <div v-if="!loading && pagination.totalItems > 0" class="pagination-bar">
-              <div class="rows-per-page-control">
-                <span class="control-label">{{ $t('Show') }}</span>
-                <div class="dropdown-container">
-                  <button
-                    type="button"
-                    class="dropdown-trigger"
-                    :class="{ 'dropdown-open': isPageSizeOpen }"
-                    @click="isPageSizeOpen = !isPageSizeOpen"
-                  >
-                    {{ pagination.itemsPerPage }}
-                    <v-icon size="16" class="dropdown-arrow" :class="{ rotated: isPageSizeOpen }">
-                      mdi-chevron-down
-                    </v-icon>
-                  </button>
-                  <div v-if="isPageSizeOpen" class="dropdown-menu">
-                    <button
-                      v-for="opt in pageSizeOptions"
-                      :key="opt"
-                      type="button"
-                      class="dropdown-item"
-                      :class="{ selected: pagination.itemsPerPage === opt }"
-                      @click="selectPageSize(opt)"
-                    >
-                      {{ opt }}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
               <div class="pagination-container">
                 <button
                   type="button"
@@ -420,10 +418,9 @@
       v-model="detailsOpen"
       :receipt-id="selectedReceiptId"
       :is-draft="isDraftsMode"
-      @preview="onDetailsPreview"
     />
     <ReceiptItemsDialog v-model="itemsOpen" :receipt-id="selectedReceiptId" />
-    <ReceiptPrintPreviewDialog v-model="previewOpen" :receipt-id="selectedReceiptId" />
+    <ThermalReceiptPrinter v-if="!isDraftsMode" ref="thermalPrinterRef" />
   </div>
 </template>
 
@@ -435,10 +432,11 @@ import PosDateInput from '../components/PosDateInput.vue'
 import PosTimeInput from '../components/PosTimeInput.vue'
 import ReceiptDetailsDialog from '../components/ReceiptDetailsDialog.vue'
 import ReceiptItemsDialog from '../components/ReceiptItemsDialog.vue'
-import ReceiptPrintPreviewDialog from '../components/ReceiptPrintPreviewDialog.vue'
+import ThermalReceiptPrinter from '../components/print/ThermalReceiptPrinter.vue'
 import ReceiptService from '../services/ReceiptService'
 import { useState } from '../store/state'
 import { isDollarReceipt } from '../constants/currency'
+import { PRINTER_NOT_CONNECTED } from '../print/thermalPrinter'
 
 const props = defineProps({
   mode: {
@@ -451,6 +449,8 @@ const props = defineProps({
 const router = useRouter()
 const instance = getCurrentInstance()
 const $t = (key) => instance?.appContext?.config?.globalProperties?.$t?.(key) ?? key
+const $notification = (msg, status, delay) =>
+  instance?.appContext?.config?.globalProperties?.$notification?.(msg, status, delay)
 
 const state = useState()
 const lang = computed(() => ({ dir: state.dir }))
@@ -460,11 +460,11 @@ const loading = ref(false)
 const receipts = ref([])
 const detailsOpen = ref(false)
 const itemsOpen = ref(false)
-const previewOpen = ref(false)
 const selectedReceiptId = ref(null)
+const thermalPrinterRef = ref(null)
+const printingId = ref(null)
 const filtersCollapsed = ref(true)
 const quickSearch = ref('')
-const isPageSizeOpen = ref(false)
 const pageSizeOptions = [5, 10, 25, 50]
 
 const pagination = reactive({
@@ -641,9 +641,9 @@ function continueInPos(draftId) {
 }
 
 function selectPageSize(size) {
+  if (pagination.itemsPerPage === size) return
   pagination.itemsPerPage = size
   pagination.page = 1
-  isPageSizeOpen.value = false
   loadReceipts()
 }
 
@@ -651,10 +651,6 @@ function goPage(page) {
   if (page < 1 || page > totalPages.value) return
   pagination.page = page
   loadReceipts()
-}
-
-function closePageSizeDropdown(e) {
-  if (!e.target.closest('.dropdown-container')) isPageSizeOpen.value = false
 }
 
 let quickSearchTimer = null
@@ -720,14 +716,18 @@ function openItems(receiptId) {
   itemsOpen.value = true
 }
 
-function openPreview(receiptId) {
-  selectedReceiptId.value = receiptId
-  previewOpen.value = true
-}
-
-function onDetailsPreview(receiptId) {
-  detailsOpen.value = false
-  openPreview(receiptId)
+async function printReceipt(receiptId) {
+  if (printingId.value) return
+  printingId.value = receiptId
+  try {
+    await thermalPrinterRef.value?.printReceipt(receiptId)
+  } catch (err) {
+    console.error('Failed to print receipt:', err)
+    const key = err?.code === PRINTER_NOT_CONNECTED ? 'printerNotConnected' : 'receiptPrintFailed'
+    $notification($t(key), 'error', 5000)
+  } finally {
+    printingId.value = null
+  }
 }
 
 watch(() => props.mode, () => {
@@ -736,12 +736,10 @@ watch(() => props.mode, () => {
 })
 
 onMounted(() => {
-  document.addEventListener('click', closePageSizeDropdown)
   loadReceipts()
 })
 
 onUnmounted(() => {
-  document.removeEventListener('click', closePageSizeDropdown)
   clearTimeout(quickSearchTimer)
 })
 </script>
@@ -1176,15 +1174,20 @@ onUnmounted(() => {
 }
 
 .results-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 460px) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  column-gap: 0.5rem;
+  row-gap: 0.75rem;
   padding: 0.95rem 1.1rem;
   border-bottom: 1px solid #eef2f7;
   flex-shrink: 0;
-  flex-wrap: wrap;
   background: linear-gradient(180deg, #ffffff, #fafcfe);
+}
+
+.results-header-text {
+  min-width: 0;
+  justify-self: start;
 }
 
 .results-title {
@@ -1223,9 +1226,82 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex: 1;
-  max-width: 340px;
-  min-width: 200px;
+  width: 100%;
+  min-width: 0;
+}
+
+.page-size-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  justify-self: end;
+  padding: 0.2rem 0.25rem 0.2rem 0.65rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #f8fafc;
+}
+
+[dir="rtl"] .page-size-control {
+  padding: 0.2rem 0.65rem 0.2rem 0.25rem;
+}
+
+.page-size-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.page-size-label .v-icon {
+  color: #197783;
+}
+
+.page-size-segments {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.15rem;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #eef2f7;
+}
+
+.page-size-option {
+  min-width: 2rem;
+  height: 1.75rem;
+  padding: 0 0.55rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.page-size-option:hover:not(.active):not(:disabled) {
+  background: rgba(25, 119, 131, 0.08);
+  color: #197783;
+}
+
+.page-size-option.active {
+  background: linear-gradient(135deg, #197783, #32d8ee);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(25, 119, 131, 0.28);
+}
+
+.page-size-option:disabled {
+  cursor: not-allowed;
+}
+
+.page-size-option:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(25, 119, 131, 0.2);
 }
 
 .refresh-btn {
@@ -1602,8 +1678,13 @@ onUnmounted(() => {
 }
 
 .footer-action-btn--print:hover {
-  background: rgba(15, 79, 88, 0.1);
-  color: #0f4f58;
+  background: rgba(15, 118, 110, 0.1);
+  color: #0f766e;
+}
+
+.footer-action-btn:disabled {
+  cursor: progress;
+  opacity: 0.7;
 }
 
 .result-card-footer--draft {
@@ -1797,90 +1878,11 @@ onUnmounted(() => {
   flex-wrap: wrap;
 }
 
-.rows-per-page-control {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.control-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #64748b;
-}
-
-.dropdown-container {
-  position: relative;
-}
-
-.dropdown-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.6rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #fff;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #374151;
-  cursor: pointer;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.dropdown-trigger:hover,
-.dropdown-trigger.dropdown-open {
-  border-color: #197783;
-  box-shadow: 0 0 0 3px rgba(25, 119, 131, 0.1);
-}
-
-.dropdown-arrow {
-  color: #64748b;
-  transition: transform 0.2s ease;
-}
-
-.dropdown-arrow.rotated {
-  transform: rotate(180deg);
-}
-
-.dropdown-menu {
-  position: absolute;
-  bottom: calc(100% + 4px);
-  inset-inline-start: 0;
-  min-width: 72px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
-  z-index: 10;
-  overflow: hidden;
-}
-
-.dropdown-item {
-  display: block;
-  width: 100%;
-  padding: 0.45rem 0.75rem;
-  border: none;
-  background: #fff;
-  font-size: 0.82rem;
-  font-weight: 500;
-  color: #374151;
-  text-align: center;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-
-.dropdown-item:hover,
-.dropdown-item.selected {
-  background: rgba(25, 119, 131, 0.1);
-  color: #197783;
-}
-
 .pagination-container {
   display: flex;
   align-items: center;
   gap: 0;
-  margin-inline-start: auto;
+  margin-inline: auto;
 }
 
 .pagination-btn {
@@ -2025,22 +2027,13 @@ onUnmounted(() => {
   }
 
   .results-header {
-    flex-direction: column;
-    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
   }
 
-  .results-header-actions {
-    max-width: none;
-  }
-
-  .pagination-bar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .pagination-container {
-    margin-inline-start: 0;
-    justify-content: center;
+  .page-size-control {
+    justify-self: stretch;
+    justify-content: space-between;
   }
 }
 
@@ -2071,10 +2064,6 @@ onUnmounted(() => {
 
   .pagination-bar {
     padding: 0.75rem 1.25rem;
-  }
-
-  .search-control {
-    max-width: 320px;
   }
 
   .receipt-date-group {

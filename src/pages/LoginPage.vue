@@ -90,14 +90,23 @@
 </template>
 
 <script setup>
-import { ref, reactive, inject } from 'vue'
+import { ref, reactive, inject, getCurrentInstance } from 'vue'
 import { useRouter } from 'vue-router'
 import LoginService from '../services/LoginService.js'
 import { useUserStore } from '../store/user'
+import { isUsbSupported, reconnectPrinter } from '../print/thermalPrinter'
 
 const router = useRouter()
 const userStore = useUserStore()
 const notify = inject('$notification')
+const instance = getCurrentInstance()
+const $t = (key) => instance?.appContext?.config?.globalProperties?.$t?.(key) ?? key
+
+async function connectPrinterAfterLogin() {
+  if (!isUsbSupported()) return
+  const label = await reconnectPrinter().catch(() => null)
+  if (!label) notify($t('printerNotConnected'), 'error', 5000)
+}
 
 const login = reactive({
   userName: '',
@@ -135,6 +144,7 @@ async function submitLogin() {
     await LoginService.login(login.userName, login.password)
     notify('Login successful!', 'success', 1000)
     router.push(userStore.firstAllowedPath || '/')
+    void connectPrinterAfterLogin()
   } catch (error) {
     const message = error.response?.data?.message || 'Login failed. Please check your credentials and try again.'
     errorMessage.value = message

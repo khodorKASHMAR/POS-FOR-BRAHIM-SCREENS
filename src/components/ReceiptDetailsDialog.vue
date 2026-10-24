@@ -36,18 +36,6 @@
         </v-btn>
       </div>
 
-      <div v-if="!loading && details && !isDraftMode" class="receipt-dialog-actions no-print">
-        <v-btn
-          color="primary"
-          variant="tonal"
-          size="small"
-          prepend-icon="mdi-printer-outline"
-          @click="emit('preview', props.receiptId)"
-        >
-          {{ $t('previewReceipt') }}
-        </v-btn>
-      </div>
-
       <div v-if="loading" class="receipt-dialog-loading">
         <div class="skeleton-block">
           <div v-for="n in 5" :key="n" class="skeleton-row">
@@ -64,7 +52,7 @@
             <v-icon size="16">mdi-account-group-outline</v-icon>
             <span>{{ $t('details') }}</span>
           </div>
-          <div class="detail-tiles" :class="{ 'detail-tiles--two': !isDollarReceipt(details) }">
+          <div class="detail-tiles" :class="{ 'detail-tiles--two': !showRateTile }">
             <div class="detail-tile">
               <span class="detail-tile-icon"><v-icon size="18">mdi-account</v-icon></span>
               <span class="detail-tile-label">{{ $t('customerName') }}</span>
@@ -75,10 +63,10 @@
               <span class="detail-tile-label">{{ $t('employeeName') }}</span>
               <span class="detail-tile-value">{{ details.employeeName || '—' }}</span>
             </div>
-            <div v-if="isDollarReceipt(details)" class="detail-tile detail-tile--rate">
+            <div v-if="showRateTile" class="detail-tile detail-tile--rate">
               <span class="detail-tile-icon"><v-icon size="18">mdi-swap-horizontal</v-icon></span>
               <span class="detail-tile-label">{{ $t('dollarRate') }}</span>
-              <span class="detail-tile-value numeric">{{ formatDollarRate(details.currencyRate ?? details.dollarRate) }}</span>
+              <span class="detail-tile-value numeric">{{ formatDollarRate(rateTileValue) }}</span>
             </div>
           </div>
         </div>
@@ -116,7 +104,7 @@
           <div class="payment-grid">
             <div class="payment-chip wish-chip">
               <span class="payment-chip-icon">W</span>
-              <span class="payment-chip-label">Wish</span>
+              <span class="payment-chip-label">Whish</span>
               <span class="payment-chip-value">{{ formatPayWish(details) }}</span>
             </div>
             <div class="payment-chip dollar-chip">
@@ -131,14 +119,11 @@
             </div>
           </div>
 
-          <div v-if="Number(details.returnedToUserValue) > 0" class="return-banner">
+          <div v-if="Number(details.returnedToUserValue) > 0" class="return-banner" :dir="state.dir">
             <v-icon size="16">mdi-cash-refund</v-icon>
-            <span v-if="state.lang === 'ar'" class="return-banner-text">
+            <span class="return-banner-text">
+              <span class="return-banner-label">{{ $t('returnedToUser') }}:</span>
               <span class="return-banner-value">{{ formatLbp(details.returnedToUserValue) }}</span>
-              <span class="return-banner-label">{{ $t('returnedToUser') }}</span>
-            </span>
-            <span v-else class="return-banner-text">
-              {{ $t('returnedToUser') }}: {{ formatLbp(details.returnedToUserValue) }}
             </span>
           </div>
         </div>
@@ -159,7 +144,7 @@
 import { computed, getCurrentInstance, onMounted, onUnmounted, ref, watch } from 'vue'
 import ReceiptService from '../services/ReceiptService'
 import { useState } from '../store/state'
-import { isDollarReceipt, receiptCurrencyRate } from '../constants/currency'
+import { isDollarReceipt } from '../constants/currency'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -167,7 +152,7 @@ const props = defineProps({
   isDraft: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['update:modelValue', 'preview'])
+const emit = defineEmits(['update:modelValue'])
 
 const instance = getCurrentInstance()
 const $t = (key) => instance?.appContext?.config?.globalProperties?.$t?.(key) ?? key
@@ -186,10 +171,26 @@ const isDraftMode = computed(() =>
   props.isDraft || details.value?.type === 'DRAFT'
 )
 
+const showRateTile = computed(() =>
+  !isDraftMode.value || !isDollarReceipt(details.value)
+)
+
+const rateTileValue = computed(() =>
+  isDraftMode.value ? details.value?.currencyRate : details.value?.returnValueCurrencyRate
+)
+
+/** LBP per 1 USD. A dollar receipt's currencyRate is 1, so it can't convert LBP payments. */
+const lbpRate = computed(() => {
+  const d = details.value
+  const stored = Number(d?.returnValueCurrencyRate)
+    || (!isDollarReceipt(d) ? Number(d?.currencyRate) : 0)
+  return stored > 0 ? stored : (Number(state.exchangeRate) || 1)
+})
+
 const paymentBreakdown = computed(() => {
   const d = details.value
   if (!d) return null
-  const rate = receiptCurrencyRate(d, state.exchangeRate)
+  const rate = lbpRate.value
   const wish = Number(d.payWish) || 0
   const usd = Number(d.payDollar) || 0
   const lbp = Number(d.payLebanese) || 0
@@ -342,12 +343,6 @@ watch(
   background: linear-gradient(135deg, #0f4f58, #156570 35%, #197783 65%, #32d8ee);
   color: #fff;
   overflow: hidden;
-}
-
-.receipt-dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  padding: 0.65rem 1.1rem 0;
 }
 
 .header-pattern {
@@ -726,6 +721,8 @@ watch(
 .return-banner-value {
   font-variant-numeric: tabular-nums;
   direction: ltr;
+  unicode-bidi: isolate;
+  white-space: nowrap;
 }
 
 .total-banner {
@@ -784,9 +781,6 @@ watch(
 .receipt-dialog--rtl .discount-row { flex-direction: row-reverse; }
 .receipt-dialog--rtl .total-banner { flex-direction: row-reverse; }
 .receipt-dialog--rtl .total-banner-left { flex-direction: row-reverse; }
-.receipt-dialog--rtl .return-banner { flex-direction: row-reverse; }
-.receipt-dialog--rtl .return-banner-text { flex-direction: row-reverse; }
-
 @media (max-width: 520px) {
   .detail-tiles {
     grid-template-columns: 1fr;

@@ -711,16 +711,14 @@ watch(
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  overflow: hidden;
   min-width: 0;
   font-weight: 700;
 }
 
 .item-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   min-width: 0;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .item-index {

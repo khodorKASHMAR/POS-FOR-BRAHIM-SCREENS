@@ -199,9 +199,11 @@ onUnmounted(() => window.removeEventListener('resize', onResize))
 const isCompactViewport = computed(() => viewportWidth.value < 1024)
 
 const dialogMaxWidth = computed(() => {
-  if (viewportWidth.value >= 1400) return 640
-  if (viewportWidth.value >= 1024) return 580
-  return Math.min(520, viewportWidth.value - 24)
+  const w = viewportWidth.value
+  if (w >= 1920) return 920
+  if (w >= 1400) return 880
+  if (w >= 1024) return 840
+  return Math.min(700, w - 24)
 })
 
 watch(
@@ -465,7 +467,8 @@ const updateReceiptDiscount = (event) => {
   gap: 0.75rem;
   width: 100%;
   box-sizing: border-box;
-  max-height: min(90vh, 820px);
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
   overflow-y: auto;
 }
 
@@ -790,8 +793,6 @@ const updateReceiptDiscount = (event) => {
 @media (min-width: 1024px) {
   .pay-receipt-dialog {
     padding: 1rem 2rem 1.25rem;
-    max-height: none;
-    overflow-y: visible;
   }
 
   .pay-dialog-btn {
@@ -834,6 +835,6 @@ const updateReceiptDiscount = (event) => {
 .v-overlay__content.pay-receipt-dialog-overlay {
   border-radius: 16px !important;
   overflow: hidden !important;
-  max-width: 100% !important;
+  width: 100% !important;
 }
 </style>

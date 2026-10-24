@@ -63,6 +63,17 @@
     >
       <v-icon class="power-icon">mdi-power</v-icon>
     </v-btn>
+
+    <ConfirmDialog
+      v-model="logoutDialog"
+      tone="warning"
+      icon="mdi-logout-variant"
+      :title="$t('confirmLogout')"
+      :message="$t('logoutMessage')"
+      :subject="userDisplayName"
+      :confirm-text="$t('logout')"
+      @confirm="confirmLogout"
+    />
   </div>
 </template>
 
@@ -71,6 +82,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useState } from '../store/state'
 import { useUserStore } from '../store/user'
+import ConfirmDialog from './ConfirmDialog.vue'
 
 const state = useState()
 const userStore = useUserStore()
@@ -135,7 +147,19 @@ const goToDollarRate = () => {
   router.push('/currency-rate')
 }
 
+const logoutDialog = ref(false)
+
+const userDisplayName = computed(() => {
+  const u = userStore.user || {}
+  return [u.firstName, u.lastName].filter(Boolean).join(' ') || u.userName || ''
+})
+
 const handleLogout = () => {
+  logoutDialog.value = true
+}
+
+const confirmLogout = () => {
+  logoutDialog.value = false
   userStore.logout()
 }
 

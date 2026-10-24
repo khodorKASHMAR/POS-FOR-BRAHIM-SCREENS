@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'thermalPrinter'
+export const PRINTER_STORAGE_KEY = 'thermalPrinter'
 const USB_PRINTER_CLASS = 7
 const USB_CHUNK_BYTES = 16384
 
@@ -19,7 +19,7 @@ let queue = Promise.resolve()
 
 function readPref() {
   try {
-    const pref = JSON.parse(localStorage.getItem(STORAGE_KEY))
+    const pref = JSON.parse(localStorage.getItem(PRINTER_STORAGE_KEY))
     return pref?.kind === 'usb' ? pref : null
   } catch {
     return null
@@ -27,7 +27,7 @@ function readPref() {
 }
 
 function writePref(pref) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(pref))
+  localStorage.setItem(PRINTER_STORAGE_KEY, JSON.stringify(pref))
 }
 
 /** Saved printer label, or null when none was paired in this browser. */
@@ -80,10 +80,37 @@ export async function connectPrinter() {
   return getPairedPrinter()
 }
 
+/**
+ * Connect without the device picker: the paired printer first, otherwise any USB device this site
+ * was already granted. Returns the printer label, or null when none could be opened.
+ */
+export async function reconnectPrinter() {
+  if (!isUsbSupported()) return null
+  if (active?.device.opened) return active.label
+  try {
+    active = await reopenPaired()
+    return active.label
+  } catch (e) {
+    if (readPref()) console.warn('Paired printer is not reachable:', e)
+  }
+  const devices = await navigator.usb.getDevices().catch(() => [])
+  for (const device of devices) {
+    try {
+      const connection = await openUsb(device)
+      writePref({ kind: 'usb', label: connection.label, vendorId: device.vendorId, productId: device.productId })
+      active = connection
+      return connection.label
+    } catch (e) {
+      console.warn('Granted USB device is not a usable printer:', e)
+    }
+  }
+  return null
+}
+
 export async function forgetPrinter() {
   const current = active
   active = null
-  localStorage.removeItem(STORAGE_KEY)
+  localStorage.removeItem(PRINTER_STORAGE_KEY)
   try {
     if (current?.device.opened) await current.device.close()
     await current?.device.forget?.()
@@ -114,5 +141,8 @@ export function printBytes(bytes) {
 if (isUsbSupported()) {
   navigator.usb.addEventListener('disconnect', (e) => {
     if (active?.device === e.device) active = null
+  })
+  navigator.usb.addEventListener('connect', () => {
+    if (!active) void reconnectPrinter()
   })
 }

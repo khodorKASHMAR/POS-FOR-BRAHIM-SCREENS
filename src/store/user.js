@@ -1,6 +1,7 @@
 
 import { defineStore } from 'pinia'
 import { firstAllowedPath, MENU_LIST } from '../constants/menus'
+import { PRINTER_STORAGE_KEY } from '../print/thermalPrinter'
 
 function emptyUser() {
   return {
@@ -50,7 +51,9 @@ export const useUserStore = defineStore('user', {
       localStorage.setItem('user', JSON.stringify(this.user))
     },
     logout() {
+      const printer = localStorage.getItem(PRINTER_STORAGE_KEY)
       localStorage.clear()
+      if (printer) localStorage.setItem(PRINTER_STORAGE_KEY, printer)
       location.reload()
     }
   }

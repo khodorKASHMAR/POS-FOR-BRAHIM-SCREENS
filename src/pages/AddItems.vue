@@ -485,6 +485,17 @@
         @cancel="onCropCancel"
       />
     </v-dialog>
+
+    <ConfirmDialog
+      v-model="deleteConfirm.open"
+      :title="deleteConfirm.kind === 'category' ? $t('deleteCategoryTitle') : $t('deleteItemTitle')"
+      :message="deleteConfirm.kind === 'category' ? $t('deleteCategoryConfirm') : $t('deleteItemConfirm')"
+      :subject="deleteConfirmSubject"
+      icon="mdi-trash-can-outline"
+      :confirm-text="$t('delete')"
+      :loading="deleteConfirm.loading"
+      @confirm="confirmDeleteTarget"
+    />
     </div>
   </div>
 </template>
@@ -499,6 +510,7 @@ import TopBar from '../components/TopBar.vue'
 import ImageCropper from '../components/ImageCropper.vue'
 import PosAutocomplete from '../components/PosAutocomplete.vue'
 import HardwareBarcodeListenDialog from '../components/HardwareBarcodeListenDialog.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { keepScrollAnchor, useInfiniteScroll } from '../composables/useInfiniteScroll'
 import { useItemsPager } from '../composables/useItemsPager'
 import { CurrencyEnum } from '../constants/enums'
@@ -511,7 +523,8 @@ export default {
     TopBar,
     ImageCropper,
     PosAutocomplete,
-    HardwareBarcodeListenDialog
+    HardwareBarcodeListenDialog,
+    ConfirmDialog
   },
   setup() {
     const instance = getCurrentInstance()
@@ -769,12 +782,39 @@ export default {
       openCategoryDialog(category)
     }
 
+    const deleteConfirm = ref({ open: false, kind: 'item', target: null, loading: false })
+
+    const deleteConfirmSubject = computed(() => {
+      const target = deleteConfirm.value.target
+      if (!target) return ''
+      return lang.value.lang === 'ar' ? (target.nameAr || target.nameEn) : (target.nameEn || target.nameAr)
+    })
+
+    const openDeleteConfirm = (kind, target) => {
+      deleteConfirm.value = { open: true, kind, target, loading: false }
+    }
+
     const handleDeleteCategory = (category) => {
-      deleteCategory(category.id)
+      openDeleteConfirm('category', category)
     }
 
     const handleDeleteItem = (item) => {
-      deleteItem(item.id)
+      openDeleteConfirm('item', item)
+    }
+
+    const confirmDeleteTarget = async () => {
+      const { kind, target } = deleteConfirm.value
+      if (!target) return
+      deleteConfirm.value.loading = true
+      try {
+        if (kind === 'category') {
+          await deleteCategory(target.id)
+        } else {
+          await deleteItem(target.id)
+        }
+      } finally {
+        deleteConfirm.value = { open: false, kind, target: null, loading: false }
+      }
     }
 
     const triggerItemImagePick = () => {
@@ -925,21 +965,19 @@ export default {
     }
 
     const deleteCategory = async (categoryId) => {
-      if (confirm('Are you sure you want to delete this category?')) {
-        try {
-          const response = await CategoryService.deleteCategory(categoryId)
-          if (response?.data?.success) {
-            await state.loadCategories()
-            if (String(cat.value) === String(categoryId)) {
-              cat.value = 'all'
-            }
-            $notification($t('categoryDeleted'), 'success')
-          } else {
-            $notification($t('categoryDeleteFailed'), 'error')
+      try {
+        const response = await CategoryService.deleteCategory(categoryId)
+        if (response?.data?.success) {
+          await state.loadCategories()
+          if (String(cat.value) === String(categoryId)) {
+            cat.value = 'all'
           }
-        } catch (error) {
-          $notification(error?.response?.data?.message || $t('errorDeletingCategory'), 'error')
+          $notification($t('categoryDeleted'), 'success')
+        } else {
+          $notification($t('categoryDeleteFailed'), 'error')
         }
+      } catch (error) {
+        $notification(error?.response?.data?.message || $t('errorDeletingCategory'), 'error')
       }
     }
 
@@ -1053,18 +1091,16 @@ export default {
     }
 
     const deleteItem = async (itemId) => {
-      if (confirm('Are you sure you want to delete this item?')) {
-        try {
-          const response = await ItemService.deleteItem(itemId)
-          if (response?.data?.success) {
-            removeItem(itemId)
-            $notification($t('itemDeleted'), 'success')
-          } else {
-            $notification($t('itemDeleteFailed'), 'error')
-          }
-        } catch (error) {
-          $notification(error?.response?.data?.message || $t('errorDeletingItem'), 'error')
+      try {
+        const response = await ItemService.deleteItem(itemId)
+        if (response?.data?.success) {
+          removeItem(itemId)
+          $notification($t('itemDeleted'), 'success')
+        } else {
+          $notification($t('itemDeleteFailed'), 'error')
         }
+      } catch (error) {
+        $notification(error?.response?.data?.message || $t('errorDeletingItem'), 'error')
       }
     }
 
@@ -1145,6 +1181,9 @@ export default {
       handleDeleteItem,
       handleEditCategory,
       handleDeleteCategory,
+      deleteConfirm,
+      deleteConfirmSubject,
+      confirmDeleteTarget,
       price,
       openCategoryDialog,
       closeCategoryDialog,

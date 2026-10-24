@@ -1,169 +1,169 @@
 <template>
-  <div class="vault-page">
-    <div class="vault-atmosphere" aria-hidden="true">
-      <span class="vault-orb vault-orb--a" />
-      <span class="vault-orb vault-orb--b" />
-      <span class="vault-grid" />
-    </div>
+  <div class="drawer-page">
+    <div class="drawer-atmosphere" aria-hidden="true" />
     <TopBar />
 
-    <div class="vault-shell" :dir="lang.dir">
-      <header class="vault-header">
-        <div class="vault-header__copy">
-          <span class="vault-kicker">
-            <v-icon size="14">mdi-safe-square-outline</v-icon>
-            {{ $t('pointOfSale') }}
-          </span>
-          <h1 class="vault-title">{{ $t('cashDrawer') }}</h1>
-          <p class="vault-subtitle">{{ $t('cashDrawerSubtitle') }}</p>
+    <div class="drawer-shell" :dir="lang.dir">
+      <header class="drawer-header">
+        <div class="drawer-header__copy">
+          <h1 class="drawer-header__title">
+            <span class="drawer-header__icon">
+              <v-icon size="22">mdi-cash-register</v-icon>
+            </span>
+            {{ $t('cashDrawer') }}
+          </h1>
+          <p class="drawer-header__subtitle">{{ $t('cashDrawerSubtitle') }}</p>
         </div>
 
-        <div v-if="lastUpdatedLabel" class="vault-stamp">
-          <v-icon size="15">mdi-history</v-icon>
-          <div>
-            <span class="vault-stamp__label">{{ $t('lastUpdated') }}</span>
-            <strong class="vault-stamp__value">{{ lastUpdatedLabel }}</strong>
-          </div>
+        <div class="drawer-header__meta">
+          <span v-if="lastUpdatedLabel" class="meta-chip">
+            <v-icon size="15">mdi-history</v-icon>
+            <span class="meta-chip__label">{{ $t('lastUpdated') }}</span>
+            <strong class="meta-chip__value">{{ lastUpdatedLabel }}</strong>
+          </span>
+          <span class="status-pill" :class="{ 'status-pill--edit': editing }">
+            <v-icon size="14">{{ editing ? 'mdi-pencil-outline' : 'mdi-lock-outline' }}</v-icon>
+            {{ editing ? $t('editing') : $t('locked') }}
+          </span>
         </div>
       </header>
 
-      <section class="balance-stage" :class="{ 'is-loading': loading, 'is-editing': editing }">
-        <div class="balance-stage__ring" aria-hidden="true" />
-        <div class="balance-stage__inner">
-          <span class="balance-stage__label">{{ $t('currentDrawerAmount') }}</span>
-          <strong class="balance-stage__amount" dir="ltr">
-            {{ loading ? '—' : formatLbp(currentAmount) }}
-          </strong>
-          <span class="balance-stage__formula" dir="ltr">
-            {{ $t('initialFloat') }} + {{ $t('paymentsSinceOpen') }}
-          </span>
-        </div>
-      </section>
-
-      <div class="metric-rail">
-        <article class="metric-tile metric-tile--float">
-          <span class="metric-tile__icon"><v-icon size="18">mdi-cash</v-icon></span>
-          <div class="metric-tile__body">
-            <span class="metric-tile__label">{{ $t('initialFloat') }}</span>
-            <strong class="metric-tile__value" dir="ltr">{{ loading ? '—' : formatLbp(initialTotalLbp) }}</strong>
+      <div class="kpi-row">
+        <article class="kpi kpi--current" :class="{ 'is-loading': loading }">
+          <span class="kpi__icon"><v-icon>mdi-cash-multiple</v-icon></span>
+          <div class="kpi__body">
+            <span class="kpi__label">{{ $t('currentDrawerAmount') }}</span>
+            <strong class="kpi__value" dir="ltr">{{ loading ? '—' : formatLbp(currentAmount) }}</strong>
           </div>
         </article>
-        <article class="metric-tile metric-tile--payments">
-          <span class="metric-tile__icon"><v-icon size="18">mdi-receipt-text-plus</v-icon></span>
-          <div class="metric-tile__body">
-            <span class="metric-tile__label">{{ $t('paymentsSinceOpen') }}</span>
-            <strong class="metric-tile__value" dir="ltr">{{ loading ? '—' : formatLbp(paymentsTotalLbp) }}</strong>
+        <article class="kpi kpi--float">
+          <span class="kpi__icon"><v-icon>mdi-cash</v-icon></span>
+          <div class="kpi__body">
+            <span class="kpi__label">{{ $t('initialFloat') }}</span>
+            <strong class="kpi__value" dir="ltr">{{ loading ? '—' : formatLbp(initialTotalLbp) }}</strong>
           </div>
         </article>
-        <article class="metric-tile metric-tile--count">
-          <span class="metric-tile__icon"><v-icon size="18">mdi-counter</v-icon></span>
-          <div class="metric-tile__body">
-            <span class="metric-tile__label">{{ $t('receiptCount') }}</span>
-            <strong class="metric-tile__value">{{ loading ? '—' : receiptCount }}</strong>
+        <article class="kpi kpi--payments">
+          <span class="kpi__icon"><v-icon>mdi-receipt-text-plus-outline</v-icon></span>
+          <div class="kpi__body">
+            <span class="kpi__label">{{ $t('paymentsSinceOpen') }}</span>
+            <strong class="kpi__value" dir="ltr">{{ loading ? '—' : formatLbp(paymentsTotalLbp) }}</strong>
+          </div>
+        </article>
+        <article class="kpi kpi--count">
+          <span class="kpi__icon"><v-icon>mdi-counter</v-icon></span>
+          <div class="kpi__body">
+            <span class="kpi__label">{{ $t('receiptCount') }}</span>
+            <strong class="kpi__value">{{ loading ? '—' : receiptCount }}</strong>
           </div>
         </article>
       </div>
 
-      <section class="session-panel" :class="{ 'is-saving': saving, 'is-editing': editing }">
-        <div class="session-panel__top">
-          <div class="session-panel__title-wrap">
-            <span class="session-panel__badge">
-              <v-icon size="16">{{ editing ? 'mdi-pencil-outline' : 'mdi-lock-outline' }}</v-icon>
-            </span>
-            <div>
-              <h2 class="session-panel__title">{{ $t('drawerSession') }}</h2>
-              <p class="session-panel__status">
-                {{ editing ? $t('cashDrawerEditingHint') : $t('cashDrawerLockedHint') }}
-              </p>
-            </div>
-          </div>
-          <span class="session-panel__mode" :class="{ 'session-panel__mode--edit': editing }">
-            {{ editing ? $t('editing') : $t('locked') }}
-          </span>
+      <section class="panel session-panel" :class="{ 'is-editing': editing }">
+        <div class="panel-head">
+          <h2 class="panel-title">
+            <v-icon size="18">mdi-safe-square-outline</v-icon>
+            {{ $t('drawerSession') }}
+          </h2>
+          <p class="panel-note">
+            <v-icon size="15">{{ editing ? 'mdi-pencil-outline' : 'mdi-lock-outline' }}</v-icon>
+            {{ editing ? $t('cashDrawerEditingHint') : $t('cashDrawerLockedHint') }}
+          </p>
         </div>
 
-        <div class="session-panel__body">
-          <div class="currency-pair">
-            <div class="currency-field" :class="{ 'currency-field--active': editing }">
-              <div class="currency-field__head">
+        <div class="panel-body">
+          <div class="field-grid">
+            <div class="field">
+              <label class="field__label">
                 <span class="currency-chip currency-chip--usd">USD</span>
-                <span class="currency-field__label">{{ $t('usDollar') }}</span>
-              </div>
+                {{ $t('usDollar') }}
+              </label>
               <v-text-field
                 v-model.number="initialAmountUsd"
                 type="number"
-                variant="plain"
-                density="compact"
+                variant="outlined"
+                density="comfortable"
+                color="#197783"
+                prefix="$"
+                dir="ltr"
                 :placeholder="$t('placeholderInitialUsd')"
                 hide-details
-                class="currency-input price-field-no-arrows"
+                class="amount-input price-field-no-arrows"
                 :disabled="!editing || loading || saving"
                 @keyup.enter="handlePrimaryAction"
               />
             </div>
 
-            <div class="currency-join" aria-hidden="true">
-              <span>+</span>
-            </div>
-
-            <div class="currency-field" :class="{ 'currency-field--active': editing }">
-              <div class="currency-field__head">
+            <div class="field">
+              <label class="field__label">
                 <span class="currency-chip currency-chip--lbp">{{ lbpSymbol }}</span>
-                <span class="currency-field__label">{{ $t('lebanesePound') }}</span>
-              </div>
+                {{ $t('lebanesePound') }}
+              </label>
               <v-text-field
                 v-model.number="initialAmountLbp"
                 type="number"
-                variant="plain"
-                density="compact"
+                variant="outlined"
+                density="comfortable"
+                color="#197783"
+                :suffix="lbpSymbol"
+                dir="ltr"
                 :placeholder="$t('placeholderInitialLbp')"
                 hide-details
-                class="currency-input price-field-no-arrows"
+                class="amount-input price-field-no-arrows"
                 :disabled="!editing || loading || saving"
                 @keyup.enter="handlePrimaryAction"
               />
             </div>
           </div>
 
-          <div class="datetime-row">
-            <div class="datetime-tile">
-              <v-icon size="18" class="datetime-tile__icon">mdi-calendar</v-icon>
+          <div class="info-grid">
+            <div class="info-tile">
+              <v-icon class="info-tile__icon">mdi-calendar</v-icon>
               <div>
-                <span class="datetime-tile__label">{{ $t('date') }}</span>
-                <strong class="datetime-tile__value">{{ displayDate }}</strong>
+                <span class="info-tile__label">{{ $t('date') }}</span>
+                <strong class="info-tile__value">{{ displayDate }}</strong>
               </div>
             </div>
-            <div class="datetime-tile">
-              <v-icon size="18" class="datetime-tile__icon">mdi-clock-outline</v-icon>
+            <div class="info-tile">
+              <v-icon class="info-tile__icon">mdi-clock-outline</v-icon>
               <div>
-                <span class="datetime-tile__label">{{ $t('time') }}</span>
-                <strong class="datetime-tile__value">{{ displayTime }}</strong>
+                <span class="info-tile__label">{{ $t('time') }}</span>
+                <strong class="info-tile__value">{{ displayTime }}</strong>
               </div>
             </div>
           </div>
-        </div>
 
-        <div class="session-panel__footer">
-          <p class="session-hint">
+          <p class="formula-hint">
             <v-icon size="15">mdi-information-outline</v-icon>
             <span>{{ $t('cashDrawerHint') }}</span>
           </p>
+        </div>
+
+        <div class="panel-foot">
+          <button
+            v-if="editing"
+            type="button"
+            class="btn-ghost"
+            :disabled="saving"
+            @click="loadDrawer"
+          >
+            {{ $t('cancel') }}
+          </button>
           <button
             type="button"
-            class="vault-action"
-            :class="{ 'vault-action--save': editing }"
+            class="btn-solid"
             :disabled="loading || saving || (editing && !isValidAmount)"
             @click="handlePrimaryAction"
           >
             <v-progress-circular
               v-if="saving"
               indeterminate
-              size="18"
+              size="16"
               width="2"
               color="white"
             />
-            <v-icon v-else size="18">{{ primaryIcon }}</v-icon>
-            <span>{{ editing ? $t('save') : $t('updateDrawer') }}</span>
+            <v-icon v-else size="17">{{ primaryIcon }}</v-icon>
+            {{ editing ? $t('save') : $t('updateDrawer') }}
           </button>
         </div>
       </section>
@@ -348,565 +348,477 @@ onMounted(loadDrawer)
 </script>
 
 <style scoped>
-.vault-page {
-  --ink: #12363b;
-  --muted: #5f7a7e;
-  --teal: #197783;
-  --teal-bright: #32d8ee;
-  --line: rgba(25, 119, 131, 0.16);
-  --surface: #ffffff;
+.drawer-page {
   position: relative;
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
-  background: #eef5f6;
-  overflow: hidden;
+  min-height: 100dvh;
+  background: #f3f6f9;
+  overflow-x: hidden;
 }
 
-.vault-atmosphere {
-  position: absolute;
+.drawer-atmosphere {
+  position: fixed;
   inset: 0;
   pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 70% 45% at 12% -5%, rgba(74, 158, 171, 0.09), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 90% 0%, rgba(44, 140, 242, 0.05), transparent 50%);
 }
 
-.vault-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(2px);
-}
-
-.vault-orb--a {
-  width: 28rem;
-  height: 28rem;
-  top: -8rem;
-  inset-inline-start: -6rem;
-  background: radial-gradient(circle, rgba(50, 216, 238, 0.22), transparent 68%);
-  animation: orb-drift 12s ease-in-out infinite;
-}
-
-.vault-orb--b {
-  width: 22rem;
-  height: 22rem;
-  bottom: -4rem;
-  inset-inline-end: -5rem;
-  background: radial-gradient(circle, rgba(25, 119, 131, 0.18), transparent 70%);
-  animation: orb-drift 14s ease-in-out infinite reverse;
-}
-
-.vault-grid {
-  position: absolute;
-  inset: 0;
-  opacity: 0.35;
-  background-image:
-    linear-gradient(rgba(25, 119, 131, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(25, 119, 131, 0.05) 1px, transparent 1px);
-  background-size: 42px 42px;
-  mask-image: radial-gradient(ellipse at center, black 20%, transparent 75%);
-}
-
-@keyframes orb-drift {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(18px, -12px); }
-}
-
-.vault-shell {
+/* Spacing and sizes grow with the viewport height so tall monitors are filled, not left empty. */
+.drawer-shell {
+  --space: clamp(0.85rem, 1.8vh, 1.5rem);
   position: relative;
   z-index: 1;
-  max-width: 880px;
-  margin: 0 auto;
-  padding: 1rem 1rem 2.5rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space);
+  width: 100%;
+  padding: var(--space) 1.25rem calc(var(--space) * 1.4);
+  box-sizing: border-box;
 }
 
-.vault-header {
+/* Header */
+.drawer-header {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1.35rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.15rem 0;
 }
 
-.vault-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin-bottom: 0.45rem;
-  padding: 0.22rem 0.55rem;
-  border-radius: 999px;
-  background: rgba(25, 119, 131, 0.08);
-  color: var(--teal);
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.vault-title {
-  margin: 0;
-  font-size: clamp(1.55rem, 3vw, 2rem);
-  font-weight: 900;
-  color: var(--ink);
-  letter-spacing: -0.03em;
-  line-height: 1.15;
-}
-
-.vault-subtitle {
-  margin: 0.35rem 0 0;
-  color: var(--muted);
-  font-size: 0.9rem;
-  max-width: 34rem;
-}
-
-.vault-stamp {
+.drawer-header__title {
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  padding: 0.7rem 0.9rem;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid var(--line);
-  box-shadow: 0 8px 24px rgba(18, 54, 59, 0.06);
-  color: var(--teal);
-  flex-shrink: 0;
+  margin: 0;
+  font-size: clamp(1.35rem, 2.4vh, 1.75rem);
+  font-weight: 750;
+  color: #2c3e50;
+  letter-spacing: -0.02em;
 }
 
-.vault-stamp__label {
-  display: block;
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.vault-stamp__value {
-  display: block;
-  font-size: 0.82rem;
-  font-weight: 800;
-  color: var(--ink);
-}
-
-.balance-stage {
-  position: relative;
+.drawer-header__icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 220px;
-  margin-bottom: 1rem;
-  border-radius: 28px;
-  overflow: hidden;
-  background:
-    linear-gradient(145deg, #0d454c 0%, #156570 42%, #1a8f9c 78%, #2bb8c9 100%);
-  box-shadow:
-    0 18px 48px rgba(15, 79, 88, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  transition: transform 0.35s ease, box-shadow 0.35s ease;
+  background: linear-gradient(135deg, rgba(25, 119, 131, 0.14), rgba(50, 216, 238, 0.14));
+  color: #197783;
 }
 
-.balance-stage.is-loading {
-  opacity: 0.78;
+.drawer-header__subtitle {
+  margin: 0.3rem 0 0;
+  padding-inline-start: 2.85rem;
+  font-size: 0.84rem;
+  color: #8a9aab;
+  line-height: 1.4;
 }
 
-.balance-stage.is-editing {
-  box-shadow:
-    0 18px 48px rgba(15, 79, 88, 0.34),
-    0 0 0 3px rgba(50, 216, 238, 0.28);
-}
-
-.balance-stage__ring {
-  position: absolute;
-  width: min(78%, 420px);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow:
-    inset 0 0 0 18px rgba(255, 255, 255, 0.03),
-    0 0 60px rgba(50, 216, 238, 0.18);
-  animation: ring-pulse 5.5s ease-in-out infinite;
-}
-
-@keyframes ring-pulse {
-  0%, 100% { transform: scale(1); opacity: 0.7; }
-  50% { transform: scale(1.04); opacity: 1; }
-}
-
-.balance-stage__inner {
-  position: relative;
-  z-index: 1;
-  text-align: center;
-  color: #fff;
-  padding: 1.5rem 1rem;
-}
-
-.balance-stage__label {
-  display: block;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  opacity: 0.82;
-  margin-bottom: 0.55rem;
-}
-
-.balance-stage__amount {
-  display: block;
-  font-size: clamp(2rem, 6vw, 3rem);
-  font-weight: 900;
-  line-height: 1.05;
-  letter-spacing: -0.03em;
-  text-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
-  animation: amount-in 0.55s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-@keyframes amount-in {
-  from { opacity: 0; transform: translateY(10px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.balance-stage__formula {
-  display: inline-block;
-  margin-top: 0.85rem;
-  padding: 0.35rem 0.7rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  font-size: 0.72rem;
-  font-weight: 700;
-  opacity: 0.9;
-}
-
-.metric-rail {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.metric-tile {
+.drawer-header__meta {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
-  padding: 0.9rem 0.95rem;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 8px 24px rgba(18, 54, 59, 0.05);
-  backdrop-filter: blur(10px);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
-.metric-tile:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(18, 54, 59, 0.08);
+.meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.42rem 0.75rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e4ebf1;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  color: #5a9aa3;
+  font-size: 0.8rem;
 }
 
-.metric-tile__icon {
-  width: 38px;
-  height: 38px;
+.meta-chip__label {
+  color: #8a9aab;
+  font-weight: 600;
+}
+
+.meta-chip__value {
+  color: #334155;
+  font-weight: 700;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.42rem 0.8rem;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: #eef2f6;
+  border: 1px solid #e4ebf1;
+  color: #64748b;
+}
+
+.status-pill--edit {
+  background: rgba(50, 216, 238, 0.12);
+  border-color: rgba(25, 119, 131, 0.3);
+  color: #197783;
+}
+
+/* KPI cards */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(0.6rem, 1.2vh, 1rem);
+}
+
+.kpi {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  min-width: 0;
+  padding: clamp(0.85rem, 2.2vh, 1.6rem) clamp(0.95rem, 1.4vw, 1.4rem);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e6edf3;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.kpi__icon {
+  width: clamp(40px, 5vh, 56px);
+  height: clamp(40px, 5vh, 56px);
   border-radius: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  background: rgba(25, 119, 131, 0.1);
+  color: #197783;
 }
 
-.metric-tile--float .metric-tile__icon {
-  background: rgba(25, 119, 131, 0.12);
-  color: var(--teal);
+.kpi__icon .v-icon {
+  font-size: clamp(20px, 2.6vh, 28px);
 }
 
-.metric-tile--payments .metric-tile__icon {
-  background: rgba(44, 140, 242, 0.12);
-  color: #2c8cf2;
-}
-
-.metric-tile--count .metric-tile__icon {
-  background: rgba(15, 118, 110, 0.12);
-  color: #0f766e;
-}
-
-.metric-tile__label {
-  display: block;
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 0.15rem;
-}
-
-.metric-tile__value {
-  display: block;
-  font-size: 0.98rem;
-  font-weight: 900;
-  color: var(--ink);
-  line-height: 1.15;
-}
-
-.session-panel {
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.86);
-  border: 1px solid rgba(255, 255, 255, 0.95);
-  box-shadow: 0 14px 40px rgba(18, 54, 59, 0.08);
-  backdrop-filter: blur(14px);
-  overflow: hidden;
-  transition: opacity 0.2s ease, box-shadow 0.25s ease;
-}
-
-.session-panel.is-saving {
-  opacity: 0.9;
-}
-
-.session-panel.is-editing {
-  box-shadow:
-    0 14px 40px rgba(18, 54, 59, 0.1),
-    0 0 0 2px rgba(50, 216, 238, 0.25);
-}
-
-.session-panel__top {
+.kpi__body {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.85rem;
-  padding: 1rem 1.15rem;
-  border-bottom: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(234, 245, 246, 0.9), rgba(255, 255, 255, 0.4));
-}
-
-.session-panel__title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+  flex-direction: column;
+  gap: 0.25rem;
   min-width: 0;
 }
 
-.session-panel__badge {
-  width: 40px;
-  height: 40px;
-  border-radius: 13px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, rgba(25, 119, 131, 0.14), rgba(50, 216, 238, 0.18));
-  color: var(--teal);
-  flex-shrink: 0;
-}
-
-.session-panel__title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 900;
-  color: var(--ink);
-}
-
-.session-panel__status {
-  margin: 0.15rem 0 0;
-  font-size: 0.78rem;
-  color: var(--muted);
-}
-
-.session-panel__mode {
-  flex-shrink: 0;
-  padding: 0.28rem 0.65rem;
-  border-radius: 999px;
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+.kpi__label {
+  font-size: clamp(0.68rem, 1.3vh, 0.8rem);
+  font-weight: 700;
+  color: #9aabba;
   text-transform: uppercase;
-  background: rgba(100, 116, 139, 0.1);
-  color: #64748b;
+  letter-spacing: 0.03em;
 }
 
-.session-panel__mode--edit {
-  background: rgba(50, 216, 238, 0.16);
-  color: #0f766e;
+.kpi__value {
+  font-size: clamp(1.1rem, 2.6vh, 1.6rem);
+  font-weight: 750;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.session-panel__body {
-  padding: 1.15rem;
+.kpi--current {
+  background-image: linear-gradient(135deg, #197783, #32d8ee);
+  border-color: transparent;
+  box-shadow: 0 6px 16px rgba(25, 119, 131, 0.25);
 }
 
-.currency-pair {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 0.7rem;
-  align-items: stretch;
-  margin-bottom: 0.9rem;
+.kpi--current .kpi__icon {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
 }
 
-.currency-field {
-  padding: 0.85rem 0.9rem 0.55rem;
-  border-radius: 18px;
-  background: #f4f8f9;
-  border: 1px solid transparent;
-  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+.kpi--current .kpi__label {
+  color: rgba(255, 255, 255, 0.85);
 }
 
-.currency-field--active {
-  background: #fff;
-  border-color: rgba(25, 119, 131, 0.28);
-  box-shadow: 0 0 0 3px rgba(50, 216, 238, 0.12);
+.kpi--current .kpi__value {
+  color: #fff;
+  font-size: clamp(1.25rem, 3vh, 1.9rem);
 }
 
-.currency-field__head {
+.kpi--current.is-loading {
+  opacity: 0.8;
+}
+
+.kpi--float { border-inline-start: 3px solid rgba(25, 119, 131, 0.55); }
+.kpi--payments { border-inline-start: 3px solid rgba(44, 140, 242, 0.5); }
+.kpi--count { border-inline-start: 3px solid rgba(100, 180, 190, 0.55); }
+
+.kpi--payments .kpi__icon {
+  background: rgba(44, 140, 242, 0.1);
+  color: #2c8cf2;
+}
+
+.kpi--count .kpi__icon {
+  background: rgba(100, 180, 190, 0.14);
+  color: #3f8f99;
+}
+
+/* Session panel */
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid #e6edf3;
+  border-radius: 16px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.session-panel {
+  flex: 1;
+}
+
+.session-panel.is-editing {
+  border-color: rgba(25, 119, 131, 0.35);
+  box-shadow: 0 6px 18px rgba(25, 119, 131, 0.12);
+}
+
+.panel-head {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  margin-bottom: 0.25rem;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
+  flex-wrap: wrap;
+  padding: clamp(0.75rem, 1.6vh, 1.1rem) clamp(0.95rem, 1.4vw, 1.4rem);
+  border-bottom: 1px solid #eef2f6;
+  background: #fafcfd;
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: clamp(0.9rem, 1.7vh, 1.1rem);
+  font-weight: 700;
+  color: #3d4f5f;
+}
+
+.panel-title .v-icon {
+  color: #5a9aa3;
+}
+
+.panel-note {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.8rem;
+  color: #8a9aab;
+}
+
+.panel-note .v-icon {
+  color: #5a9aa3;
+  flex-shrink: 0;
+}
+
+.panel-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(0.9rem, 3vh, 2.25rem);
+  padding: clamp(0.95rem, 3vh, 2.25rem) clamp(0.95rem, 1.4vw, 1.4rem);
+}
+
+.panel-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  padding: clamp(0.75rem, 1.6vh, 1.1rem) clamp(0.95rem, 1.4vw, 1.4rem);
+  border-top: 1px solid #eef2f6;
+  background: #fafcfd;
+}
+
+/* Form */
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.75rem, 1.4vw, 1.5rem);
+}
+
+.field__label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.45rem;
+  font-size: clamp(0.72rem, 1.3vh, 0.82rem);
+  font-weight: 700;
+  color: #9aabba;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .currency-chip {
   font-size: 0.62rem;
-  font-weight: 900;
-  padding: 0.15rem 0.4rem;
+  font-weight: 800;
+  padding: 0.12rem 0.38rem;
   border-radius: 6px;
   letter-spacing: 0.03em;
+  text-transform: none;
 }
 
 .currency-chip--usd {
-  background: rgba(37, 99, 235, 0.12);
+  background: rgba(37, 99, 235, 0.1);
   color: #1d4ed8;
 }
 
 .currency-chip--lbp {
   background: rgba(25, 119, 131, 0.12);
-  color: var(--teal);
+  color: #197783;
 }
 
-.currency-field__label {
-  font-size: 0.72rem;
+.amount-input :deep(.v-field) {
+  border-radius: 12px;
+  background: #fff;
+}
+
+.amount-input :deep(.v-field__input) {
+  min-height: clamp(48px, 7vh, 76px);
+  font-size: clamp(1.15rem, 2.8vh, 1.75rem);
+  font-weight: 750;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+}
+
+.amount-input :deep(.v-text-field__prefix),
+.amount-input :deep(.v-text-field__suffix) {
+  min-height: clamp(48px, 7vh, 76px);
+  font-size: clamp(1rem, 2.2vh, 1.35rem);
   font-weight: 700;
-  color: var(--muted);
+  color: #8a9aab;
 }
 
-.currency-input :deep(.v-field) {
-  background: transparent;
+.amount-input :deep(.v-field--disabled) {
+  opacity: 1;
+  background: #f5f8fa;
 }
 
-.currency-input :deep(.v-field__input) {
-  font-size: 1.35rem;
-  font-weight: 900;
-  color: var(--ink);
-  min-height: 42px;
-  padding-inline: 0 !important;
+.amount-input :deep(input:disabled) {
+  -webkit-text-fill-color: #64748b;
 }
 
-.currency-input :deep(input:disabled) {
-  opacity: 0.7;
-  -webkit-text-fill-color: var(--ink);
-}
-
-.currency-join {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  margin-top: 2.4rem;
-  border-radius: 50%;
-  background: linear-gradient(135deg, rgba(25, 119, 131, 0.12), rgba(50, 216, 238, 0.18));
-  color: var(--teal);
-  font-weight: 900;
-  font-size: 1rem;
-}
-
-.datetime-row {
+.info-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.7rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.75rem, 1.4vw, 1.5rem);
 }
 
-.datetime-tile {
+.info-tile {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
-  padding: 0.85rem 0.95rem;
-  border-radius: 16px;
-  background: linear-gradient(180deg, #f7fbfc, #eef5f6);
-  border: 1px solid var(--line);
+  gap: 0.75rem;
+  min-width: 0;
+  padding: clamp(0.7rem, 1.8vh, 1.25rem) clamp(0.85rem, 1.2vw, 1.25rem);
+  border-radius: 12px;
+  background: #f7fafc;
+  border: 1px solid #eef2f6;
 }
 
-.datetime-tile__icon {
-  color: var(--teal);
+.info-tile__icon {
+  color: #5a9aa3;
   flex-shrink: 0;
+  font-size: clamp(18px, 2.4vh, 26px);
 }
 
-.datetime-tile__label {
+.info-tile__label {
   display: block;
-  font-size: 0.68rem;
+  font-size: clamp(0.66rem, 1.2vh, 0.78rem);
   font-weight: 700;
-  color: var(--muted);
+  color: #9aabba;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
-.datetime-tile__value {
+.info-tile__value {
   display: block;
   margin-top: 0.1rem;
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: var(--ink);
+  font-size: clamp(0.92rem, 2vh, 1.2rem);
+  font-weight: 700;
+  color: #334155;
 }
 
-.session-panel__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.95rem 1.15rem 1.15rem;
-  border-top: 1px solid var(--line);
-}
-
-.session-hint {
+.formula-hint {
   display: flex;
   align-items: flex-start;
   gap: 0.4rem;
   margin: 0;
-  max-width: 28rem;
-  font-size: 0.74rem;
-  line-height: 1.45;
-  color: var(--muted);
+  padding: 0.7rem 0.85rem;
+  border-radius: 11px;
+  background: rgba(44, 140, 242, 0.06);
+  font-size: clamp(0.76rem, 1.3vh, 0.85rem);
+  line-height: 1.5;
+  color: #64748b;
 }
 
-.session-hint .v-icon {
+.formula-hint .v-icon {
   color: #2c8cf2;
-  margin-top: 1px;
+  margin-top: 2px;
   flex-shrink: 0;
 }
 
-.vault-action {
+/* Buttons */
+.btn-ghost,
+.btn-solid {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
-  min-width: 11.5rem;
-  height: 2.85rem;
-  padding: 0 1.2rem;
-  border: none;
-  border-radius: 14px;
+  gap: 0.35rem;
+  min-height: clamp(40px, 5vh, 52px);
+  padding: 0 clamp(1.1rem, 1.6vw, 1.6rem);
+  border-radius: 11px;
+  font-size: clamp(0.86rem, 1.6vh, 1rem);
+  font-weight: 650;
+  font-family: inherit;
   cursor: pointer;
-  font-size: 0.95rem;
-  font-weight: 800;
+  border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+
+.btn-ghost {
+  background: rgba(25, 119, 131, 0.08);
+  border-color: rgba(25, 119, 131, 0.4);
+  color: #197783;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: rgba(25, 119, 131, 0.14);
+  border-color: #197783;
+}
+
+.btn-solid {
+  background-image: linear-gradient(135deg, #197783, #32d8ee);
   color: #fff;
-  background: linear-gradient(135deg, #0f4f58, #197783 55%, #32d8ee);
-  box-shadow: 0 10px 24px rgba(25, 119, 131, 0.28);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
-  flex-shrink: 0;
+  font-weight: 700;
 }
 
-.vault-action:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 14px 28px rgba(25, 119, 131, 0.34);
+.btn-solid:hover:not(:disabled) {
+  background-image: linear-gradient(135deg, #14606a, #26c6da);
 }
 
-.vault-action:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.vault-action:disabled {
-  opacity: 0.55;
+.btn-ghost:disabled,
+.btn-solid:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
-}
-
-.vault-action--save {
-  background: linear-gradient(135deg, #0f766e, #14b8a6 55%, #2dd4bf);
 }
 
 .price-field-no-arrows :deep(input[type='number']::-webkit-outer-spin-button),
@@ -920,28 +832,55 @@ onMounted(loadDrawer)
   appearance: textfield;
 }
 
-@media (max-width: 760px) {
-  .vault-header {
-    flex-direction: column;
+/* Responsive */
+@media (min-width: 1600px) {
+  .drawer-shell {
+    padding-inline: 2rem;
   }
+}
 
-  .metric-rail,
-  .datetime-row,
-  .currency-pair {
-    grid-template-columns: 1fr;
+@media (max-width: 1100px) {
+  .kpi-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
 
-  .currency-join {
-    margin: 0 auto;
-  }
-
-  .session-panel__footer {
+@media (max-width: 720px) {
+  .drawer-header {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .vault-action {
-    width: 100%;
+  .drawer-header__meta {
+    justify-content: space-between;
+  }
+
+  .field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-body {
+    justify-content: flex-start;
+  }
+
+  .panel-foot {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 520px) {
+  .drawer-shell {
+    padding: 0.75rem 0.75rem 1.25rem;
+  }
+
+  .drawer-header__subtitle {
+    padding-inline-start: 0;
+  }
+
+  .kpi-row,
+  .info-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

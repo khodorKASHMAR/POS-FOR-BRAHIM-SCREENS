@@ -25,7 +25,7 @@ export function createDefaultReceiptBlocks() {
       id: 'items-1',
       type: 'ITEMS',
       enabled: true,
-      props: { showDiscount: true }
+      props: { showBasePrice: true, showDiscount: true, showPriceAfterDiscount: true }
     },
     {
       id: 'totals-1',
@@ -64,6 +64,8 @@ export function createDefaultReceiptTemplate() {
     nameAr: 'فاتورة 80مم',
     templateType: 'RECEIPT_80',
     paperWidthMm: 80,
+    receiptCurrency: 'SYSTEM',
+    receiptLanguage: 'SYSTEM',
     blocks: createDefaultReceiptBlocks()
   }
 }
@@ -77,16 +79,17 @@ export function createSampleReceiptData() {
       employeeName: 'Cashier',
       receiptDate: '2026-08-12T14:30:00',
       receiptTime: '14:30:00',
-      total: 24.5,
+      total: 31.45,
       currency: 0,
       receiptDiscount: 5,
       isReceiptDiscountPercent: true,
       payWish: 0,
       isPayWishDollar: true,
-      payDollar: 20,
-      payLebanese: 400000,
-      returnedToUserValue: 0,
-      currencyRate: 89500
+      payDollar: 30,
+      payLebanese: 200000,
+      returnedToUserValue: 70000,
+      returnValueCurrencyRate: 89500,
+      currencyRate: 1
     },
     items: [
       {
@@ -94,6 +97,7 @@ export function createSampleReceiptData() {
         itemNameEn: 'Espresso',
         itemNameAr: 'إسبريسو',
         sellingPrice: 3.5,
+        sellingCurrency: 0,
         quantity: 2,
         itemDiscount: 0,
         isDiscountPercent: true,
@@ -101,9 +105,10 @@ export function createSampleReceiptData() {
       },
       {
         itemId: '2',
-        itemNameEn: 'Croissant',
-        itemNameAr: 'كرواسون',
+        itemNameEn: 'Johnson And Johnson Top To Toe Wash 500 ML',
+        itemNameAr: 'شامبو جونسون للأطفال من الرأس حتى القدمين 500 مل',
         sellingPrice: 4,
+        sellingCurrency: 0,
         quantity: 1,
         itemDiscount: 10,
         isDiscountPercent: true,
@@ -113,13 +118,14 @@ export function createSampleReceiptData() {
         itemId: '3',
         itemNameEn: 'Orange Juice',
         itemNameAr: 'عصير برتقال',
-        sellingPrice: 5,
+        sellingPrice: 8,
+        sellingCurrency: 0,
         quantity: 3,
-        itemDiscount: 0,
-        isDiscountPercent: true,
-        subTotal: 15
+        itemDiscount: 0.5,
+        isDiscountPercent: false,
+        subTotal: 22.5
       }
     ],
-    itemsSubtotal: 25.6
+    itemsSubtotal: 33.1
   }
 }

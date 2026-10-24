@@ -16,80 +16,82 @@
       <!-- META -->
       <div v-else-if="block.type === 'META'" class="block block-meta">
         <div class="meta-row">
-          <span>{{ $t('date') }}</span>
+          <span>{{ tr('date') }}</span>
           <span>{{ formatDate(details?.receiptDate) }}</span>
         </div>
         <div class="meta-row">
-          <span>{{ $t('time') }}</span>
+          <span>{{ tr('time') }}</span>
           <span>{{ formatTime(details?.receiptTime) }}</span>
         </div>
         <div class="meta-row">
-          <span>{{ $t('customerName') }}</span>
-          <span>{{ details?.customerName || $t('walkInCustomer') }}</span>
+          <span>{{ tr('customerName') }}</span>
+          <span>{{ details?.customerName || tr('walkInCustomer') }}</span>
         </div>
         <div class="meta-row">
-          <span>{{ $t('employeeName') }}</span>
+          <span>{{ tr('employeeName') }}</span>
           <span>{{ details?.employeeName || '—' }}</span>
         </div>
       </div>
 
       <!-- ITEMS -->
       <div v-else-if="block.type === 'ITEMS'" class="block block-items">
-        <div class="items-head">
-          <span class="col-name">{{ $t('name') }}</span>
-          <span class="col-qty">{{ $t('qty') }}</span>
-          <span class="col-amt">{{ $t('subtotal') }}</span>
+        <div class="items-grid items-head">
+          <span>{{ tr('name') }}</span>
+          <span class="col-qty">{{ tr('qty') }}</span>
+          <span class="col-amt">{{ tr('subtotal') }}</span>
         </div>
-        <div v-for="(row, idx) in items" :key="`${row.itemId}-${idx}`" class="item-row">
-          <div class="item-main">
-            <span class="col-name">{{ itemName(row) }}</span>
-            <span class="col-qty">×{{ row.quantity ?? 0 }}</span>
-            <span class="col-amt">{{ formatMoney(row.subTotal) }}</span>
+        <div v-for="(row, idx) in items" :key="`${row.itemId}-${idx}`" class="items-grid item-row">
+          <div class="item-name-cell">
+            <div class="item-name">{{ itemName(row) }}</div>
+            <div v-if="itemExtras(block, row).length" class="item-extras">
+              <span v-for="extra in itemExtras(block, row)" :key="extra.key" class="item-extra">
+                {{ extra.label }}: <span class="amt">{{ extra.value }}</span>
+              </span>
+            </div>
           </div>
-          <div v-if="block.props?.showDiscount !== false && Number(row.itemDiscount) > 0" class="item-disc">
-            {{ $t('discount') }}: {{ formatItemDiscount(row) }}
-          </div>
+          <span class="col-qty">×{{ row.quantity ?? 0 }}</span>
+          <span class="col-amt amt">{{ money(row.subTotal) }}</span>
         </div>
-        <div v-if="!items.length" class="empty-items">{{ $t('noReceiptItems') }}</div>
+        <div v-if="!items.length" class="empty-items">{{ tr('noReceiptItems') }}</div>
       </div>
 
       <!-- TOTALS -->
       <div v-else-if="block.type === 'TOTALS'" class="block block-totals">
         <div class="totals-row">
-          <span>{{ $t('subtotal') }}</span>
-          <span>{{ formatMoney(itemsSubtotal) }}</span>
+          <span>{{ tr('subtotal') }}</span>
+          <span class="amt">{{ money(itemsSubtotal) }}</span>
         </div>
         <div v-if="Number(details?.receiptDiscount) > 0" class="totals-row">
-          <span>{{ $t('discount') }}</span>
-          <span>{{ formatReceiptDiscount(details) }}</span>
+          <span>{{ tr('discount') }}</span>
+          <span class="amt">{{ formatReceiptDiscount(details) }}</span>
         </div>
         <div class="totals-row totals-row--grand">
-          <span>{{ $t('total') }}</span>
-          <span>{{ formatTotal(details) }}</span>
+          <span>{{ tr('total') }}</span>
+          <span class="amt">{{ money(details?.total) }}</span>
         </div>
       </div>
 
       <!-- PAYMENT -->
       <div v-else-if="block.type === 'PAYMENT'" class="block block-payment">
         <div v-if="Number(details?.payWish)" class="pay-row">
-          <span>Wish</span>
-          <span>{{ formatPayWish(details) }}</span>
+          <span>Whish</span>
+          <span class="amt">{{ formatPayWish(details) }}</span>
         </div>
         <div v-if="Number(details?.payDollar)" class="pay-row">
-          <span>USD</span>
-          <span>{{ formatUsd(details.payDollar) }}</span>
+          <span>{{ isRtl ? 'دولار' : 'USD' }}</span>
+          <span class="amt">{{ formatAmount(details.payDollar, CurrencyEnum.DOLLAR) }}</span>
         </div>
         <div v-if="Number(details?.payLebanese)" class="pay-row">
-          <span>LBP</span>
-          <span>{{ formatLbp(details.payLebanese) }}</span>
+          <span>{{ isRtl ? 'ليرة' : 'LBP' }}</span>
+          <span class="amt">{{ formatAmount(details.payLebanese, CurrencyEnum.LBP) }}</span>
         </div>
-        <div v-if="Number(details?.returnedToUserValue) > 0" class="pay-row">
-          <span>{{ $t('returnedToUser') }}</span>
-          <span>{{ formatLbp(details.returnedToUserValue) }}</span>
+        <div class="pay-row">
+          <span>{{ tr('returnedToUser') }}</span>
+          <span class="amt">{{ formatAmount(details?.returnedToUserValue || 0, CurrencyEnum.LBP) }}</span>
         </div>
-        <div v-if="Number(details?.currencyRate ?? details?.dollarRate)" class="pay-row pay-row--muted">
-          <span>{{ $t('dollarRate') }}</span>
-          <span>{{ formatLbp(details.currencyRate ?? details.dollarRate) }}</span>
+        <div v-if="Number(details?.returnValueCurrencyRate)" class="pay-row pay-row--muted">
+          <span>{{ tr('dollarRate') }}</span>
+          <span class="amt">{{ formatAmount(details.returnValueCurrencyRate, CurrencyEnum.LBP) }}</span>
         </div>
       </div>
 
@@ -113,9 +115,17 @@
 </template>
 
 <script setup>
-import { computed, getCurrentInstance } from 'vue'
+import { computed } from 'vue'
 import { useState } from '../../store/state'
-import { isDollarReceipt } from '../../constants/currency'
+import { t } from '../../i18n/translations'
+import { CurrencyEnum } from '../../constants/enums'
+import {
+  isDollarCurrency,
+  isDollarReceipt,
+  receiptCurrencyRate,
+  uiCurrencyToEnum,
+  unitPriceInReceiptCurrency
+} from '../../constants/currency'
 
 const props = defineProps({
   template: { type: Object, default: null },
@@ -125,12 +135,37 @@ const props = defineProps({
   lang: { type: String, default: null }
 })
 
-const instance = getCurrentInstance()
-const $t = (key) => instance?.appContext?.config?.globalProperties?.$t?.(key) ?? key
 const state = useState()
 
-const activeLang = computed(() => props.lang || state.lang || 'en')
+const activeLang = computed(() => {
+  if (props.lang) return props.lang
+  const setting = props.template?.receiptLanguage
+  if (setting === 'AR') return 'ar'
+  if (setting === 'EN') return 'en'
+  return state.lang || 'en'
+})
 const isRtl = computed(() => activeLang.value === 'ar')
+const tr = (key) => t(key, activeLang.value)
+
+const receiptCurrency = computed(() =>
+  isDollarReceipt(props.details) ? CurrencyEnum.DOLLAR : CurrencyEnum.LBP
+)
+
+/** Currency the receipt amounts are printed in (payments always print as paid). */
+const displayCurrency = computed(() => {
+  const setting = props.template?.receiptCurrency
+  if (setting === 'USD') return CurrencyEnum.DOLLAR
+  if (setting === 'LBP') return CurrencyEnum.LBP
+  return uiCurrencyToEnum(state.currency)
+})
+
+/** LBP per 1 USD frozen on the receipt; dollar receipts store currencyRate = 1. */
+const lbpRate = computed(() => {
+  const d = props.details
+  if (!isDollarReceipt(d)) return receiptCurrencyRate(d, Number(state.exchangeRate) || 1)
+  const stored = Number(d?.returnValueCurrencyRate)
+  return stored > 0 ? stored : Number(state.exchangeRate) || 1
+})
 
 const paperWidthMm = computed(() => Number(props.template?.paperWidthMm) || 80)
 
@@ -175,57 +210,77 @@ function formatTime(value) {
   return s.length >= 5 ? s.slice(0, 5) : s
 }
 
-function formatUsd(value) {
+/**
+ * Amount with its currency word. Rendered inside `.amt` (an LTR isolate), so in Arabic the
+ * currency word stays to the left of the number and the two never wrap apart.
+ */
+function formatAmount(value, currency) {
   const num = Number(value)
-  if (!num && num !== 0) return '—'
-  const formatted = Number(num).toFixed(2)
-  if (activeLang.value === 'ar') return `دولار\u200E ${formatted}`
-  return `${formatted} USD`
+  if (!Number.isFinite(num)) return '—'
+  const dollar = isDollarCurrency(currency)
+  const formatted = dollar ? num.toFixed(2) : Math.round(num).toLocaleString('en-US')
+  if (isRtl.value) return `${dollar ? 'دولار' : 'ل.ل.'}\u200E ${formatted}`
+  return `${formatted} ${dollar ? 'USD' : 'LBP'}`
 }
 
-function formatLbp(value) {
-  const num = Number(value)
-  if (!num && num !== 0) return '—'
-  const formatted = Math.round(num).toLocaleString('en-US')
-  if (activeLang.value === 'ar') return `ل.ل.\u200E ${formatted}`
-  return `${formatted} LBP`
-}
-
-function formatMoney(amountInReceiptCurrency) {
-  const num = Number(amountInReceiptCurrency)
-  if (!num && num !== 0) return '—'
-  if (isDollarReceipt(props.details)) return formatUsd(num)
-  return formatLbp(num)
-}
-
-function formatTotal(receipt) {
-  if (!receipt) return '—'
-  const num = Number(receipt.total) || 0
-  if (isDollarReceipt(receipt)) return formatUsd(num)
-  return formatLbp(num)
+/** Amount stored in the receipt currency, printed in the chosen receipt currency. */
+function money(amountInReceiptCurrency) {
+  const converted = unitPriceInReceiptCurrency(
+    Number(amountInReceiptCurrency) || 0,
+    receiptCurrency.value,
+    displayCurrency.value,
+    lbpRate.value
+  )
+  return formatAmount(converted, displayCurrency.value)
 }
 
 function formatReceiptDiscount(receipt) {
   const val = Number(receipt?.receiptDiscount) || 0
   if (!val) return '—'
   if (receipt.isReceiptDiscountPercent) return `${val}%`
-  if (isDollarReceipt(receipt)) return formatUsd(val)
-  return formatLbp(val)
+  return money(val)
 }
 
 function formatPayWish(receipt) {
   const num = Number(receipt?.payWish) || 0
   if (!num) return '—'
-  if (receipt.isPayWishDollar !== false) return formatUsd(num)
-  return formatLbp(num)
+  return formatAmount(num, receipt.isPayWishDollar !== false ? CurrencyEnum.DOLLAR : CurrencyEnum.LBP)
 }
 
-function formatItemDiscount(row) {
-  const val = Number(row.itemDiscount) || 0
-  if (!val) return '—'
-  if (row.isDiscountPercent) return `${val}%`
-  if (isDollarReceipt(props.details)) return formatUsd(val)
-  return formatLbp(val)
+/** Unit prices in the receipt currency, derived from the saved line so they always match it. */
+function unitPrices(row) {
+  const qty = Number(row.quantity) || 0
+  const discount = Number(row.itemDiscount) || 0
+  const after = qty > 0 ? (Number(row.subTotal) || 0) / qty : 0
+  let base = after
+  if (discount > 0 && row.isDiscountPercent) {
+    base = discount < 100
+      ? after / (1 - discount / 100)
+      : unitPriceInReceiptCurrency(row.sellingPrice, row.sellingCurrency, receiptCurrency.value, lbpRate.value)
+  } else if (discount > 0) {
+    base = after + discount
+  }
+  return { base, after, discount }
+}
+
+function itemExtras(block, row) {
+  const p = block.props || {}
+  const { base, after, discount } = unitPrices(row)
+  const extras = []
+  if (p.showBasePrice !== false) {
+    extras.push({ key: 'base', label: tr('basePrice'), value: money(base) })
+  }
+  if (discount > 0 && p.showDiscount !== false) {
+    extras.push({
+      key: 'disc',
+      label: tr('discount'),
+      value: row.isDiscountPercent ? `${discount}%` : money(discount)
+    })
+  }
+  if (discount > 0 && p.showPriceAfterDiscount !== false) {
+    extras.push({ key: 'after', label: tr('priceAfterDiscount'), value: money(after) })
+  }
+  return extras
 }
 </script>
 
@@ -284,18 +339,23 @@ function formatItemDiscount(row) {
   font-size: 11px;
 }
 
-.items-head,
-.item-main {
+.amt {
+  direction: ltr;
+  unicode-bidi: isolate;
+  white-space: nowrap;
+}
+
+.items-grid {
   display: grid;
-  grid-template-columns: 1fr 36px 72px;
-  gap: 4px;
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr) 30px 116px;
+  column-gap: 12px;
+  align-items: center;
 }
 
 .items-head {
   border-bottom: 1px solid #333;
   padding-bottom: 3px;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   font-weight: 700;
   font-size: 11px;
 }
@@ -305,14 +365,40 @@ function formatItemDiscount(row) {
   text-align: end;
 }
 
-.item-row {
-  margin-bottom: 5px;
+.thermal-receipt--rtl .col-amt {
+  text-align: left;
 }
 
-.item-disc {
+.item-row {
+  padding: 7px 0;
+  border-bottom: 1px dotted #bbb;
+}
+
+.item-row:last-of-type {
+  border-bottom: none;
+}
+
+.item-name-cell {
+  min-width: 0;
+}
+
+.item-name {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.item-extras {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 8px;
+  row-gap: 1px;
+  margin-top: 2px;
   font-size: 10px;
-  opacity: 0.8;
-  padding-inline-start: 2px;
+  opacity: 0.85;
+}
+
+.item-extra {
+  white-space: nowrap;
 }
 
 .empty-items {

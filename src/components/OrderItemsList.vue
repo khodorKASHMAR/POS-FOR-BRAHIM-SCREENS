@@ -68,17 +68,6 @@
                 <span class="order-item-name">{{ getItemName(item) }}</span>
               </div>
               <div class="order-item-price">{{ formatPrice(item.unit) }}</div>
-              <div class="order-item-discount-row">
-                <span class="discount-label">{{ $t('discount') }}</span>
-                <v-btn
-                  variant="text"
-                  size="x-small"
-                  class="discount-toggle-btn"
-                  @click="toggleDiscountType(item)"
-                >
-                  {{ item.discountType === 'amount' ? getCurrencySymbol() : '%' }}
-                </v-btn>
-              </div>
             </div>
 
             <div class="order-item-quantity">
@@ -112,6 +101,22 @@
                   <v-icon size="18">mdi-plus</v-icon>
                 </v-btn>
               </div>
+            </div>
+          </div>
+
+          <div class="order-item-discount-line">
+            <div class="order-item-discount-row">
+              <span class="discount-label">{{ $t('discount') }}</span>
+              <v-btn
+                variant="text"
+                size="x-small"
+                class="discount-toggle-btn"
+                @click="toggleDiscountType(item)"
+              >
+                {{ item.discountType === 'amount' ? getCurrencySymbol() : '%' }}
+              </v-btn>
+            </div>
+            <div class="order-item-quantity">
               <div class="discount-controls">
                 <input
                   type="text"
@@ -616,6 +621,7 @@ function loadDraft({ id, details, items }) {
       isDiscountPercent: row.isDiscountPercent !== false,
       subTotal: Number(row.subTotal) || 0
     }))
+    receipt.receiptItems.forEach(recalcReceiptItemSubTotal)
     recalcReceiptTotal()
   }
 }
@@ -917,10 +923,19 @@ function loadDraft({ id, details, items }) {
   width: 100%;
 }
 
+.order-item-discount-line {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.65rem;
+}
+
 .order-item-discount-row {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .discount-label {
@@ -1197,6 +1212,7 @@ function loadDraft({ id, details, items }) {
   margin-right: 0;
 }
 
+[dir="rtl"] .order-item-discount-line,
 [dir="rtl"] .order-item-discount-row {
   flex-direction: row-reverse;
 }

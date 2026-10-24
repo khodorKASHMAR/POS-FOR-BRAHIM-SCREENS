@@ -259,7 +259,7 @@
 </template>
 
 <script setup>
-import { computed, getCurrentInstance, onMounted, ref } from 'vue'
+import { computed, getCurrentInstance, onBeforeUnmount, onMounted, ref } from 'vue'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -365,6 +365,14 @@ const granularity = computed(() => {
   if (days <= 92) return 'DAILY'
   return 'MONTHLY'
 })
+
+const appliedGranularity = ref('DAILY')
+
+const BUCKET_LABEL_KEYS = {
+  HOURLY: 'time',
+  DAILY: 'day',
+  MONTHLY: 'month'
+}
 
 const totalIncome = computed(() =>
   isUsd.value ? totalRevenueUsd.value : totalRevenueLbp.value
@@ -577,7 +585,7 @@ function buildRevenueTipHtml(index) {
     : Number(point.revenueLbp) || 0
   return (
     `<div class="dash-tip__head">` +
-    `<span class="dash-tip__eyebrow">${escapeHtml($t('revenue'))}</span>` +
+    `<span class="dash-tip__eyebrow">${escapeHtml($t(BUCKET_LABEL_KEYS[appliedGranularity.value] || 'day'))}</span>` +
     `<strong class="dash-tip__title">${escapeHtml(point.label || '')}</strong>` +
     `</div>` +
     `<div class="dash-tip__body dash-tip__body--single">` +
@@ -610,20 +618,28 @@ function buildSoldTipHtml(index) {
   )
 }
 
+let tipEl = null
+
+function getTipEl() {
+  if (!tipEl) {
+    tipEl = document.createElement('div')
+    tipEl.className = 'dash-tip'
+    document.body.appendChild(tipEl)
+  }
+  return tipEl
+}
+
+function hideTip() {
+  tipEl?.classList.remove('dash-tip--show')
+}
+
 function externalTooltipHandler(context) {
   const { chart, tooltip } = context
-  const parent = chart.canvas?.parentNode
-  if (!parent) return
+  if (!chart.canvas) return
 
-  let el = parent.querySelector('.dash-tip')
-  if (!el) {
-    el = document.createElement('div')
-    el.className = 'dash-tip'
-    parent.appendChild(el)
-  }
-
+  const el = getTipEl()
   if (tooltip.opacity === 0) {
-    el.classList.remove('dash-tip--show')
+    hideTip()
     return
   }
 
@@ -633,16 +649,20 @@ function externalTooltipHandler(context) {
   el.setAttribute('dir', state.dir)
   el.innerHTML = scenario.value === 'revenue' ? buildRevenueTipHtml(index) : buildSoldTipHtml(index)
 
-  // Clamp horizontally inside the chart and keep the caret on the data point.
+  // Fixed to the viewport so card overflow can't clip it; clamp horizontally and flip vertically by available space.
+  const rect = chart.canvas.getBoundingClientRect()
+  const caretX = rect.left + tooltip.caretX
+  const caretY = rect.top + tooltip.caretY
   const half = el.offsetWidth / 2
-  const parentWidth = parent.clientWidth
-  const clampedX = Math.min(Math.max(tooltip.caretX, half + 6), Math.max(parentWidth - half - 6, half + 6))
-  const showBelow = tooltip.caretY < el.offsetHeight + 26
+  const viewportWidth = document.documentElement.clientWidth
+  const clampedX = Math.min(Math.max(caretX, half + 8), Math.max(viewportWidth - half - 8, half + 8))
+  const needed = el.offsetHeight + 26
+  const showBelow = caretY < needed && window.innerHeight - caretY >= needed
 
   el.classList.toggle('dash-tip--below', showBelow)
   el.style.left = `${clampedX}px`
-  el.style.top = `${tooltip.caretY}px`
-  el.style.setProperty('--caret-shift', `${tooltip.caretX - clampedX}px`)
+  el.style.top = `${caretY}px`
+  el.style.setProperty('--caret-shift', `${caretX - clampedX}px`)
   el.classList.add('dash-tip--show')
 }
 
@@ -703,6 +723,28 @@ const chartOptions = computed(() => ({
 
 /* --------------------------- Top sold scenario ---------------------------- */
 
+/** Splits a label into lines of at most `max` chars; Chart.js renders arrays as multi-line ticks. */
+function wrapLabel(label, max) {
+  const lines = []
+  let line = ''
+  for (const word of String(label).split(/\s+/).filter(Boolean)) {
+    if (word.length > max) {
+      if (line) lines.push(line)
+      for (let i = 0; i < word.length; i += max) lines.push(word.slice(i, i + max))
+      line = lines.pop()
+    } else if (!line) {
+      line = word
+    } else if (line.length + 1 + word.length <= max) {
+      line += ` ${word}`
+    } else {
+      lines.push(line)
+      line = word
+    }
+  }
+  if (line) lines.push(line)
+  return lines
+}
+
 const soldChartData = computed(() => ({
   labels: soldRows.value.map((row) => row.name),
   datasets: [
@@ -741,10 +783,9 @@ const soldChartOptions = computed(() => ({
         color: '#94a3b8',
         font: { size: 11, family: 'inherit' },
         autoSkip: false,
-        maxRotation: 40,
+        maxRotation: 0,
         callback(value) {
-          const label = this.getLabelForValue(value) ?? ''
-          return label.length > 14 ? `${label.slice(0, 13)}…` : label
+          return wrapLabel(this.getLabelForValue(value) ?? '', 14)
         }
       }
     },
@@ -783,6 +824,7 @@ async function loadDashboard() {
     const response = await DashboardService.getDashboardData(payload)
     const data = response?.data?.data ?? {}
     revenueSeries.value = data.revenueSeries ?? []
+    appliedGranularity.value = payload.granularity
     topSoldItems.value = data.topSoldItems ?? []
     topSoldCategories.value = data.topSoldCategories ?? []
     totalRevenueUsd.value = Number(data.totalRevenueUsd ?? data.totalRevenue) || 0
@@ -815,9 +857,16 @@ function resetFilters() {
 }
 
 onMounted(async () => {
+  window.addEventListener('scroll', hideTip, true)
   setDefaultDatesForPeriod(period.value)
   await Promise.all([fetchCategories(''), fetchItems('')])
   await loadDashboard()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', hideTip, true)
+  tipEl?.remove()
+  tipEl = null
 })
 </script>
 
@@ -1002,10 +1051,9 @@ onMounted(async () => {
 .select-card__name {
   font-size: 0.95rem;
   font-weight: 750;
+  line-height: 1.35;
   color: #14606a;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .select-card__stats {
@@ -1341,7 +1389,7 @@ onMounted(async () => {
 <style>
 /* Custom chart tooltip (created dynamically, so it cannot be scoped) */
 .dash-tip {
-  position: absolute;
+  position: fixed;
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
@@ -1355,7 +1403,7 @@ onMounted(async () => {
     0 20px 44px -14px rgba(15, 23, 42, 0.28),
     0 6px 14px -6px rgba(25, 119, 131, 0.16);
   overflow: hidden;
-  z-index: 30;
+  z-index: 3000;
   transition: opacity 0.14s ease, transform 0.14s ease, left 0.08s ease-out, top 0.08s ease-out;
   font-family: inherit;
 }
@@ -1416,9 +1464,8 @@ onMounted(async () => {
   font-size: 0.92rem;
   font-weight: 800;
   letter-spacing: 0.01em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .dash-tip__body {
