@@ -94,7 +94,7 @@ import { ref, reactive, inject, getCurrentInstance } from 'vue'
 import { useRouter } from 'vue-router'
 import LoginService from '../services/LoginService.js'
 import { useUserStore } from '../store/user'
-import { isUsbSupported, reconnectPrinter } from '../print/thermalPrinter'
+import { isUsbSupported, reconnectLabelPrinter, reconnectPrinter } from '../print/thermalPrinter'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -104,6 +104,7 @@ const $t = (key) => instance?.appContext?.config?.globalProperties?.$t?.(key) ??
 
 async function connectPrinterAfterLogin() {
   if (!isUsbSupported()) return
+  void reconnectLabelPrinter().catch(() => null)
   const label = await reconnectPrinter().catch(() => null)
   if (!label) notify($t('printerNotConnected'), 'error', 5000)
 }

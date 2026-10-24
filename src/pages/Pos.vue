@@ -87,7 +87,7 @@ import HomeItemCard from '../components/HomeItemCard.vue'
 import OrderItemsList from '../components/OrderItemsList.vue'
 import TopBar from '../components/TopBar.vue'
 import ThermalReceiptPrinter from '../components/print/ThermalReceiptPrinter.vue'
-import { PRINTER_NOT_CONNECTED } from '../print/thermalPrinter'
+import { printerErrorKey } from '../print/thermalPrinter'
 import { keepScrollAnchor, useInfiniteScroll } from '../composables/useInfiniteScroll'
 import { useItemsPager } from '../composables/useItemsPager'
 
@@ -153,8 +153,7 @@ async function printSavedReceipt(receiptId) {
   } catch (err) {
     console.error('Failed to print receipt:', err)
     if (typeof $notification === 'function') {
-      const key = err?.code === PRINTER_NOT_CONNECTED ? 'printerNotConnected' : 'receiptPrintFailed'
-      $notification($t(key), 'error', 5000)
+      $notification($t(printerErrorKey(err)), 'error', 6000)
     }
   }
 }

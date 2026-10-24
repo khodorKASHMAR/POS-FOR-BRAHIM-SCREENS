@@ -124,6 +124,7 @@
             :show-actions="true"
             @edit="handleEditItem(i)"
             @delete="handleDeleteItem(i)"
+            @print-label="openLabelDialog(i)"
           />
         </div>
         <div ref="scrollSentinelRef" class="items-scroll-sentinel" aria-hidden="true" />
@@ -496,6 +497,12 @@
       :loading="deleteConfirm.loading"
       @confirm="confirmDeleteTarget"
     />
+
+    <ItemLabelDialog
+      v-model="labelDialog.open"
+      :item="labelDialog.item"
+      @item-updated="onLabelItemUpdated"
+    />
     </div>
   </div>
 </template>
@@ -511,6 +518,7 @@ import ImageCropper from '../components/ImageCropper.vue'
 import PosAutocomplete from '../components/PosAutocomplete.vue'
 import HardwareBarcodeListenDialog from '../components/HardwareBarcodeListenDialog.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import ItemLabelDialog from '../components/ItemLabelDialog.vue'
 import { keepScrollAnchor, useInfiniteScroll } from '../composables/useInfiniteScroll'
 import { useItemsPager } from '../composables/useItemsPager'
 import { CurrencyEnum } from '../constants/enums'
@@ -524,7 +532,8 @@ export default {
     ImageCropper,
     PosAutocomplete,
     HardwareBarcodeListenDialog,
-    ConfirmDialog
+    ConfirmDialog,
+    ItemLabelDialog
   },
   setup() {
     const instance = getCurrentInstance()
@@ -1104,6 +1113,16 @@ export default {
       }
     }
 
+    const labelDialog = ref({ open: false, item: null })
+
+    const openLabelDialog = (item) => {
+      labelDialog.value = { open: true, item }
+    }
+
+    const onLabelItemUpdated = (data, previousId) => {
+      if (data?.id) upsertItem(data, previousId)
+    }
+
     const initAddItemsPage = () => Promise.all([state.loadCategories(), reloadItems()])
 
     onMounted(() => {
@@ -1179,6 +1198,9 @@ export default {
       toggleSellingCurrency,
       handleEditItem,
       handleDeleteItem,
+      labelDialog,
+      openLabelDialog,
+      onLabelItemUpdated,
       handleEditCategory,
       handleDeleteCategory,
       deleteConfirm,

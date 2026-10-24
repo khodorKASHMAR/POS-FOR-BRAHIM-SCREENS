@@ -1,3 +1,5 @@
+import { RECEIPT_FONT_SIZE } from './blockTypes'
+
 /**
  * Default RECEIPT_80 template used as API fallback and builder reset.
  */
@@ -25,13 +27,20 @@ export function createDefaultReceiptBlocks() {
       id: 'items-1',
       type: 'ITEMS',
       enabled: true,
-      props: { showBasePrice: true, showDiscount: true, showPriceAfterDiscount: true }
+      props: {
+        showBasePrice: true,
+        showDiscount: true,
+        showPriceAfterDiscount: true,
+        boldBasePrice: false,
+        boldDiscount: false,
+        boldPriceAfterDiscount: false
+      }
     },
     {
       id: 'totals-1',
       type: 'TOTALS',
       enabled: true,
-      props: {}
+      props: { showTotalUsd: true, showTotalLbp: true, showCurrencyRate: true }
     },
     {
       id: 'pay-1',
@@ -66,6 +75,7 @@ export function createDefaultReceiptTemplate() {
     paperWidthMm: 80,
     receiptCurrency: 'SYSTEM',
     receiptLanguage: 'SYSTEM',
+    fontSize: RECEIPT_FONT_SIZE.default,
     blocks: createDefaultReceiptBlocks()
   }
 }

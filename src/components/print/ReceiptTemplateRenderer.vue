@@ -2,7 +2,7 @@
   <div
     class="thermal-receipt"
     :class="{ 'thermal-receipt--rtl': isRtl }"
-    :style="{ width: `${paperWidthMm}mm` }"
+    :style="{ width: `${paperWidthMm}mm`, fontSize: `${fontSizePx}px` }"
     :dir="isRtl ? 'rtl' : 'ltr'"
   >
     <template v-for="block in enabledBlocks" :key="block.id">
@@ -44,7 +44,12 @@
           <div class="item-name-cell">
             <div class="item-name">{{ itemName(row) }}</div>
             <div v-if="itemExtras(block, row).length" class="item-extras">
-              <span v-for="extra in itemExtras(block, row)" :key="extra.key" class="item-extra">
+              <span
+                v-for="extra in itemExtras(block, row)"
+                :key="extra.key"
+                class="item-extra"
+                :class="{ 'item-extra--bold': extra.bold }"
+              >
                 {{ extra.label }}: <span class="amt">{{ extra.value }}</span>
               </span>
             </div>
@@ -65,9 +70,19 @@
           <span>{{ tr('discount') }}</span>
           <span class="amt">{{ formatReceiptDiscount(details) }}</span>
         </div>
-        <div class="totals-row totals-row--grand">
-          <span>{{ tr('total') }}</span>
-          <span class="amt">{{ money(details?.total) }}</span>
+        <div class="totals-grand">
+          <div
+            v-for="(currency, idx) in totalCurrencies(block)"
+            :key="currency"
+            class="totals-row totals-row--grand"
+          >
+            <span>{{ idx === 0 ? tr('total') : '' }}</span>
+            <span class="amt">{{ moneyIn(details?.total, currency) }}</span>
+          </div>
+        </div>
+        <div v-if="block.props?.showCurrencyRate !== false && lbpRate > 1" class="totals-row totals-row--muted">
+          <span>{{ tr('dollarRate') }}</span>
+          <span class="amt">{{ formatAmount(lbpRate, CurrencyEnum.LBP) }}</span>
         </div>
       </div>
 
@@ -88,10 +103,6 @@
         <div class="pay-row">
           <span>{{ tr('returnedToUser') }}</span>
           <span class="amt">{{ formatAmount(details?.returnedToUserValue || 0, CurrencyEnum.LBP) }}</span>
-        </div>
-        <div v-if="Number(details?.returnValueCurrencyRate)" class="pay-row pay-row--muted">
-          <span>{{ tr('dollarRate') }}</span>
-          <span class="amt">{{ formatAmount(details.returnValueCurrencyRate, CurrencyEnum.LBP) }}</span>
         </div>
       </div>
 
@@ -126,6 +137,7 @@ import {
   uiCurrencyToEnum,
   unitPriceInReceiptCurrency
 } from '../../constants/currency'
+import { normalizeFontSize } from '../../print/blockTypes'
 
 const props = defineProps({
   template: { type: Object, default: null },
@@ -168,6 +180,7 @@ const lbpRate = computed(() => {
 })
 
 const paperWidthMm = computed(() => Number(props.template?.paperWidthMm) || 80)
+const fontSizePx = computed(() => normalizeFontSize(props.template?.fontSize))
 
 const enabledBlocks = computed(() =>
   (props.template?.blocks || []).filter((b) => b && b.enabled !== false)
@@ -223,15 +236,29 @@ function formatAmount(value, currency) {
   return `${formatted} ${dollar ? 'USD' : 'LBP'}`
 }
 
-/** Amount stored in the receipt currency, printed in the chosen receipt currency. */
-function money(amountInReceiptCurrency) {
+/** Amount stored in the receipt currency, printed in `currency`. */
+function moneyIn(amountInReceiptCurrency, currency) {
   const converted = unitPriceInReceiptCurrency(
     Number(amountInReceiptCurrency) || 0,
     receiptCurrency.value,
-    displayCurrency.value,
+    currency,
     lbpRate.value
   )
-  return formatAmount(converted, displayCurrency.value)
+  return formatAmount(converted, currency)
+}
+
+/** Amount stored in the receipt currency, printed in the chosen receipt currency. */
+function money(amountInReceiptCurrency) {
+  return moneyIn(amountInReceiptCurrency, displayCurrency.value)
+}
+
+/** Currencies the grand total prints in; falls back to the receipt currency if both are off. */
+function totalCurrencies(block) {
+  const p = block.props || {}
+  const list = []
+  if (p.showTotalLbp !== false) list.push(CurrencyEnum.LBP)
+  if (p.showTotalUsd !== false) list.push(CurrencyEnum.DOLLAR)
+  return list.length ? list : [displayCurrency.value]
 }
 
 function formatReceiptDiscount(receipt) {
@@ -268,17 +295,23 @@ function itemExtras(block, row) {
   const { base, after, discount } = unitPrices(row)
   const extras = []
   if (p.showBasePrice !== false) {
-    extras.push({ key: 'base', label: tr('basePrice'), value: money(base) })
+    extras.push({ key: 'base', label: tr('basePrice'), value: money(base), bold: p.boldBasePrice === true })
   }
   if (discount > 0 && p.showDiscount !== false) {
     extras.push({
       key: 'disc',
       label: tr('discount'),
-      value: row.isDiscountPercent ? `${discount}%` : money(discount)
+      value: row.isDiscountPercent ? `${discount}%` : money(discount),
+      bold: p.boldDiscount === true
     })
   }
   if (discount > 0 && p.showPriceAfterDiscount !== false) {
-    extras.push({ key: 'after', label: tr('priceAfterDiscount'), value: money(after) })
+    extras.push({
+      key: 'after',
+      label: tr('priceAfterDiscount'),
+      value: money(after),
+      bold: p.boldPriceAfterDiscount === true
+    })
   }
   return extras
 }
@@ -313,7 +346,7 @@ function itemExtras(block, row) {
 }
 
 .shop-name {
-  font-size: 15px;
+  font-size: 1.25em;
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -321,7 +354,7 @@ function itemExtras(block, row) {
 
 .shop-line {
   margin-top: 2px;
-  font-size: 11px;
+  font-size: 0.92em;
   word-break: break-word;
 }
 
@@ -334,9 +367,10 @@ function itemExtras(block, row) {
   margin-bottom: 2px;
 }
 
-.pay-row--muted {
+.totals-row--muted {
+  margin-top: 2px;
   opacity: 0.75;
-  font-size: 11px;
+  font-size: 0.92em;
 }
 
 .amt {
@@ -345,10 +379,17 @@ function itemExtras(block, row) {
   white-space: nowrap;
 }
 
-.items-grid {
+/* Rows share the parent's columns so qty/amount widths fit the widest value at any font size. */
+.block-items {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 30px 116px;
-  column-gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  column-gap: 1em;
+}
+
+.items-grid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
   align-items: center;
 }
 
@@ -357,7 +398,7 @@ function itemExtras(block, row) {
   padding-bottom: 3px;
   margin-bottom: 2px;
   font-weight: 700;
-  font-size: 11px;
+  font-size: 0.92em;
 }
 
 .col-qty,
@@ -393,26 +434,35 @@ function itemExtras(block, row) {
   column-gap: 8px;
   row-gap: 1px;
   margin-top: 2px;
-  font-size: 10px;
-  opacity: 0.85;
+  font-size: 0.84em;
 }
 
 .item-extra {
   white-space: nowrap;
+  opacity: 0.85;
+}
+
+.item-extra--bold {
+  font-weight: 700;
+  opacity: 1;
 }
 
 .empty-items {
+  grid-column: 1 / -1;
   text-align: center;
   opacity: 0.7;
   padding: 8px 0;
 }
 
-.totals-row--grand {
+.totals-grand {
   margin-top: 4px;
   padding-top: 4px;
   border-top: 1px dashed #333;
+}
+
+.totals-row--grand {
   font-weight: 700;
-  font-size: 13px;
+  font-size: 1.08em;
 }
 
 .block-payment {
@@ -436,7 +486,7 @@ function itemExtras(block, row) {
 .barcode-placeholder {
   text-align: center;
   letter-spacing: 1px;
-  font-size: 11px;
+  font-size: 0.92em;
   padding: 6px 0;
 }
 </style>

@@ -1,7 +1,8 @@
 
 import { defineStore } from 'pinia'
 import { firstAllowedPath, MENU_LIST } from '../constants/menus'
-import { PRINTER_STORAGE_KEY } from '../print/thermalPrinter'
+import { PRINTER_STORAGE_KEYS } from '../print/thermalPrinter'
+import { readTokenClaims } from '../utils/tokenClaims'
 
 function emptyUser() {
   return {
@@ -39,21 +40,30 @@ function readStoredUser() {
 
 export const useUserStore = defineStore('user', {
   state: () => ({
-    user: readStoredUser()
+    user: readStoredUser(),
+    claims: readTokenClaims()
   }),
   getters: {
     hasMenu: (state) => (code) => Array.isArray(state.user?.menus) && state.user.menus.includes(code),
-    firstAllowedPath: (state) => firstAllowedPath(state.user?.menus)
+    firstAllowedPath: (state) => firstAllowedPath(state.user?.menus),
+    role: (state) => (state.claims?.role === 'ADMIN' ? 'ADMIN' : 'USER'),
+    isAdmin() {
+      return this.role === 'ADMIN'
+    }
   },
   actions: {
     setUser(payload) {
       this.user = normalizeUser(payload)
       localStorage.setItem('user', JSON.stringify(this.user))
+      this.loadClaims()
+    },
+    loadClaims() {
+      this.claims = readTokenClaims()
     },
     logout() {
-      const printer = localStorage.getItem(PRINTER_STORAGE_KEY)
+      const printers = PRINTER_STORAGE_KEYS.map((key) => [key, localStorage.getItem(key)])
       localStorage.clear()
-      if (printer) localStorage.setItem(PRINTER_STORAGE_KEY, printer)
+      printers.forEach(([key, value]) => value && localStorage.setItem(key, value))
       location.reload()
     }
   }

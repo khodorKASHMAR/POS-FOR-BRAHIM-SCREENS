@@ -326,6 +326,21 @@
                           <v-icon size="16">mdi-cart-outline</v-icon>
                           {{ $t('receiptItems') }}
                         </button>
+                        <button
+                          type="button"
+                          class="footer-action-btn footer-action-btn--delete"
+                          :disabled="deletingId === receipt.receiptId"
+                          @click="openDeleteDraft(receipt)"
+                        >
+                          <v-progress-circular
+                            v-if="deletingId === receipt.receiptId"
+                            indeterminate
+                            size="14"
+                            width="2"
+                          />
+                          <v-icon v-else size="16">mdi-trash-can-outline</v-icon>
+                          {{ $t('delete') }}
+                        </button>
                       </div>
                       <button
                         type="button"
@@ -420,6 +435,38 @@
       :is-draft="isDraftsMode"
     />
     <ReceiptItemsDialog v-model="itemsOpen" :receipt-id="selectedReceiptId" />
+    <v-dialog v-if="isDraftsMode" v-model="deleteDraftOpen" max-width="420" persistent>
+      <div class="delete-draft-card" :dir="lang.dir">
+        <div class="delete-draft-icon">
+          <v-icon size="28">mdi-trash-can-outline</v-icon>
+        </div>
+        <h3 class="delete-draft-title">{{ $t('deleteDraft') }}</h3>
+        <p class="delete-draft-text">{{ $t('deleteDraftConfirm') }}</p>
+        <p v-if="draftToDelete" class="delete-draft-meta">
+          <strong>{{ draftToDelete.customerName || $t('walkInCustomer') }}</strong>
+          · {{ formatTotal(draftToDelete) }}
+        </p>
+        <div class="delete-draft-actions">
+          <button
+            type="button"
+            class="delete-draft-btn delete-draft-btn--cancel"
+            :disabled="!!deletingId"
+            @click="closeDeleteDraft"
+          >
+            {{ $t('cancel') }}
+          </button>
+          <button
+            type="button"
+            class="delete-draft-btn delete-draft-btn--confirm"
+            :disabled="!!deletingId"
+            @click="confirmDeleteDraft"
+          >
+            <v-progress-circular v-if="deletingId" indeterminate size="14" width="2" />
+            {{ $t('delete') }}
+          </button>
+        </div>
+      </div>
+    </v-dialog>
     <ThermalReceiptPrinter v-if="!isDraftsMode" ref="thermalPrinterRef" />
   </div>
 </template>
@@ -436,7 +483,7 @@ import ThermalReceiptPrinter from '../components/print/ThermalReceiptPrinter.vue
 import ReceiptService from '../services/ReceiptService'
 import { useState } from '../store/state'
 import { isDollarReceipt } from '../constants/currency'
-import { PRINTER_NOT_CONNECTED } from '../print/thermalPrinter'
+import { printerErrorKey } from '../print/thermalPrinter'
 
 const props = defineProps({
   mode: {
@@ -463,6 +510,9 @@ const itemsOpen = ref(false)
 const selectedReceiptId = ref(null)
 const thermalPrinterRef = ref(null)
 const printingId = ref(null)
+const deleteDraftOpen = ref(false)
+const draftToDelete = ref(null)
+const deletingId = ref(null)
 const filtersCollapsed = ref(true)
 const quickSearch = ref('')
 const pageSizeOptions = [5, 10, 25, 50]
@@ -640,6 +690,35 @@ function continueInPos(draftId) {
   router.push({ path: '/', query: { draftId } })
 }
 
+function openDeleteDraft(receipt) {
+  draftToDelete.value = receipt
+  deleteDraftOpen.value = true
+}
+
+function closeDeleteDraft() {
+  deleteDraftOpen.value = false
+  draftToDelete.value = null
+}
+
+async function confirmDeleteDraft() {
+  const draftId = draftToDelete.value?.receiptId
+  if (!draftId || deletingId.value) return
+  deletingId.value = draftId
+  try {
+    await ReceiptService.deleteDraft(draftId)
+    $notification($t('draftDeleted'), 'success')
+    closeDeleteDraft()
+    if (receipts.value.length === 1 && pagination.page > 1) pagination.page -= 1
+    await loadReceipts()
+  } catch (err) {
+    const message = err?.response?.data?.message
+    const key = message === 'errors.only.draft.receipt.can.be.deleted' ? 'onlyDraftCanBeDeleted' : 'errorDeletingDraft'
+    $notification($t(key), 'error')
+  } finally {
+    deletingId.value = null
+  }
+}
+
 function selectPageSize(size) {
   if (pagination.itemsPerPage === size) return
   pagination.itemsPerPage = size
@@ -723,8 +802,7 @@ async function printReceipt(receiptId) {
     await thermalPrinterRef.value?.printReceipt(receiptId)
   } catch (err) {
     console.error('Failed to print receipt:', err)
-    const key = err?.code === PRINTER_NOT_CONNECTED ? 'printerNotConnected' : 'receiptPrintFailed'
-    $notification($t(key), 'error', 5000)
+    $notification($t(printerErrorKey(err)), 'error', 6000)
   } finally {
     printingId.value = null
   }
@@ -1680,6 +1758,103 @@ onUnmounted(() => {
 .footer-action-btn--print:hover {
   background: rgba(15, 118, 110, 0.1);
   color: #0f766e;
+}
+
+.footer-action-btn--delete:hover {
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
+}
+
+.delete-draft-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1.6rem 1.5rem 1.25rem;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 24px 50px -18px rgba(15, 23, 42, 0.35);
+}
+
+.delete-draft-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+  margin-bottom: 0.85rem;
+}
+
+.delete-draft-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.delete-draft-text {
+  margin: 0.45rem 0 0;
+  font-size: 0.85rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.delete-draft-meta {
+  margin: 0.75rem 0 0;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 0.8rem;
+  color: #334155;
+}
+
+.delete-draft-actions {
+  display: flex;
+  gap: 0.6rem;
+  width: 100%;
+  margin-top: 1.25rem;
+}
+
+.delete-draft-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  height: 40px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.delete-draft-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.delete-draft-btn--cancel {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+}
+
+.delete-draft-btn--cancel:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.delete-draft-btn--confirm {
+  border: none;
+  background: #dc2626;
+  color: #ffffff;
+  box-shadow: 0 6px 14px rgba(220, 38, 38, 0.25);
+}
+
+.delete-draft-btn--confirm:hover:not(:disabled) {
+  background: #b91c1c;
 }
 
 .footer-action-btn:disabled {

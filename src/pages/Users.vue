@@ -143,6 +143,12 @@
                           </v-tooltip>
                         </div>
                       </template>
+                      <template v-else-if="h.key === 'role'">
+                        <span class="role-chip" :class="item.role === ROLE_ADMIN ? 'role-chip--admin' : 'role-chip--user'">
+                          <v-icon size="14">{{ item.role === ROLE_ADMIN ? 'mdi-shield-crown-outline' : 'mdi-account-outline' }}</v-icon>
+                          {{ roleLabel(item.role) }}
+                        </span>
+                      </template>
                       <template v-else>
                         {{ item[h.key] }}
                       </template>
@@ -200,144 +206,191 @@
 
     </div>
 
-    <!-- User Add/Edit Dialog (same style as AddItems item dialog) -->
     <v-dialog
       v-model="userDialog"
-      content-class="add-items-dialog-responsive add-items-dialog-user"
-      :dir="lang.dir"
+      max-width="760"
       persistent
       @update:model-value="(v) => { if (v === false) closeUserDialog() }"
     >
-      <v-form ref="formRef" autocomplete="off" @submit.prevent="submitForm">
-        <div class="add-items-dialog item-dialog-card">
-          <div class="item-dialog-title" :class="{ 'text-right': lang.dir === 'rtl' }">
-            {{ isEditing ? $t('editUser') : $t('addUser') }}
+      <v-form ref="formRef" class="user-dialog" :dir="lang.dir" autocomplete="off" @submit.prevent="submitForm">
+        <header class="user-dialog-header">
+          <div class="user-dialog-avatar">
+            <v-icon size="26">{{ isEditing ? 'mdi-account-edit' : 'mdi-account-plus' }}</v-icon>
           </div>
-          <div class="item-dialog-body">
-            <v-row class="item-dialog-row" :class="lang.dir === 'rtl' ? 'flex-row-reverse' : ''">
-              <v-col cols="12" sm="6">
-                <div class="dialog-field-group">
-                  <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
-                    <span>{{ $t('userName') }}</span>
-                    <span class="dialog-label-required">*</span>
-                  </div>
-                  <v-text-field
-                    v-model="user.userName"
-                    persistent-placeholder
-                    :placeholder="$t('userName')"
-                    variant="outlined"
-                    density="compact"
-                    :rules="userNameRules"
-                    :disabled="!!isEditing"
-                    autocomplete="off"
-                    class="dialog-field"
-                    @keydown.space.prevent
-                    @update:model-value="onUserNameInput"
-                  />
-                </div>
-              </v-col>
-              <v-col cols="12" sm="6">
-                <div class="dialog-field-group">
-                  <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
-                    <span>{{ $t('password') }}</span>
-                    <span class="dialog-label-required">*</span>
-                  </div>
-                  <v-text-field
-                    v-model="user.password"
-                    :type="showPassword ? 'text' : 'password'"
-                    persistent-placeholder
-                    :placeholder="$t('password')"
-                    variant="outlined"
-                    density="compact"
-                    :rules="[v => !!v || $t('fieldRequired')]"
-                    :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-                    @click:append-inner="showPassword = !showPassword"
-                    autocomplete="off"
-                    class="dialog-field"
-                  />
-                </div>
-              </v-col>
-            </v-row>
-            <v-row class="item-dialog-row" :class="lang.dir === 'rtl' ? 'flex-row-reverse' : ''">
-              <v-col cols="12" sm="6">
-                <div class="dialog-field-group">
-                  <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
-                    <span>{{ $t('firstName') }}</span>
-                    <span class="dialog-label-required">*</span>
-                  </div>
-                  <v-text-field
-                    v-model="user.firstNameEN"
-                    persistent-placeholder
-                    :placeholder="$t('firstName')"
-                    variant="outlined"
-                    density="compact"
-                    :rules="[v => !!v || $t('fieldRequired')]"
-                    class="dialog-field"
-                  />
-                </div>
-              </v-col>
-              <v-col cols="12" sm="6">
-                <div class="dialog-field-group">
-                  <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
-                    <span>{{ $t('lastName') }}</span>
-                    <span class="dialog-label-required">*</span>
-                  </div>
-                  <v-text-field
-                    v-model="user.lastNameEN"
-                    persistent-placeholder
-                    :placeholder="$t('lastName')"
-                    variant="outlined"
-                    density="compact"
-                    :rules="[v => !!v || $t('fieldRequired')]"
-                    class="dialog-field"
-                  />
-                </div>
-              </v-col>
-            </v-row>
-            <v-row class="item-dialog-row" :class="lang.dir === 'rtl' ? 'flex-row-reverse' : ''">
-              <v-col cols="12" sm="6">
-                <div class="dialog-field-group">
-                  <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
-                    <span>{{ $t('email') }}</span>
-                  </div>
-                  <v-text-field
-                    v-model="user.email"
-                    persistent-placeholder
-                    :placeholder="$t('email')"
-                    variant="outlined"
-                    density="compact"
-                    class="dialog-field"
-                  />
-                </div>
-              </v-col>
-              <v-col cols="12" sm="6">
-                <div class="dialog-field-group">
-                  <div class="dialog-label" :class="{ 'dialog-label-rtl': lang.dir === 'rtl' }">
-                    <span>{{ $t('phoneNumber') }}</span>
-                    <span class="dialog-label-required">*</span>
-                  </div>
-                  <v-text-field
-                    v-model="user.phoneNumber"
-                    persistent-placeholder
-                    :placeholder="$t('phoneNumber')"
-                    variant="outlined"
-                    density="compact"
-                    :rules="[v => !!v || $t('fieldRequired')]"
-                    class="dialog-field"
-                  />
-                </div>
-              </v-col>
-            </v-row>
-            <div class="dialog-actions" :class="lang.dir === 'rtl' ? 'dialog-actions-rtl' : ''">
-              <button type="button" class="dialog-action-btn dialog-cancel-btn" @click="closeUserDialog">
-                {{ $t('cancel') }}
-              </button>
-              <button type="submit" class="dialog-action-btn dialog-save-btn">
-                {{ isEditing ? $t('update') : $t('save') }}
-              </button>
+          <div class="user-dialog-heading">
+            <h2 class="user-dialog-title">{{ isEditing ? $t('editUser') : $t('addUser') }}</h2>
+            <p class="user-dialog-subtitle">{{ isEditing ? $t('editUserSubtitle') : $t('addUserSubtitle') }}</p>
+          </div>
+          <button type="button" class="user-dialog-close" :aria-label="$t('close')" @click="closeUserDialog">
+            <v-icon size="20">mdi-close</v-icon>
+          </button>
+        </header>
+
+        <div class="user-dialog-body">
+          <section class="user-dialog-section">
+            <div class="user-dialog-section-title">
+              <v-icon size="18">mdi-shield-account-outline</v-icon>
+              <span>{{ $t('accountInfo') }}</span>
             </div>
-          </div>
+            <div class="user-dialog-grid">
+              <div class="user-field">
+                <label class="user-field-label">
+                  {{ $t('userName') }} <span class="user-field-required">*</span>
+                </label>
+                <v-text-field
+                  v-model="user.userName"
+                  :placeholder="$t('userName')"
+                  prepend-inner-icon="mdi-account-key-outline"
+                  variant="outlined"
+                  density="comfortable"
+                  hide-details="auto"
+                  :rules="userNameRules"
+                  :disabled="!!isEditing"
+                  autocomplete="off"
+                  class="user-input"
+                  @keydown.space.prevent
+                  @update:model-value="onUserNameInput"
+                />
+              </div>
+              <div class="user-field">
+                <label class="user-field-label">
+                  {{ $t('password') }} <span class="user-field-required">*</span>
+                </label>
+                <v-text-field
+                  v-model="user.password"
+                  :type="showPassword ? 'text' : 'password'"
+                  :placeholder="$t('password')"
+                  prepend-inner-icon="mdi-lock-outline"
+                  :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+                  variant="outlined"
+                  density="comfortable"
+                  hide-details="auto"
+                  :rules="[v => !!v || $t('fieldRequired')]"
+                  autocomplete="new-password"
+                  class="user-input"
+                  @click:append-inner="showPassword = !showPassword"
+                />
+              </div>
+            </div>
+
+            <div class="user-field">
+              <label class="user-field-label">
+                {{ $t('role') }} <span class="user-field-required">*</span>
+              </label>
+              <div class="role-options" role="radiogroup" :aria-label="$t('role')">
+                <button
+                  v-for="opt in roleOptions"
+                  :key="opt.value"
+                  type="button"
+                  role="radio"
+                  class="role-option"
+                  :class="[`role-option--${opt.value.toLowerCase()}`, { 'role-option--active': user.role === opt.value }]"
+                  :aria-checked="user.role === opt.value"
+                  @click="user.role = opt.value"
+                >
+                  <span class="role-option-icon">
+                    <v-icon size="22">{{ opt.icon }}</v-icon>
+                  </span>
+                  <span class="role-option-text">
+                    <span class="role-option-name">{{ opt.label }}</span>
+                    <span class="role-option-hint">{{ opt.hint }}</span>
+                  </span>
+                  <v-icon class="role-option-check" size="20">
+                    {{ user.role === opt.value ? 'mdi-check-circle' : 'mdi-circle-outline' }}
+                  </v-icon>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section class="user-dialog-section">
+            <div class="user-dialog-section-title">
+              <v-icon size="18">mdi-card-account-details-outline</v-icon>
+              <span>{{ $t('personalInfo') }}</span>
+            </div>
+            <div class="user-dialog-grid">
+              <div class="user-field">
+                <label class="user-field-label">
+                  {{ $t('firstName') }} <span class="user-field-required">*</span>
+                </label>
+                <v-text-field
+                  v-model="user.firstNameEN"
+                  :placeholder="$t('firstName')"
+                  prepend-inner-icon="mdi-account-outline"
+                  variant="outlined"
+                  density="comfortable"
+                  hide-details="auto"
+                  :rules="[v => !!v || $t('fieldRequired')]"
+                  class="user-input"
+                />
+              </div>
+              <div class="user-field">
+                <label class="user-field-label">
+                  {{ $t('lastName') }} <span class="user-field-required">*</span>
+                </label>
+                <v-text-field
+                  v-model="user.lastNameEN"
+                  :placeholder="$t('lastName')"
+                  prepend-inner-icon="mdi-account-outline"
+                  variant="outlined"
+                  density="comfortable"
+                  hide-details="auto"
+                  :rules="[v => !!v || $t('fieldRequired')]"
+                  class="user-input"
+                />
+              </div>
+            </div>
+          </section>
+
+          <section class="user-dialog-section">
+            <div class="user-dialog-section-title">
+              <v-icon size="18">mdi-card-account-phone-outline</v-icon>
+              <span>{{ $t('contactInfo') }}</span>
+            </div>
+            <div class="user-dialog-grid">
+              <div class="user-field">
+                <label class="user-field-label">{{ $t('email') }}</label>
+                <v-text-field
+                  v-model="user.email"
+                  type="email"
+                  :placeholder="$t('email')"
+                  prepend-inner-icon="mdi-email-outline"
+                  variant="outlined"
+                  density="comfortable"
+                  hide-details="auto"
+                  class="user-input"
+                />
+              </div>
+              <div class="user-field">
+                <label class="user-field-label">
+                  {{ $t('phoneNumber') }} <span class="user-field-required">*</span>
+                </label>
+                <v-text-field
+                  v-model="user.phoneNumber"
+                  type="tel"
+                  :placeholder="$t('phoneNumber')"
+                  prepend-inner-icon="mdi-phone-outline"
+                  variant="outlined"
+                  density="comfortable"
+                  hide-details="auto"
+                  :rules="[v => !!v || $t('fieldRequired')]"
+                  class="user-input"
+                />
+              </div>
+            </div>
+          </section>
         </div>
+
+        <footer class="user-dialog-footer">
+          <button type="button" class="user-dialog-btn user-dialog-btn--cancel" @click="closeUserDialog">
+            {{ $t('cancel') }}
+          </button>
+          <button type="submit" class="user-dialog-btn user-dialog-btn--save" :disabled="saving">
+            <v-progress-circular v-if="saving" indeterminate size="16" width="2" />
+            <v-icon v-else size="18">mdi-content-save-outline</v-icon>
+            <span>{{ isEditing ? $t('update') : $t('save') }}</span>
+          </button>
+        </footer>
       </v-form>
     </v-dialog>
 
@@ -397,6 +450,19 @@ const editedUserId = ref(null)
 const confirmDialog = ref(false)
 const userToDelete = ref(null)
 const formRef = ref(null)
+const saving = ref(false)
+
+const ROLE_ADMIN = 'ADMIN'
+const ROLE_USER = 'USER'
+
+const roleOptions = computed(() => [
+  { value: ROLE_USER, label: $t('roleUser'), hint: $t('roleUserHint'), icon: 'mdi-account-outline' },
+  { value: ROLE_ADMIN, label: $t('roleAdmin'), hint: $t('roleAdminHint'), icon: 'mdi-shield-crown-outline' }
+])
+
+function roleLabel(role) {
+  return role === ROLE_ADMIN ? $t('roleAdmin') : $t('roleUser')
+}
 
 const user = reactive({
   userName: '',
@@ -404,7 +470,8 @@ const user = reactive({
   firstNameEN: '',
   lastNameEN: '',
   email: '',
-  phoneNumber: ''
+  phoneNumber: '',
+  role: ROLE_USER
 })
 
 const userNameRules = [
@@ -430,6 +497,7 @@ const headers = computed(() => [
   { title: $t('lastName'), key: 'lastNameEN', sortable: true },
   { title: $t('email'), key: 'email', sortable: false },
   { title: $t('phoneNumber'), key: 'phoneNumber', sortable: false },
+  { title: $t('role'), key: 'role', sortable: false },
   { title: $t('actions'), key: 'actions', sortable: false }
 ])
 
@@ -439,7 +507,7 @@ const filteredUsers = computed(() => {
   if (!search.value) return users.value
   const s = search.value.toLowerCase()
   return users.value.filter((u) =>
-    [u.userName, u.firstNameEN, u.lastNameEN, u.email, u.phoneNumber].some((v) =>
+    [u.userName, u.firstNameEN, u.lastNameEN, u.email, u.phoneNumber, roleLabel(u.role)].some((v) =>
       String(v || '').toLowerCase().includes(s)
     )
   )
@@ -531,6 +599,7 @@ function resetForm() {
   user.lastNameEN = ''
   user.email = ''
   user.phoneNumber = ''
+  user.role = ROLE_USER
   editedUserId.value = null
   isEditing.value = false
   showPassword.value = false
@@ -542,6 +611,7 @@ async function submitForm() {
     $notification?.($t('pleaseFillRequired'), 'error')
     return
   }
+  saving.value = true
   try {
     const payload = {
       userName: String(user.userName || '').trim(),
@@ -549,7 +619,8 @@ async function submitForm() {
       firstNameEN: user.firstNameEN,
       lastNameEN: user.lastNameEN,
       email: user.email || null,
-      phoneNumber: user.phoneNumber || null
+      phoneNumber: user.phoneNumber || null,
+      role: user.role || ROLE_USER
     }
 
     if (isEditing.value) {
@@ -564,6 +635,8 @@ async function submitForm() {
     fetchUsers()
   } catch (err) {
     $notification?.(err?.response?.data?.message || $t('errorSavingUser'), 'error')
+  } finally {
+    saving.value = false
   }
 }
 
@@ -574,7 +647,8 @@ function editUser(row) {
     firstNameEN: row.firstNameEN ?? '',
     lastNameEN: row.lastNameEN ?? '',
     email: row.email ?? '',
-    phoneNumber: row.phoneNumber ?? ''
+    phoneNumber: row.phoneNumber ?? '',
+    role: row.role === ROLE_ADMIN ? ROLE_ADMIN : ROLE_USER
   })
   editedUserId.value = row.id
   isEditing.value = true
@@ -1068,217 +1142,335 @@ onUnmounted(() => {
   color: #fff;
 }
 
-/* User dialog – same style as AddItems item dialog */
-:deep(.add-items-dialog-responsive.add-items-dialog-user) {
-  width: 50vw !important;
-  max-width: 50vw !important;
-  top: 50% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%) !important;
-  margin: 0 !important;
+.role-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
-@media (min-width: 1700px) {
-  :deep(.add-items-dialog-responsive.add-items-dialog-user) {
-    width: 60vw !important;
-    max-width: 60vw !important;
-  }
+.role-chip--admin {
+  background: rgba(124, 58, 237, 0.1);
+  color: #6d28d9;
+  border: 1px solid rgba(124, 58, 237, 0.25);
 }
 
-.add-items-dialog {
-  border-radius: 20px !important;
-  overflow: hidden;
+.role-chip--user {
+  background: rgba(25, 119, 131, 0.1);
+  color: var(--oil-teal);
+  border: 1px solid rgba(25, 119, 131, 0.22);
 }
 
-.item-dialog-card {
-  background: #ffffff;
-  min-height: 65vh;
-  max-height: 94vh;
+/* Add / edit user dialog */
+.user-dialog {
+  --ud-ink: #16363a;
+  --ud-muted: #5f7a7e;
+  --ud-line: rgba(25, 119, 131, 0.16);
+  --ud-teal: #197783;
+  --ud-teal-bright: #20b4c6;
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(15, 23, 42, 0.06);
+  max-height: 92vh;
+  background: #ffffff;
+  border-radius: 20px;
+  overflow: hidden;
   box-shadow:
     0 28px 60px -20px rgba(15, 23, 42, 0.35),
     0 12px 24px -12px rgba(25, 119, 131, 0.2);
 }
 
-.item-dialog-title {
-  padding: 0.95rem 1.25rem;
-  font-size: 1.2rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  background: linear-gradient(120deg, #125f68 0%, #197783 42%, #22b8c9 100%);
+.user-dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1.1rem 1.35rem;
+  background: linear-gradient(120deg, #125f68 0%, #197783 45%, #22b8c9 100%);
   color: #ffffff;
   flex-shrink: 0;
 }
 
-.text-right {
-  text-align: right;
+.user-dialog-avatar {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  flex-shrink: 0;
 }
 
-.item-dialog-body {
-  padding: 1rem 1.25rem 1.25rem;
-  overflow-y: auto;
-  overflow-x: hidden;
+.user-dialog-heading {
   flex: 1;
-  background: linear-gradient(180deg, #eaf5f6 0%, #f5f9fa 55%, #eef4f5 100%);
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  min-width: 0;
+  text-align: start;
 }
 
-.item-dialog-body::-webkit-scrollbar {
-  display: none;
+.user-dialog-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
-.item-dialog-row {
-  min-height: 56px;
+.user-dialog-subtitle {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  opacity: 0.85;
 }
 
-.item-dialog-row .v-col {
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
+.user-dialog-close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  cursor: pointer;
+  transition: background 0.15s ease;
 }
 
-.dialog-actions {
+.user-dialog-close:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.user-dialog-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.1rem 1.35rem;
   display: flex;
-  justify-content: between !important;
-  gap: 0.75rem;
-  margin-top: 1.5rem;
+  flex-direction: column;
+  gap: 0.9rem;
+  background: linear-gradient(180deg, #f1f8f9 0%, #f7fbfc 100%);
 }
 
-.dialog-actions-rtl {
-  flex-direction: row-reverse;
+.user-dialog-section {
+  background: #ffffff;
+  border: 1px solid var(--ud-line);
+  border-radius: 14px;
+  padding: 0.9rem 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
 }
 
-.dialog-label {
+.user-dialog-section-title {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  font-weight: 700;
-  color: var(--oil-muted);
-  font-size: 0.75rem;
-  margin-bottom: 0.1rem;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ud-teal);
 }
 
-.dialog-label-required {
+.user-dialog-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+}
+
+.user-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.user-field-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ud-muted);
+  text-align: start;
+}
+
+.user-field-required {
   color: #ef4444;
 }
 
-.dialog-label-rtl {
-  justify-content: flex-end;
-  text-align: right;
+.user-input :deep(.v-field) {
+  border-radius: 10px;
+  background: #ffffff;
+  font-size: 0.9rem;
 }
 
-.dialog-action-btn {
-  font-weight: 700;
+.user-input :deep(.v-field__outline) {
+  --v-field-border-opacity: 0.22;
+  color: var(--ud-teal);
+}
+
+.user-input :deep(.v-field--focused .v-field__outline) {
+  --v-field-border-opacity: 1;
+}
+
+.user-input :deep(.v-field__prepend-inner .v-icon) {
+  color: var(--ud-teal);
+  opacity: 0.8;
+}
+
+.user-input :deep(.v-messages__message) {
+  color: #ef4444;
+  text-align: start;
+}
+
+.role-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.role-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 0.9rem;
+  border: 1.5px solid var(--ud-line);
   border-radius: 12px;
-  color: #ffffff;
-  margin: 0 0.25rem;
-  width: 50%;
-  height: clamp(30px, 5vw, 37px);
-  font-size: 0.75rem;
-  border: none;
+  background: #ffffff;
+  color: var(--ud-ink);
   cursor: pointer;
-  padding: 0 0.5rem;
+  text-align: start;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
-.dialog-save-btn {
+.role-option:hover {
+  border-color: rgba(25, 119, 131, 0.45);
+}
+
+.role-option:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(32, 180, 198, 0.25);
+}
+
+.role-option-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  background: rgba(25, 119, 131, 0.1);
+  color: var(--ud-teal);
+}
+
+.role-option--admin .role-option-icon {
+  background: rgba(124, 58, 237, 0.1);
+  color: #6d28d9;
+}
+
+.role-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.role-option-name {
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.role-option-hint {
+  font-size: 0.74rem;
+  color: var(--ud-muted);
+  line-height: 1.3;
+}
+
+.role-option-check {
+  color: rgba(95, 122, 126, 0.45);
+  flex-shrink: 0;
+}
+
+.role-option--active {
+  border-color: var(--ud-teal);
+  background: rgba(25, 119, 131, 0.05);
+  box-shadow: 0 6px 16px rgba(25, 119, 131, 0.14);
+}
+
+.role-option--active .role-option-check {
+  color: var(--ud-teal);
+}
+
+.role-option--admin.role-option--active {
+  border-color: #7c3aed;
+  background: rgba(124, 58, 237, 0.05);
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.14);
+}
+
+.role-option--admin.role-option--active .role-option-check {
+  color: #7c3aed;
+}
+
+.user-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  padding: 0.85rem 1.35rem;
+  border-top: 1px solid var(--ud-line);
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.user-dialog-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-width: 120px;
+  height: 40px;
+  padding: 0 1.1rem;
+  border-radius: 11px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.user-dialog-btn--cancel {
+  border: 1px solid var(--ud-line);
+  background: #ffffff;
+  color: var(--ud-muted);
+}
+
+.user-dialog-btn--cancel:hover {
+  background: #f4fafb;
+  color: var(--ud-ink);
+}
+
+.user-dialog-btn--save {
+  border: none;
+  color: #ffffff;
   background-image: linear-gradient(135deg, #197783, #20b4c6);
   box-shadow: 0 6px 14px rgba(25, 119, 131, 0.22);
 }
 
-.dialog-cancel-btn {
-  background-image: linear-gradient(135deg, #dc2626, #f87171);
+.user-dialog-btn--save:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(25, 119, 131, 0.3);
 }
 
-.dialog-field-group {
-  margin-bottom: 2px;
+.user-dialog-btn--save:disabled {
+  opacity: 0.7;
+  cursor: progress;
 }
 
-.dialog-field :deep(.v-field__outline) {
-  opacity: 0;
-}
+@media (max-width: 640px) {
+  .user-dialog-grid,
+  .role-options {
+    grid-template-columns: minmax(0, 1fr);
+  }
 
-.dialog-field {
-  margin-bottom: 2px !important;
-}
-
-.dialog-field :deep(.v-field__outline__start),
-.dialog-field :deep(.v-field__outline__end),
-.dialog-field :deep(.v-field__outline__notch) {
-  opacity: 0;
-}
-
-.dialog-field :deep(.v-field) {
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background:
-    linear-gradient(#ffffff, #ffffff) padding-box,
-    linear-gradient(135deg, #197783, #20b4c6) border-box;
-  overflow: hidden;
-}
-
-.dialog-field :deep(.v-field__field) {
-  border-radius: 10px;
-}
-
-.dialog-field :deep(.v-field__overlay) {
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.dialog-field :deep(.v-field__input) {
-  font-size: 0.85rem;
-  transition: font-size 0.2s ease;
-  min-height: 30px;
-  max-height: 30px;
-}
-
-.dialog-field :deep(.v-field__input::placeholder) {
-  text-align: center !important;
-}
-
-.dialog-field :deep(.v-field--empty .v-field__input) {
-  text-align: center !important;
-}
-
-.dialog-field :deep(.v-field:not(.v-field--empty) .v-field__input) {
-  text-align: left;
-}
-
-[dir="rtl"] .dialog-field :deep(.v-field:not(.v-field--empty) .v-field__input) {
-  text-align: right;
-}
-
-.dialog-field :deep(.v-field:hover) {
-  box-shadow: 0 0 0 3px rgba(34, 147, 161, 0.25);
-}
-
-.dialog-field :deep(.v-field--focused) {
-  box-shadow: 0 0 0 3px rgba(34, 147, 161, 0.25);
-  border-color: #2293a1;
-}
-
-.dialog-field :deep(.v-field--error) {
-  border-color: #ef4444;
-}
-
-.dialog-field :deep(.v-messages__message) {
-  color: #ef4444;
-}
-
-[dir="rtl"] .dialog-field :deep(.v-messages),
-[dir="rtl"] .dialog-field :deep(.v-messages__message),
-[dir="rtl"] .dialog-field :deep(.v-input__details) {
-  direction: rtl;
-  text-align: right;
-}
-
-[dir="ltr"] .dialog-field :deep(.v-messages),
-[dir="ltr"] .dialog-field :deep(.v-messages__message),
-[dir="ltr"] .dialog-field :deep(.v-input__details) {
-  direction: ltr;
-  text-align: left;
+  .user-dialog-footer .user-dialog-btn {
+    flex: 1;
+  }
 }
 </style>
 

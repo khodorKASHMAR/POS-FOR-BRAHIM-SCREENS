@@ -52,6 +52,22 @@
         <div class="group action-tooltip-wrapper">
           <button
             type="button"
+            class="action-btn label-btn"
+            @click.stop="handlePrintLabel"
+          >
+            <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+              />
+            </svg>
+          </button>
+          <div class="action-tooltip">{{ $t('printItemLabel') }}</div>
+        </div>
+        <div class="group action-tooltip-wrapper">
+          <button
+            type="button"
             class="action-btn edit-btn"
             @click.stop="handleEdit"
           >
@@ -111,7 +127,7 @@ export default {
       default: false
     }
   },
-  emits: ['click', 'edit', 'delete'],
+  emits: ['click', 'edit', 'delete', 'print-label'],
   setup(props, { emit }) {
     const state = useState()
     const lang = computed(() => ({
@@ -194,6 +210,10 @@ export default {
       emit('delete')
     }
 
+    const handlePrintLabel = () => {
+      emit('print-label')
+    }
+
     return {
       lang,
       itemName,
@@ -202,7 +222,8 @@ export default {
       imageSrc,
       handleClick,
       handleEdit,
-      handleDelete
+      handleDelete,
+      handlePrintLabel
     }
   }
 }
@@ -400,9 +421,9 @@ export default {
 
 .item-actions {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
-  gap: 0.35rem;
+  gap: 0.3rem;
   flex-shrink: 0;
   padding: 0;
 }
@@ -412,12 +433,13 @@ export default {
   display: inline-flex;
 }
 
+/* Beside the button, toward the item text, so it never covers the next stacked button. */
 .action-tooltip {
   position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-top: 0.4rem;
+  top: 50%;
+  inset-inline-end: 100%;
+  transform: translateY(-50%);
+  margin-inline-end: 0.4rem;
   padding: 0.35rem 0.55rem;
   background: #0f172a;
   border-radius: 8px;
@@ -461,6 +483,12 @@ export default {
   background: #d1fae5;
   border-color: #00ae8b;
   color: #065f46;
+}
+
+.label-btn:hover {
+  background: #e0f2fe;
+  border-color: #0284c7;
+  color: #075985;
 }
 
 .delete-btn:hover {

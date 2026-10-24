@@ -48,6 +48,13 @@ export function updateDraft(receiptId, receipt) {
 }
 
 /**
+ * Delete a draft. The backend rejects the request if the receipt is not a draft.
+ */
+export function deleteDraft(receiptId) {
+  return PosAxios.delete(`/draft/${receiptId}`)
+}
+
+/**
  * Search receipts for the current user.
  * @param {Object} filter - { fromDate, toDate, fromTime, toTime, customerName }
  * @param {Object} params - { page (0-based), size }
@@ -103,6 +110,7 @@ export default {
   saveReceipt,
   saveDraft,
   updateDraft,
+  deleteDraft,
   searchUserReceipts,
   searchUserDrafts,
   getReceiptDetails,

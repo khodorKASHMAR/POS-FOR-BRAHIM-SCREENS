@@ -1,6 +1,8 @@
 /**
  * Catalog of print template block types and their editable fields.
  * `toggleable` blocks can be switched off; the rest are always printed.
+ * Boolean fields are shown in chip rows by `group`; missing values fall back to `default` (true when unset).
+ * Within a group, at least one `requireOne` field must stay on. `dependsOn` disables a chip while that field is off.
  * BARCODE is reserved for ITEM_LABEL templates (future).
  */
 export const BLOCK_TYPES = {
@@ -30,9 +32,33 @@ export const BLOCK_TYPES = {
     icon: 'mdi-cart-outline',
     toggleable: false,
     fields: [
-      { key: 'showBasePrice', labelKey: 'showBasePrice', input: 'boolean' },
-      { key: 'showDiscount', labelKey: 'showItemDiscount', input: 'boolean' },
-      { key: 'showPriceAfterDiscount', labelKey: 'showPriceAfterDiscount', input: 'boolean' }
+      { key: 'showBasePrice', labelKey: 'showBasePrice', input: 'boolean', group: 'itemLineDetails' },
+      { key: 'showDiscount', labelKey: 'showItemDiscount', input: 'boolean', group: 'itemLineDetails' },
+      { key: 'showPriceAfterDiscount', labelKey: 'showPriceAfterDiscount', input: 'boolean', group: 'itemLineDetails' },
+      {
+        key: 'boldBasePrice',
+        labelKey: 'showBasePrice',
+        input: 'boolean',
+        group: 'boldItemDetails',
+        default: false,
+        dependsOn: 'showBasePrice'
+      },
+      {
+        key: 'boldDiscount',
+        labelKey: 'showItemDiscount',
+        input: 'boolean',
+        group: 'boldItemDetails',
+        default: false,
+        dependsOn: 'showDiscount'
+      },
+      {
+        key: 'boldPriceAfterDiscount',
+        labelKey: 'showPriceAfterDiscount',
+        input: 'boolean',
+        group: 'boldItemDetails',
+        default: false,
+        dependsOn: 'showPriceAfterDiscount'
+      }
     ]
   },
   TOTALS: {
@@ -40,7 +66,11 @@ export const BLOCK_TYPES = {
     labelKey: 'printBlockTotals',
     icon: 'mdi-cash',
     toggleable: false,
-    fields: []
+    fields: [
+      { key: 'showTotalLbp', labelKey: 'totalInLbp', input: 'boolean', group: 'totalCurrencies', requireOne: true },
+      { key: 'showTotalUsd', labelKey: 'totalInUsd', input: 'boolean', group: 'totalCurrencies', requireOne: true },
+      { key: 'showCurrencyRate', labelKey: 'dollarRate', input: 'boolean', group: 'totalsExtraDetails' }
+    ]
   },
   PAYMENT: {
     type: 'PAYMENT',
@@ -95,8 +125,22 @@ export const RECEIPT_BLOCK_ORDER = [
 export const RECEIPT_CURRENCY_OPTIONS = ['USD', 'LBP', 'SYSTEM']
 export const RECEIPT_LANGUAGE_OPTIONS = ['AR', 'EN', 'SYSTEM']
 
+/** Base receipt font size in px; keep in sync with PrintTemplateServiceImpl. */
+export const RECEIPT_FONT_SIZE = { min: 10, max: 18, default: 12 }
+
+export function normalizeFontSize(value) {
+  const n = Math.round(Number(value))
+  if (!Number.isFinite(n)) return RECEIPT_FONT_SIZE.default
+  return Math.min(RECEIPT_FONT_SIZE.max, Math.max(RECEIPT_FONT_SIZE.min, n))
+}
+
 export function blockMeta(type) {
   return BLOCK_TYPES[type] || { type, labelKey: type, icon: 'mdi-puzzle-outline', toggleable: true, fields: [] }
+}
+
+export function isFieldOn(props, field) {
+  const value = props?.[field.key]
+  return value == null ? field.default !== false : value !== false
 }
 
 /**

@@ -88,6 +88,24 @@
                 </button>
               </div>
             </div>
+            <div class="setting-tile">
+              <div class="setting-tile__head">
+                <span class="setting-tile__icon"><v-icon size="17">mdi-format-size</v-icon></span>
+                {{ $t('printFontSize') }}
+                <span class="setting-tile__value">{{ draft.fontSize }}px</span>
+              </div>
+              <v-slider
+                v-model="draft.fontSize"
+                :min="RECEIPT_FONT_SIZE.min"
+                :max="RECEIPT_FONT_SIZE.max"
+                :step="1"
+                :disabled="loading"
+                :aria-label="$t('printFontSize')"
+                color="primary"
+                density="compact"
+                hide-details
+              />
+            </div>
           </div>
 
           <div class="section-head">
@@ -134,24 +152,26 @@
 
                 <v-expand-transition>
                   <div v-if="isOpen(block)" class="tl-body">
-                    <div v-if="booleanFields(block).length" class="chip-toggles">
-                      <span class="chip-toggles__label">{{ $t('itemLineDetails') }}</span>
+                    <div v-for="group in booleanGroups(block)" :key="group.key" class="chip-toggles">
+                      <span class="chip-toggles__label">{{ $t(group.key) }}</span>
                       <div class="chip-toggles__list">
                         <button
-                          v-for="field in booleanFields(block)"
+                          v-for="field in group.fields"
                           :key="field.key"
                           type="button"
                           class="chip-toggle"
-                          :class="{ active: block.props[field.key] !== false }"
-                          :aria-pressed="block.props[field.key] !== false"
-                          @click="block.props[field.key] = block.props[field.key] === false"
+                          :class="{ active: isFieldOn(block.props, field) }"
+                          :aria-pressed="isFieldOn(block.props, field)"
+                          :disabled="!canToggleField(block, field)"
+                          @click="toggleField(block, field)"
                         >
                           <v-icon size="14">
-                            {{ block.props[field.key] !== false ? 'mdi-check' : 'mdi-plus' }}
+                            {{ isFieldOn(block.props, field) ? 'mdi-check' : 'mdi-plus' }}
                           </v-icon>
                           {{ $t(field.labelKey) }}
                         </button>
                       </div>
+                      <span v-if="group.requireOne" class="chip-toggles__hint">{{ $t('atLeastOneRequired') }}</span>
                     </div>
                     <div v-if="inputFields(block).length" class="field-grid">
                       <div
@@ -249,6 +269,59 @@
               </v-btn>
             </div>
           </div>
+
+          <div class="printer-strip" :class="{ 'printer-strip--on': !!pairedLabelPrinter }">
+            <span class="printer-strip__icon">
+              <v-icon size="20">mdi-tag-outline</v-icon>
+            </span>
+            <div class="printer-strip__text">
+              <strong>{{ $t('labelPrinter') }}</strong>
+              <small>{{ labelPrinterStatusText }}</small>
+            </div>
+            <div class="printer-strip__actions">
+              <v-btn
+                size="small"
+                color="primary"
+                variant="flat"
+                prepend-icon="mdi-usb"
+                :disabled="!usbSupported || labelPrinterBusy"
+                @click="pairLabelPrinter"
+              >
+                {{ $t('connectUsbPrinter') }}
+              </v-btn>
+              <v-btn
+                size="small"
+                color="primary"
+                variant="outlined"
+                prepend-icon="mdi-printer"
+                :loading="labelTestPrinting"
+                :disabled="!pairedLabelPrinter || labelPrinterBusy"
+                @click="testLabelPrint"
+              >
+                {{ $t('testPrint') }}
+              </v-btn>
+              <v-btn
+                size="small"
+                color="primary"
+                variant="outlined"
+                prepend-icon="mdi-ruler"
+                :loading="labelCalibrating"
+                :disabled="!pairedLabelPrinter || labelPrinterBusy"
+                @click="calibrateLabels"
+              >
+                {{ $t('labelCalibrate') }}
+              </v-btn>
+              <v-btn
+                size="small"
+                color="error"
+                variant="text"
+                :disabled="!pairedLabelPrinter || labelPrinterBusy"
+                @click="unpairLabelPrinter"
+              >
+                {{ $t('forgetPrinter') }}
+              </v-btn>
+            </div>
+          </div>
         </aside>
       </div>
     </div>
@@ -262,8 +335,11 @@ import ReceiptTemplateRenderer from '../components/print/ReceiptTemplateRenderer
 import PrintTemplateService from '../services/PrintTemplateService'
 import {
   blockMeta,
+  isFieldOn,
+  normalizeFontSize,
   normalizeReceiptBlocks,
   RECEIPT_CURRENCY_OPTIONS,
+  RECEIPT_FONT_SIZE,
   RECEIPT_LANGUAGE_OPTIONS
 } from '../print/blockTypes'
 import {
@@ -273,13 +349,19 @@ import {
 } from '../print/defaultReceiptTemplate'
 import { useState } from '../store/state'
 import {
+  connectLabelPrinter,
   connectPrinter,
+  forgetLabelPrinter,
   forgetPrinter,
+  getPairedLabelPrinter,
   getPairedPrinter,
   isUsbSupported,
-  PRINTER_NOT_CONNECTED
+  printerConnectErrorKey,
+  printerErrorKey
 } from '../print/thermalPrinter'
 import { printReceiptElement } from '../print/thermalReceipt'
+import { calibrateLabelPrinter, formatLabelPrice, printItemLabel } from '../print/itemLabel'
+import { CurrencyEnum } from '../constants/enums'
 
 const TEMPLATE_CODE = 'RECEIPT_80'
 
@@ -301,6 +383,7 @@ function snapshot() {
   return JSON.stringify({
     receiptCurrency: draft.receiptCurrency,
     receiptLanguage: draft.receiptLanguage,
+    fontSize: draft.fontSize,
     blocks: draft.blocks
   })
 }
@@ -316,6 +399,7 @@ function applyTemplate(data) {
   draft.paperWidthMm = data.paperWidthMm || 80
   draft.receiptCurrency = RECEIPT_CURRENCY_OPTIONS.includes(data.receiptCurrency) ? data.receiptCurrency : 'SYSTEM'
   draft.receiptLanguage = RECEIPT_LANGUAGE_OPTIONS.includes(data.receiptLanguage) ? data.receiptLanguage : 'SYSTEM'
+  draft.fontSize = normalizeFontSize(data.fontSize)
   draft.blocks = normalizeReceiptBlocks(data.blocks, createDefaultReceiptBlocks())
 }
 
@@ -337,6 +421,39 @@ function languageOptionLabel(opt) {
 
 function booleanFields(block) {
   return blockMeta(block.type).fields.filter((f) => f.input === 'boolean')
+}
+
+function booleanGroups(block) {
+  const groups = []
+  for (const field of booleanFields(block)) {
+    let group = groups.find((g) => g.key === field.group)
+    if (!group) {
+      group = { key: field.group, requireOne: false, fields: [] }
+      groups.push(group)
+    }
+    group.fields.push(field)
+    if (field.requireOne) group.requireOne = true
+  }
+  return groups
+}
+
+function canToggleField(block, field) {
+  const fields = booleanFields(block)
+  if (field.dependsOn) {
+    const parent = fields.find((f) => f.key === field.dependsOn)
+    if (parent && !isFieldOn(block.props, parent)) return false
+  }
+  if (field.requireOne && isFieldOn(block.props, field)) {
+    return fields.some(
+      (f) => f !== field && f.requireOne && f.group === field.group && isFieldOn(block.props, f)
+    )
+  }
+  return true
+}
+
+function toggleField(block, field) {
+  if (!canToggleField(block, field)) return
+  block.props[field.key] = !isFieldOn(block.props, field)
 }
 
 function inputFields(block) {
@@ -369,11 +486,13 @@ function blockSummary(block) {
     case 'META':
       return $t('printBlockMetaHint')
     case 'ITEMS': {
-      const shown = booleanFields(block).filter((f) => p[f.key] !== false).map((f) => $t(f.labelKey))
+      const shown = booleanFields(block)
+        .filter((f) => f.group === 'itemLineDetails' && isFieldOn(p, f))
+        .map((f) => $t(f.labelKey))
       return shown.length ? shown.join(' · ') : $t('noItemDetails')
     }
     case 'TOTALS':
-      return $t('printBlockTotalsHint')
+      return booleanFields(block).filter((f) => isFieldOn(p, f)).map((f) => $t(f.labelKey)).join(' · ')
     case 'PAYMENT':
       return $t('printBlockPaymentHint')
     case 'CUSTOM_TEXT':
@@ -420,6 +539,7 @@ async function save() {
       paperWidthMm: draft.paperWidthMm,
       receiptCurrency: draft.receiptCurrency,
       receiptLanguage: draft.receiptLanguage,
+      fontSize: draft.fontSize,
       blocks: draft.blocks
     }
     const response = await PrintTemplateService.savePrintTemplate(TEMPLATE_CODE, payload)
@@ -457,7 +577,7 @@ async function pairPrinter() {
   } catch (e) {
     console.error(e)
     // NotFoundError means the user closed the device picker without choosing.
-    if (e?.name !== 'NotFoundError') error.value = $t('printerConnectFailed')
+    if (e?.name !== 'NotFoundError') error.value = $t(printerConnectErrorKey(e))
   } finally {
     pairing.value = false
   }
@@ -472,7 +592,8 @@ async function testPrint() {
     successMsg.value = $t('testPrintSent')
   } catch (e) {
     console.error(e)
-    error.value = $t(e?.code === PRINTER_NOT_CONNECTED ? 'printerNotConnected' : 'receiptPrintFailed')
+    error.value = $t(printerErrorKey(e))
+    pairedPrinter.value = getPairedPrinter()
   } finally {
     testPrinting.value = false
   }
@@ -481,6 +602,76 @@ async function testPrint() {
 async function unpairPrinter() {
   await forgetPrinter()
   pairedPrinter.value = null
+}
+
+const pairedLabelPrinter = ref(getPairedLabelPrinter())
+const labelPairing = ref(false)
+const labelTestPrinting = ref(false)
+const labelCalibrating = ref(false)
+const labelPrinterBusy = computed(() => labelPairing.value || labelTestPrinting.value || labelCalibrating.value)
+
+const labelPrinterStatusText = computed(() => {
+  if (!usbSupported) return $t('printerUnsupportedBrowser')
+  if (pairedLabelPrinter.value) return `${$t('printerPaired')}: ${pairedLabelPrinter.value.label}`
+  return $t('labelPrinterHint')
+})
+
+async function pairLabelPrinter() {
+  labelPairing.value = true
+  error.value = ''
+  successMsg.value = ''
+  try {
+    pairedLabelPrinter.value = await connectLabelPrinter()
+  } catch (e) {
+    console.error(e)
+    if (e?.name !== 'NotFoundError') error.value = $t(printerConnectErrorKey(e, 'label'))
+  } finally {
+    labelPairing.value = false
+  }
+}
+
+async function testLabelPrint() {
+  labelTestPrinting.value = true
+  error.value = ''
+  successMsg.value = ''
+  try {
+    const rtl = state.lang !== 'en'
+    await printItemLabel(
+      {
+        names: [{ text: $t('labelTestName'), rtl }],
+        barcode: '1234567890128',
+        price: formatLabelPrice(10, CurrencyEnum.DOLLAR, rtl)
+      },
+      1
+    )
+    successMsg.value = $t('labelTestSent')
+  } catch (e) {
+    console.error(e)
+    error.value = $t(printerErrorKey(e, 'label'))
+    pairedLabelPrinter.value = getPairedLabelPrinter()
+  } finally {
+    labelTestPrinting.value = false
+  }
+}
+
+async function calibrateLabels() {
+  labelCalibrating.value = true
+  error.value = ''
+  successMsg.value = ''
+  try {
+    await calibrateLabelPrinter()
+    successMsg.value = $t('labelCalibrateSent')
+  } catch (e) {
+    console.error(e)
+    error.value = $t(printerErrorKey(e, 'label'))
+  } finally {
+    labelCalibrating.value = false
+  }
+}
+
+async function unpairLabelPrinter() {
+  await forgetLabelPrinter()
+  pairedLabelPrinter.value = null
 }
 
 onMounted(load)
@@ -651,6 +842,15 @@ onMounted(load)
   font-weight: 700;
   font-size: 0.88rem;
   color: #163e45;
+}
+
+.setting-tile__value {
+  margin-inline-start: auto;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: #197783;
+  background: rgba(25, 119, 131, 0.1);
 }
 
 .setting-tile__icon {
@@ -898,9 +1098,19 @@ onMounted(load)
   transition: all 0.2s ease;
 }
 
-.chip-toggle:hover {
+.chip-toggles__hint {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.chip-toggle:not(:disabled):hover {
   border-color: #197783;
   color: #197783;
+}
+
+.chip-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .chip-toggle.active {

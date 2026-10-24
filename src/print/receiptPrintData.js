@@ -1,7 +1,7 @@
 import PrintTemplateService from '../services/PrintTemplateService'
 import ReceiptService from '../services/ReceiptService'
 import { createDefaultReceiptBlocks, createDefaultReceiptTemplate } from './defaultReceiptTemplate'
-import { normalizeReceiptBlocks } from './blockTypes'
+import { normalizeFontSize, normalizeReceiptBlocks } from './blockTypes'
 
 export const RECEIPT_TEMPLATE_CODE = 'RECEIPT_80'
 
@@ -38,6 +38,7 @@ export async function loadReceiptPrintData(receiptId) {
         paperWidthMm: tpl.paperWidthMm || 80,
         receiptCurrency: tpl.receiptCurrency || 'SYSTEM',
         receiptLanguage: tpl.receiptLanguage || 'SYSTEM',
+        fontSize: normalizeFontSize(tpl.fontSize),
         blocks: normalizeReceiptBlocks(tpl.blocks, createDefaultReceiptBlocks())
       }
     : createDefaultReceiptTemplate()
