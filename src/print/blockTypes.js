@@ -69,6 +69,8 @@ export const BLOCK_TYPES = {
     fields: [
       { key: 'showTotalLbp', labelKey: 'totalInLbp', input: 'boolean', group: 'totalCurrencies', requireOne: true },
       { key: 'showTotalUsd', labelKey: 'totalInUsd', input: 'boolean', group: 'totalCurrencies', requireOne: true },
+      { key: 'showSubtotal', labelKey: 'subtotal', input: 'boolean', group: 'totalsExtraDetails' },
+      { key: 'showTotalDiscount', labelKey: 'totalDiscount', input: 'boolean', group: 'totalsExtraDetails' },
       { key: 'showCurrencyRate', labelKey: 'dollarRate', input: 'boolean', group: 'totalsExtraDetails' }
     ]
   },

@@ -40,7 +40,13 @@ export function createDefaultReceiptBlocks() {
       id: 'totals-1',
       type: 'TOTALS',
       enabled: true,
-      props: { showTotalUsd: true, showTotalLbp: true, showCurrencyRate: true }
+      props: {
+        showTotalUsd: true,
+        showTotalLbp: true,
+        showSubtotal: true,
+        showTotalDiscount: true,
+        showCurrencyRate: true
+      }
     },
     {
       id: 'pay-1',

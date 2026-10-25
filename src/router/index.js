@@ -5,6 +5,7 @@ import Users from '../pages/Users.vue'
 import DollarRate from '../pages/DollarRate.vue'
 import CashDrawer from '../pages/CashDrawer.vue'
 import Receipts from '../pages/Receipts.vue'
+import Returns from '../pages/Returns.vue'
 import Dashboard from '../pages/Dashboard.vue'
 import LoginPage from '../pages/LoginPage.vue'
 import PrintTemplates from '../pages/PrintTemplates.vue'
@@ -41,6 +42,12 @@ const routes = [
     name: 'CashDrawer',
     component: CashDrawer,
     meta: { requiresAuth: true, menuCode: 'cash-drawer' }
+  },
+  {
+    path: '/returns',
+    name: 'Returns',
+    component: Returns,
+    meta: { requiresAuth: true, menuCode: 'returns' }
   },
   {
     path: '/dashboard',

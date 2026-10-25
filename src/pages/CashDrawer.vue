@@ -50,6 +50,13 @@
             <strong class="kpi__value" dir="ltr">{{ loading ? '—' : formatLbp(paymentsTotalLbp) }}</strong>
           </div>
         </article>
+        <article class="kpi kpi--returns">
+          <span class="kpi__icon"><v-icon>mdi-cash-refund</v-icon></span>
+          <div class="kpi__body">
+            <span class="kpi__label">{{ $t('returnsSinceOpen') }} ({{ loading ? '—' : returnCount }})</span>
+            <strong class="kpi__value" dir="ltr">{{ loading ? '—' : `−${formatLbp(returnsTotalLbp)}` }}</strong>
+          </div>
+        </article>
         <article class="kpi kpi--count">
           <span class="kpi__icon"><v-icon>mdi-counter</v-icon></span>
           <div class="kpi__body">
@@ -198,6 +205,8 @@ const lastUpdatedAt = ref('')
 const currentAmount = ref(0)
 const paymentsTotalLbp = ref(0)
 const receiptCount = ref(0)
+const returnsTotalLbp = ref(0)
+const returnCount = ref(0)
 
 const isValidAmount = computed(() => {
   const usd = Number(initialAmountUsd.value)
@@ -276,6 +285,8 @@ function applyPayload(data) {
   currentAmount.value = Number(data.currentAmount) || 0
   paymentsTotalLbp.value = Number(data.paymentsTotalLbp) || 0
   receiptCount.value = Number(data.receiptCount) || 0
+  returnsTotalLbp.value = Number(data.returnsTotalLbp) || 0
+  returnCount.value = Number(data.returnCount) || 0
   initialAmountUsd.value = Number(data.initialAmountUsd) || 0
   initialAmountLbp.value = Number(data.initialAmountLbp) || 0
   initialTotalLbp.value = Number(data.initialAmount) || 0
@@ -315,6 +326,8 @@ function startUpdate() {
   currentAmount.value = 0
   paymentsTotalLbp.value = 0
   receiptCount.value = 0
+  returnsTotalLbp.value = 0
+  returnCount.value = 0
   lastUpdatedAt.value = ''
   initDate.value = nowDate()
   initTime.value = nowTime()
@@ -474,7 +487,7 @@ onMounted(loadDrawer)
 /* KPI cards */
 .kpi-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: clamp(0.6rem, 1.2vh, 1rem);
 }
 
@@ -558,6 +571,16 @@ onMounted(loadDrawer)
 .kpi--float { border-inline-start: 3px solid rgba(25, 119, 131, 0.55); }
 .kpi--payments { border-inline-start: 3px solid rgba(44, 140, 242, 0.5); }
 .kpi--count { border-inline-start: 3px solid rgba(100, 180, 190, 0.55); }
+.kpi--returns { border-inline-start: 3px solid rgba(229, 115, 115, 0.6); }
+
+.kpi--returns .kpi__icon {
+  background: rgba(229, 115, 115, 0.12);
+  color: #c0504d;
+}
+
+.kpi--returns .kpi__value {
+  color: #c0504d;
+}
 
 .kpi--payments .kpi__icon {
   background: rgba(44, 140, 242, 0.1);
@@ -836,6 +859,12 @@ onMounted(loadDrawer)
 @media (min-width: 1600px) {
   .drawer-shell {
     padding-inline: 2rem;
+  }
+}
+
+@media (max-width: 1400px) {
+  .kpi-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 

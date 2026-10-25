@@ -62,11 +62,11 @@
 
       <!-- TOTALS -->
       <div v-else-if="block.type === 'TOTALS'" class="block block-totals">
-        <div class="totals-row">
+        <div v-if="hasReceiptDiscount && block.props?.showSubtotal !== false" class="totals-row">
           <span>{{ tr('subtotal') }}</span>
           <span class="amt">{{ money(itemsSubtotal) }}</span>
         </div>
-        <div v-if="Number(details?.receiptDiscount) > 0" class="totals-row">
+        <div v-if="hasReceiptDiscount && block.props?.showTotalDiscount !== false" class="totals-row">
           <span>{{ tr('discount') }}</span>
           <span class="amt">{{ formatReceiptDiscount(details) }}</span>
         </div>
@@ -178,6 +178,8 @@ const lbpRate = computed(() => {
   const stored = Number(d?.returnValueCurrencyRate)
   return stored > 0 ? stored : Number(state.exchangeRate) || 1
 })
+
+const hasReceiptDiscount = computed(() => Number(props.details?.receiptDiscount) > 0)
 
 const paperWidthMm = computed(() => Number(props.template?.paperWidthMm) || 80)
 const fontSizePx = computed(() => normalizeFontSize(props.template?.fontSize))
@@ -454,10 +456,13 @@ function itemExtras(block, row) {
   padding: 8px 0;
 }
 
+.block-totals {
+  padding-top: 6px;
+  border-top: 1px dashed #333;
+}
+
 .totals-grand {
   margin-top: 4px;
-  padding-top: 4px;
-  border-top: 1px dashed #333;
 }
 
 .totals-row--grand {

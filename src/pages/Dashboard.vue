@@ -42,6 +42,10 @@
           <span class="kpi__label">{{ $t('peakRevenue') }}</span>
           <strong class="kpi__value" dir="ltr">{{ loading ? '—' : formatDisplay(peakIncome) }}</strong>
         </article>
+        <article class="kpi kpi--returns">
+          <span class="kpi__label">{{ $t('returnsDeducted') }} ({{ loading ? '—' : returnCount }})</span>
+          <strong class="kpi__value" dir="ltr">{{ loading ? '—' : `−${formatDisplay(totalReturns)}` }}</strong>
+        </article>
       </div>
 
       <!-- Selection insight cards (visible when an item/category filter is applied) -->
@@ -309,6 +313,9 @@ const soldMode = ref('items')
 const totalRevenueUsd = ref(0)
 const totalRevenueLbp = ref(0)
 const receiptCount = ref(0)
+const totalReturnsUsd = ref(0)
+const totalReturnsLbp = ref(0)
+const returnCount = ref(0)
 const revenueSeries = ref([])
 const topSoldItems = ref([])
 const topSoldCategories = ref([])
@@ -376,6 +383,10 @@ const BUCKET_LABEL_KEYS = {
 
 const totalIncome = computed(() =>
   isUsd.value ? totalRevenueUsd.value : totalRevenueLbp.value
+)
+
+const totalReturns = computed(() =>
+  isUsd.value ? totalReturnsUsd.value : totalReturnsLbp.value
 )
 
 const peakIncome = computed(() => {
@@ -830,6 +841,9 @@ async function loadDashboard() {
     totalRevenueUsd.value = Number(data.totalRevenueUsd ?? data.totalRevenue) || 0
     totalRevenueLbp.value = Number(data.totalRevenueLbp) || 0
     receiptCount.value = Number(data.receiptCount) || 0
+    totalReturnsUsd.value = Number(data.totalReturnsUsd) || 0
+    totalReturnsLbp.value = Number(data.totalReturnsLbp) || 0
+    returnCount.value = Number(data.returnCount) || 0
     appliedItemId.value = filters.value.itemId ?? null
     appliedCategoryId.value = filters.value.categoryId ?? null
   } catch {
@@ -839,6 +853,9 @@ async function loadDashboard() {
     totalRevenueUsd.value = 0
     totalRevenueLbp.value = 0
     receiptCount.value = 0
+    totalReturnsUsd.value = 0
+    totalReturnsLbp.value = 0
+    returnCount.value = 0
     appliedItemId.value = null
     appliedCategoryId.value = null
   } finally {
@@ -971,7 +988,7 @@ onBeforeUnmount(() => {
 
 .kpi-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.6rem;
 }
 
@@ -1007,6 +1024,8 @@ onBeforeUnmount(() => {
 .kpi--income { border-inline-start: 3px solid rgba(25, 119, 131, 0.55); }
 .kpi--receipts { border-inline-start: 3px solid rgba(74, 158, 171, 0.55); }
 .kpi--peak { border-inline-start: 3px solid rgba(100, 180, 190, 0.55); }
+.kpi--returns { border-inline-start: 3px solid rgba(229, 115, 115, 0.6); }
+.kpi--returns .kpi__value { color: #c0504d; }
 
 /* Selection insight cards */
 .select-strip {
@@ -1356,7 +1375,7 @@ onBeforeUnmount(() => {
 
 @media (max-width: 1100px) {
   .kpi-row {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
